@@ -41,4 +41,5 @@ class Usuario(Base):
         foreign_keys="ClaseDocente.docente_id",
     )
 
+
 movimientos = relationship("Movimiento", back_populates="usuario")
