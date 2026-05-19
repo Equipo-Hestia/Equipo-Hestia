@@ -12,16 +12,16 @@ from app.models.movimiento import Movimiento, TipoMovimiento
 from app.models.retorno_implemento import RetornoImplemento
 from app.models.usuario import Usuario
 from app.schemas.solicitud import (
-SolicitudCreate, SolicitudResponse,
-SolicitudItemResponse, SolicitudUpdateEstado,
+    SolicitudCreate, SolicitudResponse,
+    SolicitudItemResponse, SolicitudUpdateEstado,
 )
 from app.utils.deps import require_docente, require_operador
 
 router = APIRouter(prefix="/solicitudes", tags=["Solicitudes"])
 
 # Ventana de solicitud (en minutos)
-_MIN_ANTICIPACION  = 120      # 2 horas  — menos de esto, ya no se puede pedir
-_MAX_ANTICIPACION  = 7 * 24 * 60  # 7 días — más de esto, es demasiado pronto
+_MIN_ANTICIPACION = 120 # 2 horas  — menos de esto, ya no se puede pedir
+_MAX_ANTICIPACION = 7 * 24 * 60 # 7 días — más de esto, es demasiado pronto
 
 
 # ---------------------------------------------------------------------------
