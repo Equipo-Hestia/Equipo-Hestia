@@ -12,8 +12,8 @@ from app.models.movimiento import Movimiento, TipoMovimiento
 from app.models.retorno_implemento import RetornoImplemento
 from app.models.usuario import Usuario
 from app.schemas.solicitud import (
-    SolicitudCreate, SolicitudResponse,
-    SolicitudItemResponse, SolicitudUpdateEstado,
+SolicitudCreate, SolicitudResponse,
+SolicitudItemResponse, SolicitudUpdateEstado,
 )
 from app.utils.deps import require_docente, require_operador
 
