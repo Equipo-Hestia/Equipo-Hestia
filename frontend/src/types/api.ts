@@ -64,6 +64,8 @@ export interface TopInsumo {
   sala: string | null
 }
 
+export type TipoInsumo = 'insumo' | 'implemento'
+
 export interface InsumoAlerta {
   id: number
   nombre: string
@@ -72,6 +74,7 @@ export interface InsumoAlerta {
   deficit: number
   sala: string | null
   categoria: string | null
+  tipo: string
 }
 
 export interface InsumoResponse {
@@ -83,6 +86,10 @@ export interface InsumoResponse {
   sala_id: number | null
   categoria_id: number | null
   activo: boolean
+  tipo: TipoInsumo
+  sku: string | null
+  codigo_barras: string | null
+  costo_unitario: number | null
 }
 
 export interface SalaResponse {

@@ -58,7 +58,9 @@ SECURITY_HEADERS = {
     "X-Frame-Options": "DENY",
     "X-XSS-Protection": "1; mode=block",
     "Referrer-Policy": "strict-origin-when-cross-origin",
-    "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+    # camera=(self) permite que el frontend use la camara del dispositivo
+    # para escanear codigos de barras desde movil. Restringido al origen propio.
+    "Permissions-Policy": "camera=(self), microphone=(), geolocation=()",
     "Content-Security-Policy": _CSP,
 }
 

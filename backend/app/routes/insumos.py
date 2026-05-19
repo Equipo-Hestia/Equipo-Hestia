@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime, timedelta, timezone
@@ -9,7 +10,7 @@ import csv
 import io
 
 from app.database import get_db
-from app.models.insumo import Insumo
+from app.models.insumo import Insumo, TipoInsumo
 from app.models.movimiento import Movimiento, TipoMovimiento
 from app.models.usuario import Usuario, RolUsuario
 from app.schemas.insumo import InsumoCreate, InsumoUpdate, InsumoResponse
@@ -30,6 +31,7 @@ class InsumoAlerta(BaseModel):
     deficit: int
     sala: str | None
     categoria: str | None
+    tipo: str = "insumo"
 
     class Config:
         from_attributes = True
@@ -40,7 +42,8 @@ def _build_query(db: Session,
                  sala_id: Optional[int] = None,
                  categoria_id: Optional[int] = None,
                  bajo_stock: Optional[bool] = None,
-                 incluir_inactivos: bool = False):
+                 incluir_inactivos: bool = False,
+                 tipo: Optional[TipoInsumo] = None):
     """Construye la query base con filtros opcionales reutilizable.
     Por defecto excluye insumos desactivados (soft-delete).
     """
@@ -55,6 +58,8 @@ def _build_query(db: Session,
         q = q.filter(Insumo.categoria_id == categoria_id)
     if bajo_stock:
         q = q.filter(Insumo.stock_actual <= Insumo.stock_minimo)
+    if tipo is not None:
+        q = q.filter(Insumo.tipo == tipo)
     return q
 
 
@@ -85,6 +90,7 @@ def alertas_stock(
             deficit=i.stock_minimo - i.stock_actual,
             sala=i.sala.nombre if i.sala else None,
             categoria=i.categoria.nombre if i.categoria else None,
+            tipo=i.tipo.value if i.tipo else "insumo",
         )
         for i in insumos
     ]
@@ -130,6 +136,7 @@ def alertas_resueltas(
             deficit=i.stock_minimo - i.stock_actual,
             sala=i.sala.nombre if i.sala else None,
             categoria=i.categoria.nombre if i.categoria else None,
+            tipo=i.tipo.value if i.tipo else "insumo",
         )
         for i in insumos
     ]
@@ -142,19 +149,21 @@ def exportar_insumos(
     categoria_id: Optional[int] = None,
     bajo_stock: Optional[bool] = None,
     incluir_inactivos: bool = False,
+    tipo: Optional[TipoInsumo] = None,
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(get_usuario_actual)
 ):
     """Exporta el inventario como CSV con los mismos filtros del listado."""
     insumos = _build_query(
-        db, nombre, sala_id, categoria_id, bajo_stock, incluir_inactivos
+        db, nombre, sala_id, categoria_id, bajo_stock, incluir_inactivos, tipo
     ).order_by(Insumo.nombre).all()
 
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow([
-        "nombre", "descripcion", "stock_actual",
-        "stock_minimo", "sala", "categoria", "estado"
+        "nombre", "tipo", "sku", "codigo_barras", "descripcion",
+        "stock_actual", "stock_minimo", "costo_unitario",
+        "sala", "categoria", "estado"
     ])
     for i in insumos:
         if not i.activo:
@@ -165,14 +174,19 @@ def exportar_insumos(
             estado = "bajo_stock"
         else:
             estado = "ok"
+        costo = float(i.costo_unitario) if i.costo_unitario is not None else ""
         writer.writerow([
             i.nombre,
+            i.tipo.value if i.tipo else "insumo",
+            i.sku or "",
+            i.codigo_barras or "",
             i.descripcion or "",
             i.stock_actual,
             i.stock_minimo,
+            costo,
             i.sala.nombre if i.sala else "",
             i.categoria.nombre if i.categoria else "",
-            estado
+            estado,
         ])
     output.seek(0)
     return StreamingResponse(
@@ -220,10 +234,11 @@ def listar_insumos(
     categoria_id: Optional[int] = None,
     bajo_stock: Optional[bool] = None,
     incluir_inactivos: bool = False,
+    tipo: Optional[TipoInsumo] = None,
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(get_usuario_actual)
 ):
-    q = _build_query(db, nombre, sala_id, categoria_id, bajo_stock, incluir_inactivos)
+    q = _build_query(db, nombre, sala_id, categoria_id, bajo_stock, incluir_inactivos, tipo)
     total = q.count()
     insumos = q.offset(skip).limit(limit).all()
     return {"total": total, "skip": skip, "limit": limit, "data": insumos}
@@ -250,7 +265,23 @@ def crear_insumo(
 ):
     nuevo = Insumo(**insumo.model_dump())
     db.add(nuevo)
-    db.commit()
+    db.flush()  # asigna ID sin hacer commit; necesario para auto-generar SKU
+    if not nuevo.sku:
+        nuevo.sku = f"HST-{nuevo.id:05d}"
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        detalle = str(exc.orig).lower()
+        if "sku" in detalle:
+            raise HTTPException(
+                status_code=409, detail="El SKU ya esta en uso por otro insumo."
+            )
+        if "codigo_barras" in detalle:
+            raise HTTPException(
+                status_code=409, detail="El codigo de barras ya esta en uso."
+            )
+        raise HTTPException(status_code=409, detail="Conflicto: dato duplicado.")
     db.refresh(nuevo)
     registrar(
         db, "CREAR_INSUMO", usuario=usuario,
@@ -285,9 +316,23 @@ def actualizar_insumo(
 
     for campo, valor in datos.model_dump(exclude_unset=True).items():
         setattr(insumo, campo, valor)
-    db.commit()
-    db.refresh(insumo)
 
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        detalle = str(exc.orig).lower()
+        if "sku" in detalle:
+            raise HTTPException(
+                status_code=409, detail="El SKU ya esta en uso por otro insumo."
+            )
+        if "codigo_barras" in detalle:
+            raise HTTPException(
+                status_code=409, detail="El codigo de barras ya esta en uso."
+            )
+        raise HTTPException(status_code=409, detail="Conflicto: dato duplicado.")
+
+    db.refresh(insumo)
     registrar(
         db, "EDITAR_INSUMO", usuario=usuario,
         entidad="insumo", entidad_id=insumo.id,

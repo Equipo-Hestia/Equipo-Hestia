@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, File, Form, UploadFile, HTTPException, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from pydantic import BaseModel
 from typing import Optional
 import csv
@@ -8,7 +9,7 @@ import io
 import pyotp
 
 from app.database import get_db
-from app.models.insumo import Insumo
+from app.models.insumo import Insumo, TipoInsumo
 from app.models.sala import Sala
 from app.models.categoria import Categoria
 from app.models.usuario import Usuario
@@ -182,6 +183,39 @@ def _procesar_filas(
             ))
             continue
 
+        # tipo: 'insumo' por defecto; valida contra TipoInsumo
+        tipo_raw = _sanitizar_texto(
+            (fila.get("tipo", "") or "").strip().lower()
+        ) or "insumo"
+        if tipo_raw not in ("insumo", "implemento"):
+            errores.append(ErrorFila(
+                fila=idx,
+                razon=f"'tipo' invalido: '{tipo_raw}'. Use 'insumo' o 'implemento'."
+            ))
+            continue
+        tipo = TipoInsumo(tipo_raw)
+
+        # sku y codigo_barras: opcionales
+        sku_raw = _sanitizar_texto((fila.get("sku", "") or "").strip()) or None
+        codigo_barras_raw = _sanitizar_texto(
+            (fila.get("codigo_barras", "") or "").strip()
+        ) or None
+
+        # costo_unitario: opcional, float no negativo
+        costo_raw = (fila.get("costo_unitario", "") or "").strip()
+        costo_unitario = None
+        if costo_raw:
+            try:
+                costo_unitario = float(costo_raw)
+                if costo_unitario < 0:
+                    raise ValueError("negativo")
+            except (ValueError, TypeError):
+                errores.append(ErrorFila(
+                    fila=idx,
+                    razon=f"'costo_unitario' invalido: '{costo_raw}'."
+                ))
+                continue
+
         sala_nombre = _sanitizar_texto(fila.get("sala", "").strip())
         categoria_nombre = _sanitizar_texto(fila.get("categoria", "").strip())
         descripcion_raw = _sanitizar_texto((fila.get("descripcion", "") or "").strip())
@@ -196,8 +230,15 @@ def _procesar_filas(
             stock_minimo=stock_minimo,
             sala_id=sala_id,
             categoria_id=categoria_id,
+            tipo=tipo,
+            sku=sku_raw,
+            codigo_barras=codigo_barras_raw,
+            costo_unitario=costo_unitario,
         )
         db.add(insumo)
+        db.flush()  # asigna ID sin commit; necesario para auto-generar SKU
+        if not insumo.sku:
+            insumo.sku = f"HST-{insumo.id:05d}"
         importados += 1
 
     return importados, errores
@@ -213,14 +254,34 @@ def descargar_plantilla(
 ):
     """Descarga un CSV de ejemplo con el formato esperado por el importador."""
     filas = [
-        ["nombre", "descripcion", "stock_actual", "stock_minimo", "sala", "categoria"],
-        ["Guantes de nitrilo talla M", "Caja x100 unidades",
-         "50", "20", "Laboratorio Clinico", "Proteccion personal"],
-        ["Mascarilla KN95", "",
-         "30", "15", "Sala de Simulacion", "Proteccion personal"],
-        ["Jeringa 5ml", "Con aguja 21G",
-         "200", "50", "Sala de Procedimientos", "Insumos clinicos"],
-        ["Alcohol isopropilico 70%", "Frasco 500ml", "10", "5", "", "Desinfeccion"],
+        [
+            "nombre", "tipo", "sku", "codigo_barras", "descripcion",
+            "stock_actual", "stock_minimo", "costo_unitario", "sala", "categoria"
+        ],
+        [
+            "Guantes de nitrilo talla M", "insumo", "", "",
+            "Caja x100 unidades", "50", "20", "1200",
+            "Laboratorio Clinico", "Proteccion personal"
+        ],
+        [
+            "Mascarilla KN95", "insumo", "", "",
+            "", "30", "15", "800",
+            "Sala de Simulacion", "Proteccion personal"
+        ],
+        [
+            "Jeringa 5ml", "insumo", "", "",
+            "Con aguja 21G", "200", "50", "350",
+            "Sala de Procedimientos", "Insumos clinicos"
+        ],
+        [
+            "Alcohol isopropilico 70%", "insumo", "", "",
+            "Frasco 500ml", "10", "5", "2500", "", "Desinfeccion"
+        ],
+        [
+            "Manikin de RCP adulto", "implemento", "", "",
+            "Para practica de reanimacion", "5", "2", "85000",
+            "Sala de Simulacion", "Implementos de practica"
+        ],
     ]
     output = io.StringIO()
     writer = csv.writer(output)
@@ -271,7 +332,15 @@ def importar_insumos(
     importados, errores = _procesar_filas(filas, db)
 
     if importados > 0:
-        db.commit()
+        try:
+            db.commit()
+        except IntegrityError:
+            db.rollback()
+            raise HTTPException(
+                status_code=409,
+                detail="Conflicto: existen SKUs o codigos de barras duplicados "
+                       "en el archivo o ya registrados en el sistema.",
+            )
     else:
         db.rollback()
 

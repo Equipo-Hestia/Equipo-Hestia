@@ -52,6 +52,25 @@ MIGRACIONES_COLUMNAS = [
     "ADD COLUMN IF NOT EXISTS activo BOOLEAN NOT NULL DEFAULT TRUE",
     "ALTER TABLE IF EXISTS usuarios "
     "ADD COLUMN IF NOT EXISTS avatar_b64 TEXT",
+    # --- Fase 1: identificadores, tipo y costo en insumos ---
+    # Crear el tipo enum tipoinsumo si no existe (idempotente via EXCEPTION)
+    (
+        "DO $$ BEGIN "
+        "CREATE TYPE tipoinsumo AS ENUM ('insumo', 'implemento'); "
+        "EXCEPTION WHEN duplicate_object THEN NULL; END $$"
+    ),
+    "ALTER TABLE IF EXISTS insumos "
+    "ADD COLUMN IF NOT EXISTS tipo tipoinsumo NOT NULL DEFAULT 'insumo'",
+    "ALTER TABLE IF EXISTS insumos ADD COLUMN IF NOT EXISTS sku VARCHAR(20)",
+    "ALTER TABLE IF EXISTS insumos "
+    "ADD COLUMN IF NOT EXISTS codigo_barras VARCHAR(100)",
+    "ALTER TABLE IF EXISTS insumos "
+    "ADD COLUMN IF NOT EXISTS costo_unitario NUMERIC(10,2)",
+    # Indices unicos parciales: multiples NULL permitidos, duplicados no
+    "CREATE UNIQUE INDEX IF NOT EXISTS uix_insumos_sku "
+    "ON insumos (sku) WHERE sku IS NOT NULL",
+    "CREATE UNIQUE INDEX IF NOT EXISTS uix_insumos_codigo_barras "
+    "ON insumos (codigo_barras) WHERE codigo_barras IS NOT NULL",
 ]
 
 # (tabla, tipo_enum_pg, columna, valores_requeridos)
@@ -115,7 +134,9 @@ def _aplicar_migracion_rol() -> None:
                 continue
 
             # Caso B: VARCHAR con CHECK constraint
-            log.info("[Hestia] Enum '%s' no encontrado, revisando CHECK constraints.", tipo_enum)
+            log.info(
+                "[Hestia] Enum '%s' no encontrado, revisando CHECK constraints.", tipo_enum
+            )
             cur.execute(
                 "SELECT conname, pg_get_constraintdef(oid) "
                 "FROM pg_constraint "

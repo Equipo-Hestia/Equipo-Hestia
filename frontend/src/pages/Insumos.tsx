@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import {
   Package, ChevronLeft, ChevronRight,
   Plus, Pencil, Archive, ArchiveRestore, CheckCircle, ShieldAlert,
-  Download, FileText, X, SlidersHorizontal
+  Download, FileText, X, SlidersHorizontal, Camera
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { api } from '../api/client'
@@ -14,6 +14,7 @@ import { Badge } from '../components/ui/Badge'
 import { TableRowSkeleton } from '../components/ui/Skeleton'
 import { Modal } from '../components/ui/Modal'
 import { SearchWithSuggestions } from '../components/ui/SearchSuggestions'
+import { BarcodeScanner } from '../components/ui/BarcodeScanner'
 
 const PAGE_SIZE = 15
 
@@ -21,17 +22,23 @@ interface FormState {
   nombre: string; descripcion: string
   stock_actual: string; stock_minimo: string
   sala_id: string; categoria_id: string
+  tipo: string; sku: string; codigo_barras: string; costo_unitario: string
 }
 const FORM_VACIO: FormState = {
   nombre: '', descripcion: '', stock_actual: '',
-  stock_minimo: '', sala_id: '', categoria_id: ''
+  stock_minimo: '', sala_id: '', categoria_id: '',
+  tipo: 'insumo', sku: '', codigo_barras: '', costo_unitario: ''
 }
 function insumoAForm(i: InsumoResponse): FormState {
   return {
     nombre: i.nombre, descripcion: i.descripcion ?? '',
     stock_actual: String(i.stock_actual), stock_minimo: String(i.stock_minimo),
     sala_id: i.sala_id != null ? String(i.sala_id) : '',
-    categoria_id: i.categoria_id != null ? String(i.categoria_id) : ''
+    categoria_id: i.categoria_id != null ? String(i.categoria_id) : '',
+    tipo: i.tipo ?? 'insumo',
+    sku: i.sku ?? '',
+    codigo_barras: i.codigo_barras ?? '',
+    costo_unitario: i.costo_unitario != null ? String(i.costo_unitario) : ''
   }
 }
 
@@ -52,9 +59,10 @@ export function Insumos() {
   const [nombreFiltro, setNombreFiltro] = useState('')
   const [salaFiltro, setSalaFiltro]     = useState('')
   const [catFiltro, setCatFiltro]       = useState('')
+  const [tipoFiltro, setTipoFiltro]     = useState('')
   const [bajoStock, setBajoStock]       = useState(false)
   const [mostrarInactivos, setMostrar]  = useState(false)
-  const hasFilters = nombreFiltro || salaFiltro || catFiltro || bajoStock || mostrarInactivos
+  const hasFilters = nombreFiltro || salaFiltro || catFiltro || bajoStock || mostrarInactivos || tipoFiltro
 
   const [editTarget, setEditTarget]     = useState<InsumoResponse | null>(null)
   const [showCrear, setShowCrear]       = useState(false)
@@ -69,13 +77,13 @@ export function Insumos() {
   const [toast, setToast]               = useState<string | null>(null)
   const [exporting, setExporting]       = useState(false)
   const [showExportMenu, setShowExportMenu] = useState(false)
+  const [showScanner, setShowScanner]   = useState(false)
   const exportRef = useRef<HTMLDivElement>(null)
 
   function showToast(msg: string) {
     setToast(msg); setTimeout(() => setToast(null), 3000)
   }
 
-  // Cierra el dropdown de exportar al hacer click fuera
   useEffect(() => {
     function handler(e: MouseEvent) {
       if (exportRef.current && !exportRef.current.contains(e.target as Node)) {
@@ -100,7 +108,8 @@ export function Insumos() {
 
   const load = useCallback(async (
     skip: number, nombre: string, sala_id: string,
-    categoria_id: string, bajo_stock: boolean, incluir_inactivos: boolean
+    categoria_id: string, bajo_stock: boolean, incluir_inactivos: boolean,
+    tipo: string
   ) => {
     setLoading(true)
     try {
@@ -110,21 +119,23 @@ export function Insumos() {
       if (categoria_id) params.categoria_id = parseInt(categoria_id)
       if (bajo_stock) params.bajo_stock = true
       if (incluir_inactivos) params.incluir_inactivos = true
+      if (tipo) params.tipo = tipo
       const { data } = await api.get<PaginatedResponse<InsumoResponse>>('/insumos/', { params })
       setInsumos(data.data); setTotal(data.total)
     } finally { setLoading(false) }
   }, [])
 
   useEffect(() => {
-    load(page * PAGE_SIZE, nombreFiltro, salaFiltro, catFiltro, bajoStock, mostrarInactivos)
-  }, [page, nombreFiltro, salaFiltro, catFiltro, bajoStock, mostrarInactivos, load])
+    load(page * PAGE_SIZE, nombreFiltro, salaFiltro, catFiltro, bajoStock, mostrarInactivos, tipoFiltro)
+  }, [page, nombreFiltro, salaFiltro, catFiltro, bajoStock, mostrarInactivos, tipoFiltro, load])
 
   function aplicarBusqueda(val: string) { setNombreFiltro(val); setPage(0) }
 
   function limpiarFiltros() {
     setSearchInput(''); setNombreFiltro('')
     setSalaFiltro(''); setCatFiltro('')
-    setBajoStock(false); setMostrar(false); setPage(0)
+    setBajoStock(false); setMostrar(false)
+    setTipoFiltro(''); setPage(0)
   }
 
   async function handleExportar(formato: 'csv' | 'xlsx') {
@@ -136,6 +147,7 @@ export function Insumos() {
       if (catFiltro)    params.categoria_id = parseInt(catFiltro)
       if (bajoStock)    params.bajo_stock = true
       if (mostrarInactivos) params.incluir_inactivos = true
+      if (tipoFiltro)   params.tipo = tipoFiltro
       const res = await api.get('/insumos/exportar', { params, responseType: 'blob' })
       const ext  = formato === 'xlsx' ? 'xlsx' : 'csv'
       const mime = formato === 'xlsx'
@@ -151,11 +163,13 @@ export function Insumos() {
 
   function abrirCrear() { setForm(FORM_VACIO); setFormError(null); setShowCrear(true) }
   function abrirEditar(i: InsumoResponse) { setForm(insumoAForm(i)); setFormError(null); setEditTarget(i) }
-  function abrirEliminar(i: InsumoResponse) { setDeleteTarget(i); setDeleteStep('confirm'); setDeleteTotp(''); setFormError(null) }
+  function abrirEliminar(i: InsumoResponse) {
+    setDeleteTarget(i); setDeleteStep('confirm'); setDeleteTotp(''); setFormError(null)
+  }
   function abrirReactivar(i: InsumoResponse) { setReactivar(i); setFormError(null) }
   function cerrarModal() {
     setShowCrear(false); setEditTarget(null); setDeleteTarget(null); setReactivar(null)
-    setFormError(null); setDeleteTotp('')
+    setFormError(null); setDeleteTotp(''); setShowScanner(false)
   }
   function setField(k: keyof FormState, v: string) { setForm(f => ({ ...f, [k]: v })) }
 
@@ -166,7 +180,11 @@ export function Insumos() {
       stock_actual: parseInt(form.stock_actual) || 0,
       stock_minimo: parseInt(form.stock_minimo) || 0,
       sala_id: form.sala_id ? parseInt(form.sala_id) : null,
-      categoria_id: form.categoria_id ? parseInt(form.categoria_id) : null
+      categoria_id: form.categoria_id ? parseInt(form.categoria_id) : null,
+      tipo: form.tipo,
+      sku: form.sku.trim() || null,
+      codigo_barras: form.codigo_barras.trim() || null,
+      costo_unitario: form.costo_unitario ? parseFloat(form.costo_unitario) : null,
     }
     try {
       if (editTarget) {
@@ -175,7 +193,7 @@ export function Insumos() {
         await api.post('/insumos/', payload); showToast('Insumo creado')
       }
       cerrarModal()
-      load(page * PAGE_SIZE, nombreFiltro, salaFiltro, catFiltro, bajoStock, mostrarInactivos)
+      load(page * PAGE_SIZE, nombreFiltro, salaFiltro, catFiltro, bajoStock, mostrarInactivos, tipoFiltro)
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
       setFormError(msg ?? 'Error al guardar.')
@@ -188,7 +206,7 @@ export function Insumos() {
     try {
       await api.delete(`/insumos/${deleteTarget.id}`, { headers: { 'x-totp-code': deleteTotp } })
       showToast(`'${deleteTarget.nombre}' desactivado`); cerrarModal()
-      load(page * PAGE_SIZE, nombreFiltro, salaFiltro, catFiltro, bajoStock, mostrarInactivos)
+      load(page * PAGE_SIZE, nombreFiltro, salaFiltro, catFiltro, bajoStock, mostrarInactivos, tipoFiltro)
     } catch (err: unknown) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const detail = (err as any)?.response?.data?.detail
@@ -202,7 +220,7 @@ export function Insumos() {
     try {
       await api.put(`/insumos/${reactivarTarget.id}`, { activo: true })
       showToast(`'${reactivarTarget.nombre}' reactivado`); cerrarModal()
-      load(page * PAGE_SIZE, nombreFiltro, salaFiltro, catFiltro, bajoStock, mostrarInactivos)
+      load(page * PAGE_SIZE, nombreFiltro, salaFiltro, catFiltro, bajoStock, mostrarInactivos, tipoFiltro)
     } catch (err: unknown) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const detail = (err as any)?.response?.data?.detail
@@ -212,6 +230,7 @@ export function Insumos() {
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
   const showModal  = showCrear || editTarget !== null
+  const totalCols  = puedeEscribir ? 7 : 6
 
   function stockBadge(i: InsumoResponse) {
     if (i.stock_actual === 0) return <Badge variant="danger">Agotado</Badge>
@@ -234,6 +253,17 @@ export function Insumos() {
         </div>
       )}
 
+      {/* Escáner de código de barras (overlay) */}
+      {showScanner && (
+        <BarcodeScanner
+          onScan={(barcode) => {
+            setField('codigo_barras', barcode)
+            setShowScanner(false)
+          }}
+          onClose={() => setShowScanner(false)}
+        />
+      )}
+
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-black text-slate-900">Insumos</h1>
@@ -243,7 +273,6 @@ export function Insumos() {
         </div>
         <div className="flex items-center gap-2">
 
-          {/* Exportar — solo visible para admin y operador */}
           {puedeEscribir && (
             <div className="relative" ref={exportRef}>
               <button
@@ -282,7 +311,7 @@ export function Insumos() {
         </div>
       </div>
 
-      {/* Busqueda + Filtros */}
+      {/* Búsqueda + Filtros */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 mb-5">
         <div className="flex gap-2 mb-3">
           <SearchWithSuggestions
@@ -308,6 +337,14 @@ export function Insumos() {
                        focus:ring-2 focus:ring-teal-500 cursor-pointer">
             <option value="">Todas las categorias</option>
             {categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+          </select>
+          <select value={tipoFiltro} onChange={e => { setTipoFiltro(e.target.value); setPage(0) }}
+            className="flex-1 min-w-36 px-3 py-1.5 rounded-lg border border-slate-200
+                       text-sm text-slate-600 bg-white focus:outline-none
+                       focus:ring-2 focus:ring-teal-500 cursor-pointer">
+            <option value="">Todos los tipos</option>
+            <option value="insumo">Insumos</option>
+            <option value="implemento">Implementos</option>
           </select>
           <label className="flex items-center gap-2 cursor-pointer select-none">
             <input type="checkbox" checked={bajoStock}
@@ -342,6 +379,7 @@ export function Insumos() {
               <th className="text-left px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Descripción</th>
               <th className="text-center px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Stock</th>
               <th className="text-center px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Mínimo</th>
+              <th className="text-right px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Costo/u</th>
               <th className="text-center px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Estado</th>
               {puedeEscribir && (
                 <th className="text-center px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Acciones</th>
@@ -351,11 +389,11 @@ export function Insumos() {
           <tbody className="divide-y divide-slate-100">
             {loading ? (
               Array.from({ length: PAGE_SIZE }).map((_, i) => (
-                <TableRowSkeleton key={i} cols={puedeEscribir ? 6 : 5} />
+                <TableRowSkeleton key={i} cols={totalCols} />
               ))
             ) : insumos.length === 0 ? (
               <tr>
-                <td colSpan={puedeEscribir ? 6 : 5} className="text-center py-16 text-slate-400">
+                <td colSpan={totalCols} className="text-center py-16 text-slate-400">
                   <Package size={32} className="mx-auto mb-2 opacity-30" />
                   <p className="font-semibold">Sin insumos que mostrar</p>
                   {hasFilters && (
@@ -369,16 +407,25 @@ export function Insumos() {
               <tr key={i.id}
                 className={`hover:bg-slate-50 transition-colors ${i.activo ? '' : 'opacity-60'}`}>
                 <td className="px-4 py-3">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-semibold text-slate-900">{i.nombre}</span>
                     {!i.activo && <Badge variant="danger">Inactivo</Badge>}
+                    {i.tipo === 'implemento' && <Badge variant="info">Implemento</Badge>}
                   </div>
+                  {i.sku && (
+                    <div className="text-xs text-slate-400 font-mono mt-0.5">{i.sku}</div>
+                  )}
                 </td>
                 <td className="px-4 py-3 text-slate-500 max-w-xs truncate">
                   {i.descripcion ?? <span className="text-slate-300">—</span>}
                 </td>
                 <td className="px-4 py-3 text-center font-bold text-slate-900">{i.stock_actual}</td>
                 <td className="px-4 py-3 text-center text-slate-500">{i.stock_minimo}</td>
+                <td className="px-4 py-3 text-right font-mono text-xs text-slate-600">
+                  {i.costo_unitario != null
+                    ? `$${Number(i.costo_unitario).toLocaleString('es-CL')}`
+                    : <span className="text-slate-300">—</span>}
+                </td>
                 <td className="px-4 py-3 text-center">{stockBadge(i)}</td>
                 {puedeEscribir && (
                   <td className="px-4 py-3">
@@ -440,18 +487,71 @@ export function Insumos() {
       {showModal && (
         <Modal title={editTarget ? 'Editar insumo' : 'Nuevo insumo'} onClose={cerrarModal} size="lg">
           <form onSubmit={handleSubmit} className="space-y-4">
+
+            {/* Tipo de ítem */}
+            <div>
+              <label className={labelCls}>Tipo de ítem *</label>
+              <div className="flex rounded-xl border border-slate-200 overflow-hidden">
+                <button type="button"
+                  onClick={() => setField('tipo', 'insumo')}
+                  className={`flex-1 py-2.5 text-sm font-bold transition-colors ${
+                    form.tipo === 'insumo'
+                      ? 'bg-teal-600 text-white'
+                      : 'text-slate-500 hover:bg-slate-50'
+                  }`}>
+                  Insumo
+                </button>
+                <button type="button"
+                  onClick={() => setField('tipo', 'implemento')}
+                  className={`flex-1 py-2.5 text-sm font-bold transition-colors border-l border-slate-200 ${
+                    form.tipo === 'implemento'
+                      ? 'bg-teal-600 text-white border-teal-600'
+                      : 'text-slate-500 hover:bg-slate-50'
+                  }`}>
+                  Implemento
+                </button>
+              </div>
+              <p className="text-xs text-slate-400 mt-1">
+                {form.tipo === 'insumo'
+                  ? 'Desechable — se consume durante la clase y no retorna al stock'
+                  : 'Retornable — debe devolverse al área común al finalizar la clase'}
+              </p>
+            </div>
+
+            {/* Nombre */}
             <div>
               <label className={labelCls}>Nombre *</label>
               <input type="text" required value={form.nombre}
                 onChange={e => setField('nombre', e.target.value)}
                 className={inputCls} placeholder="Ej: Guantes de nitrilo talla M" />
             </div>
-            <div>
-              <label className={labelCls}>Descripción</label>
-              <input type="text" value={form.descripcion}
-                onChange={e => setField('descripcion', e.target.value)}
-                className={inputCls} placeholder="Opcional" />
+
+            {/* SKU y código de barras */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className={labelCls}>SKU</label>
+                <input type="text" value={form.sku}
+                  onChange={e => setField('sku', e.target.value)}
+                  className={inputCls} placeholder="Auto-generado si se deja vacío" />
+              </div>
+              <div>
+                <label className={labelCls}>Código de barras</label>
+                <div className="flex gap-2">
+                  <input type="text" value={form.codigo_barras}
+                    onChange={e => setField('codigo_barras', e.target.value)}
+                    className={`${inputCls} flex-1`} placeholder="Escanear o escribir" />
+                  <button type="button" onClick={() => setShowScanner(true)}
+                    className="flex-shrink-0 px-3 rounded-lg border border-slate-200
+                               bg-slate-50 hover:bg-teal-50 hover:border-teal-300
+                               hover:text-teal-600 text-slate-500 transition-colors"
+                    title="Escanear con cámara">
+                    <Camera size={16} />
+                  </button>
+                </div>
+              </div>
             </div>
+
+            {/* Stock */}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className={labelCls}>Stock actual *</label>
@@ -464,6 +564,23 @@ export function Insumos() {
                   onChange={e => setField('stock_minimo', e.target.value)} className={inputCls} />
               </div>
             </div>
+
+            {/* Costo unitario */}
+            <div>
+              <label className={labelCls}>Costo unitario</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400
+                                 text-sm font-semibold pointer-events-none">$</span>
+                <input type="number" min="0" step="0.01" value={form.costo_unitario}
+                  onChange={e => setField('costo_unitario', e.target.value)}
+                  className={`${inputCls} pl-6`} placeholder="0.00" />
+              </div>
+              <p className="text-xs text-slate-400 mt-1">
+                Opcional — para reportes de valorización y costo por estudiante
+              </p>
+            </div>
+
+            {/* Sala y Categoría */}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className={labelCls}>Sala</label>
@@ -482,6 +599,15 @@ export function Insumos() {
                 </select>
               </div>
             </div>
+
+            {/* Descripción */}
+            <div>
+              <label className={labelCls}>Descripción</label>
+              <input type="text" value={form.descripcion}
+                onChange={e => setField('descripcion', e.target.value)}
+                className={inputCls} placeholder="Opcional" />
+            </div>
+
             {formError && (
               <p className="text-rose-600 text-sm bg-rose-50 border border-rose-200
                             px-3 py-2 rounded-lg font-semibold">{formError}</p>

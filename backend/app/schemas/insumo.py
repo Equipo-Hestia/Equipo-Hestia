@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from app.models.insumo import TipoInsumo
 
 
 class InsumoCreate(BaseModel):
@@ -8,6 +9,10 @@ class InsumoCreate(BaseModel):
     stock_minimo: int = 0
     sala_id: int | None = None
     categoria_id: int | None = None
+    tipo: TipoInsumo = TipoInsumo.insumo
+    sku: str | None = None
+    codigo_barras: str | None = None
+    costo_unitario: float | None = None
 
 
 class InsumoUpdate(BaseModel):
@@ -24,6 +29,10 @@ class InsumoUpdate(BaseModel):
     sala_id: int | None = None
     categoria_id: int | None = None
     activo: bool | None = None
+    tipo: TipoInsumo | None = None
+    sku: str | None = None
+    codigo_barras: str | None = None
+    costo_unitario: float | None = None
 
 
 class InsumoResponse(BaseModel):
@@ -35,6 +44,10 @@ class InsumoResponse(BaseModel):
     sala_id: int | None = None
     categoria_id: int | None = None
     activo: bool = True
+    tipo: TipoInsumo = TipoInsumo.insumo
+    sku: str | None = None
+    codigo_barras: str | None = None
+    costo_unitario: float | None = None
 
     class Config:
         from_attributes = True
