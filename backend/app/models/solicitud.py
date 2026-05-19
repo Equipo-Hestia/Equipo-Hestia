@@ -8,38 +8,40 @@ import enum
 
 
 class EstadoSolicitud(str, enum.Enum):
-    pendiente = "pendiente"        # Docente la creo, nadie la tomo aun
+    pendiente = "pendiente"            # Docente la creo, nadie la tomo aun
     en_preparacion = "en_preparacion"  # Operador la tomo y esta preparando
-    completada = "completada"      # Operador despacho; stock descontado
+    completada = "completada"          # Operador despacho; stock descontado
 
 
 class SolicitudRetiro(Base):
     """Solicitud de retiro de insumos creada por un docente.
 
     Representa la intencion de retirar uno o varios insumos para una clase
-    especifica. El stock NO se descuenta al crear la solicitud — solo cuando
+    especifica. El stock NO se descuenta al crear la solicitud: solo cuando
     el operador la marca como 'completada', momento en que se registran los
     movimientos de salida correspondientes.
 
-    Campos de tiempo:
-    - fecha_clase: datetime de inicio de la clase (requerido). Permite al
-      operador ordenar solicitudes por urgencia y preparar con anticipacion.
-    - fecha_creacion: timestamp automatico de cuando el docente la creo.
-    - fecha_completada: timestamp de cuando el operador la marco completada.
+    clase_docente_id es nullable para mantener compatibilidad con solicitudes
+    anteriores a la Fase 4. Cuando esta presente, permite ligar la solicitud
+    a una asignatura y seccion especificas, mejorando la trazabilidad y
+    habilitando futuros reportes de costo por estudiante.
     """
     __tablename__ = "solicitudes_retiro"
 
     id = Column(Integer, primary_key=True, index=True)
     docente_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
     sala_id = Column(Integer, ForeignKey("salas.id"), nullable=False)
+    clase_docente_id = Column(
+        Integer, ForeignKey("clases_docente.id"), nullable=True
+    )
     fecha_clase = Column(DateTime(timezone=True), nullable=False)
     estado = Column(
         Enum(EstadoSolicitud),
         default=EstadoSolicitud.pendiente,
         nullable=False,
     )
-    notas = Column(Text, nullable=True)           # Notas del docente
-    notas_operador = Column(Text, nullable=True)  # Observaciones del operador
+    notas = Column(Text, nullable=True)
+    notas_operador = Column(Text, nullable=True)
     fecha_creacion = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -47,19 +49,16 @@ class SolicitudRetiro(Base):
 
     docente = relationship("Usuario", back_populates="solicitudes_retiro")
     sala = relationship("Sala")
+    clase_docente = relationship("ClaseDocente")
     items = relationship(
         "SolicitudItem",
         back_populates="solicitud",
-        cascade="all, delete-orphan",  # Los items se borran con la solicitud
+        cascade="all, delete-orphan",
     )
 
 
 class SolicitudItem(Base):
-    """Linea de una solicitud de retiro: un insumo y la cantidad solicitada.
-
-    cascade="all, delete-orphan" en la relacion padre garantiza que si la
-    solicitud se elimina, sus items tambien se eliminan automaticamente.
-    """
+    """Linea de una solicitud: un insumo y la cantidad solicitada."""
     __tablename__ = "solicitudes_items"
 
     id = Column(Integer, primary_key=True, index=True)

@@ -181,6 +181,11 @@ export interface SolicitudResponse {
   fecha_completada: string | null
   items: SolicitudItemResponse[]
   minutos_hasta_clase: number
+  // Trazabilidad academica (Fase 4)
+  clase_docente_id: number | null
+  asignatura_nombre: string | null
+  seccion: string | null
+  semestre: string | null
 }
 
 // ---------------------------------------------------------------------------
@@ -202,4 +207,27 @@ export interface RetornoResponse {
   estado: EstadoRetorno
   operador_nombre: string | null
   notas: string | null
+}
+
+// ---------------------------------------------------------------------------
+// Asignaturas y Clases Docente (Fase 4)
+// ---------------------------------------------------------------------------
+
+export interface AsignaturaResponse {
+  id: number
+  nombre: string
+  codigo: string
+  activa: boolean
+}
+
+export interface ClaseDocenteResponse {
+  id: number
+  docente_id: number
+  docente_nombre: string
+  asignatura_id: number
+  asignatura_nombre: string
+  asignatura_codigo: string
+  seccion: string
+  semestre: string
+  activa: boolean
 }

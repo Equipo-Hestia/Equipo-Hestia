@@ -1,12 +1,13 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import {
   ClipboardList, Search, Plus, Trash2, CheckCircle,
-  AlertTriangle, Clock, ChevronDown, ChevronUp, Package, Info
+  AlertTriangle, Clock, ChevronDown, ChevronUp, Package, Info,
+  GraduationCap
 } from 'lucide-react'
 import { api } from '../api/client'
 import type {
   SalaResponse, InsumoResponse, SolicitudResponse,
-  PaginatedResponse, EstadoSolicitud
+  PaginatedResponse, EstadoSolicitud, ClaseDocenteResponse
 } from '../types/api'
 import { Badge } from '../components/ui/Badge'
 
@@ -15,18 +16,9 @@ interface CartItem {
   cantidad: number
 }
 
-// ---------------------------------------------------------------------------
-// Ventana de solicitud — debe coincidir con los valores del backend
-// ---------------------------------------------------------------------------
-const MIN_ANTICIPACION_MS = 2 * 60 * 60 * 1000   // 2 horas
-const MAX_ANTICIPACION_MS = 7 * 24 * 60 * 60 * 1000 // 7 días
+const MIN_ANTICIPACION_MS = 2 * 60 * 60 * 1000
+const MAX_ANTICIPACION_MS = 7 * 24 * 60 * 60 * 1000
 
-/**
- * Formatea un Date como string compatible con <input type="datetime-local">.
- * datetime-local usa hora LOCAL del dispositivo, no UTC, por eso no usamos
- * toISOString() (que devuelve UTC y desplazaría el min/max por la diferencia
- * de zona horaria).
- */
 function toDatetimeLocal(date: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0')
   return (
@@ -36,7 +28,7 @@ function toDatetimeLocal(date: Date): string {
 }
 
 function estadoBadge(estado: EstadoSolicitud) {
-  if (estado === 'completada')    return <Badge variant="success">Completada</Badge>
+  if (estado === 'completada')     return <Badge variant="success">Completada</Badge>
   if (estado === 'en_preparacion') return <Badge variant="info">En preparación</Badge>
   return <Badge variant="warning">Pendiente</Badge>
 }
@@ -68,49 +60,54 @@ function urgenciaBadge(minutos: number) {
 }
 
 export function SolicitudDocente() {
-  const [salas, setSalas] = useState<SalaResponse[]>([])
-  const [salaId, setSalaId] = useState('')
-  const [fechaClase, setFechaClase] = useState('')
-  const [notas, setNotas] = useState('')
-  const [cartItems, setCartItems] = useState<CartItem[]>([])
-  const [submitting, setSubmitting] = useState(false)
-  const [submitError, setSubmitError] = useState<string | null>(null)
-  const [toast, setToast] = useState<string | null>(null)
-  const [showWarning, setShowWarning] = useState(false)
+  const [salas, setSalas]               = useState<SalaResponse[]>([])
+  const [misClases, setMisClases]       = useState<ClaseDocenteResponse[]>([])
+  const [salaId, setSalaId]             = useState('')
+  const [fechaClase, setFechaClase]     = useState('')
+  const [notas, setNotas]               = useState('')
+  const [claseDocenteId, setClaseId]    = useState<number | null>(null)
+  const [cartItems, setCartItems]       = useState<CartItem[]>([])
+  const [submitting, setSubmitting]     = useState(false)
+  const [submitError, setSubmitError]   = useState<string | null>(null)
+  const [toast, setToast]               = useState<string | null>(null)
+  const [showWarning, setShowWarning]   = useState(false)
 
-  const [query, setQuery] = useState('')
+  const [query, setQuery]               = useState('')
   const [searchResults, setSearchResults] = useState<InsumoResponse[]>([])
   const [searchLoading, setSearchLoading] = useState(false)
-  const [showDropdown, setShowDropdown] = useState(false)
+  const [showDropdown, setShowDropdown]   = useState(false)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const searchContainerRef = useRef<HTMLDivElement>(null)
 
-  const [historial, setHistorial] = useState<SolicitudResponse[]>([])
-  const [loadingHistorial, setLoadingHistorial] = useState(true)
-  const [expandido, setExpandido] = useState<number | null>(null)
+  const [historial, setHistorial]         = useState<SolicitudResponse[]>([])
+  const [loadingHistorial, setLoadingH]   = useState(true)
+  const [expandido, setExpandido]         = useState<number | null>(null)
 
   function showToast(msg: string) {
     setToast(msg); setTimeout(() => setToast(null), 3500)
   }
 
-  // Límites del datetime-local en hora LOCAL del dispositivo
   const fechaMin = toDatetimeLocal(new Date(Date.now() + MIN_ANTICIPACION_MS))
   const fechaMax = toDatetimeLocal(new Date(Date.now() + MAX_ANTICIPACION_MS))
 
   useEffect(() => {
-    api.get<PaginatedResponse<SalaResponse>>('/salas/', { params: { limit: 200 } })
-      .then(({ data }) => setSalas(data.data))
-      .catch(() => showToast('No se pudieron cargar las salas. Recarga la página.'))
+    Promise.all([
+      api.get<PaginatedResponse<SalaResponse>>('/salas/', { params: { limit: 200 } }),
+      api.get<ClaseDocenteResponse[]>('/clases-docente/mis-clases'),
+    ]).then(([s, c]) => {
+      setSalas(s.data.data)
+      setMisClases(c.data)
+    }).catch(() => showToast('No se pudieron cargar los datos iniciales.'))
   }, [])
 
   const cargarHistorial = useCallback(async () => {
-    setLoadingHistorial(true)
+    setLoadingH(true)
     try {
       const { data } = await api.get<SolicitudResponse[]>('/solicitudes/mis-solicitudes')
       setHistorial(data)
     } catch {
       showToast('Error al cargar el historial de solicitudes.')
-    } finally { setLoadingHistorial(false) }
+    } finally { setLoadingH(false) }
   }, [])
 
   useEffect(() => { cargarHistorial() }, [cargarHistorial])
@@ -175,27 +172,21 @@ export function SolicitudDocente() {
   function handlePreSubmit(e: React.FormEvent) {
     e.preventDefault()
     setSubmitError(null)
-    if (!salaId)       { setSubmitError('Selecciona una sala.'); return }
-    if (!fechaClase)   { setSubmitError('Indica la fecha y hora de tu clase.'); return }
+    if (!salaId)     { setSubmitError('Selecciona una sala.'); return }
+    if (!fechaClase) { setSubmitError('Indica la fecha y hora de tu clase.'); return }
     if (cartItems.length === 0) { setSubmitError('Agrega al menos un insumo al carrito.'); return }
 
-    // Validación client-side de la ventana (duplica la del backend como UX)
     const ahora = Date.now()
     const fechaMs = new Date(fechaClase).getTime()
     const diff = fechaMs - ahora
-
     if (diff < MIN_ANTICIPACION_MS) {
-      setSubmitError(
-        'Debes solicitar con al menos 2 horas de anticipación a tu clase. ' +
-        'El personal necesita tiempo para preparar el pedido.'
-      )
+      setSubmitError('Debes solicitar con al menos 2 horas de anticipación a tu clase.')
       return
     }
     if (diff > MAX_ANTICIPACION_MS) {
       setSubmitError('Solo puedes solicitar hasta 7 días antes de tu clase.')
       return
     }
-
     setShowWarning(true)
   }
 
@@ -207,12 +198,14 @@ export function SolicitudDocente() {
         sala_id: parseInt(salaId),
         fecha_clase: new Date(fechaClase).toISOString(),
         notas: notas.trim() || null,
+        clase_docente_id: claseDocenteId,
         items: cartItems.map(i => ({
           insumo_id: i.insumo.id,
           cantidad_solicitada: i.cantidad,
         })),
       })
-      setSalaId(''); setFechaClase(''); setNotas(''); setCartItems([])
+      setSalaId(''); setFechaClase(''); setNotas('')
+      setCartItems([]); setClaseId(null)
       showToast('Solicitud enviada correctamente')
       cargarHistorial()
     } catch (err: unknown) {
@@ -226,6 +219,7 @@ export function SolicitudDocente() {
     text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-slate-50
     focus:bg-white placeholder:text-slate-400 transition-all`
   const totalItems = cartItems.reduce((s, i) => s + i.cantidad, 0)
+  const claseSeleccionada = misClases.find(c => c.id === claseDocenteId) ?? null
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
@@ -254,14 +248,24 @@ export function SolicitudDocente() {
                 <p className="text-sm text-slate-600 leading-relaxed">
                   Al enviar esta solicitud confirmas que utilizarás{' '}
                   <strong className="text-slate-900">la totalidad</strong>{' '}
-                  de los insumos pedidos durante tu clase. El no uso de
-                  insumos retirados genera{' '}
+                  de los insumos pedidos durante tu clase. El no uso genera{' '}
                   <strong className="text-amber-700">mermas</strong>{' '}
                   y puede derivar en{' '}
                   <strong className="text-slate-900">llamados de atención formal</strong>.
                 </p>
               </div>
             </div>
+
+            {claseSeleccionada && (
+              <div className="flex items-center gap-2 bg-blue-50 border border-blue-200
+                              rounded-xl px-4 py-2.5 mb-4">
+                <GraduationCap size={14} className="text-blue-500 flex-shrink-0" />
+                <p className="text-xs font-semibold text-blue-700">
+                  {claseSeleccionada.asignatura_nombre} · Sección{' '}
+                  {claseSeleccionada.seccion} · {claseSeleccionada.semestre}
+                </p>
+              </div>
+            )}
 
             <div className="bg-slate-50 rounded-xl border border-slate-200 px-4 py-3 mb-5">
               <p className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">
@@ -312,12 +316,38 @@ export function SolicitudDocente() {
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 mb-6">
           <h2 className="text-sm font-bold text-slate-700 mb-4">Nueva solicitud</h2>
 
+          {/* Selector de clase (solo si el docente tiene clases asignadas) */}
+          {misClases.length > 0 && (
+            <div className="mb-4">
+              <label className="block text-xs font-bold text-slate-500 uppercase
+                               tracking-wide mb-1.5">
+                <GraduationCap size={12} className="inline mr-1" />
+                ¿Para qué clase es esta solicitud?
+              </label>
+              <select
+                value={claseDocenteId ?? ''}
+                onChange={e => setClaseId(e.target.value ? parseInt(e.target.value) : null)}
+                className={`${inputCls} cursor-pointer`}
+              >
+                <option value="">Sin especificar</option>
+                {misClases.map(c => (
+                  <option key={c.id} value={c.id}>
+                    {c.asignatura_nombre} — Secc. {c.seccion} ({c.semestre})
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-slate-400 mt-1">
+                Opcional — mejora la trazabilidad de los insumos por asignatura
+              </p>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
             <div>
               <label className="block text-xs font-bold text-slate-500 uppercase
                                tracking-wide mb-1.5">Sala *</label>
               <select value={salaId} onChange={e => setSalaId(e.target.value)}
-                className={inputCls + ' cursor-pointer'}>
+                className={`${inputCls} cursor-pointer`}>
                 <option value="">Seleccionar sala...</option>
                 {salas.map(s => <option key={s.id} value={s.id}>{s.nombre}</option>)}
               </select>
@@ -344,7 +374,7 @@ export function SolicitudDocente() {
               Puedes solicitar entre{' '}
               <strong className="text-slate-700">2 horas</strong> y{' '}
               <strong className="text-slate-700">7 días</strong>{' '}
-              antes de tu clase. Solicitudes fuera de este rango serán rechazadas.
+              antes de tu clase.
             </p>
           </div>
 
@@ -404,9 +434,7 @@ export function SolicitudDocente() {
                               insumo.stock_actual === 0 ? 'text-rose-500'
                               : insumo.stock_actual <= insumo.stock_minimo ? 'text-amber-500'
                               : 'text-teal-600'
-                            }`}>
-                              Stock: {insumo.stock_actual}
-                            </span>
+                            }`}>Stock: {insumo.stock_actual}</span>
                             <Plus size={14} className="text-slate-400" />
                           </div>
                         </button>
@@ -429,10 +457,9 @@ export function SolicitudDocente() {
 
           {cartItems.length > 0 && (
             <div className="border border-slate-200 rounded-xl overflow-hidden mb-4">
-              <div className="bg-slate-50 px-4 py-2.5 border-b border-slate-200 flex
-                              items-center justify-between">
+              <div className="bg-slate-50 px-4 py-2.5 border-b border-slate-200">
                 <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">
-                  Carrito ({cartItems.length} insumo{cartItems.length !== 1 ? 's' : ''},
+                  Carrito ({cartItems.length} ítem{cartItems.length !== 1 ? 's' : ''},
                   {' '}{totalItems} unidad{totalItems !== 1 ? 'es' : ''})
                 </span>
               </div>
@@ -452,9 +479,8 @@ export function SolicitudDocente() {
                         )}
                       </div>
                       <p className="text-xs text-slate-400 mt-0.5">
-                        Disponible: <span className="font-bold text-slate-600">
-                          {insumo.stock_actual}
-                        </span> unidades
+                        Disponible:{' '}
+                        <span className="font-bold text-slate-600">{insumo.stock_actual}</span>
                       </p>
                     </div>
                     <div className="flex items-center gap-1.5">
@@ -476,7 +502,7 @@ export function SolicitudDocente() {
                     </div>
                     <button type="button" onClick={() => eliminarDelCarrito(insumo.id)}
                       className="p-1.5 rounded-lg text-slate-300 hover:text-rose-500
-                                 hover:bg-rose-50 transition-colors" title="Quitar del carrito">
+                                 hover:bg-rose-50 transition-colors">
                       <Trash2 size={14} />
                     </button>
                   </li>
@@ -490,7 +516,7 @@ export function SolicitudDocente() {
                              tracking-wide mb-1.5">Notas (opcional)</label>
             <textarea value={notas} onChange={e => setNotas(e.target.value)} rows={2}
               placeholder="Indicaciones adicionales para el personal..."
-              className={inputCls + ' resize-none'} />
+              className={`${inputCls} resize-none`} />
           </div>
 
           {submitError && (
@@ -524,7 +550,7 @@ export function SolicitudDocente() {
         ) : historial.length === 0 ? (
           <div className="bg-white rounded-xl border border-slate-200 p-8 text-center">
             <ClipboardList size={28} className="mx-auto mb-2 text-slate-300" />
-            <p className="text-sm font-semibold text-slate-400">Aún no tienes solicitudes.</p>
+            <p className="text-sm font-semibold text-slate-400">Áun no tienes solicitudes.</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -539,6 +565,12 @@ export function SolicitudDocente() {
                     {estadoBadge(sol.estado)}
                     <div className="min-w-0">
                       <p className="text-sm font-bold text-slate-900">{sol.sala_nombre}</p>
+                      {sol.asignatura_nombre && (
+                        <p className="text-xs text-blue-600 font-semibold mt-0.5">
+                          <GraduationCap size={10} className="inline mr-1" />
+                          {sol.asignatura_nombre} · {sol.seccion}
+                        </p>
+                      )}
                       <div className="flex items-center gap-2 mt-0.5">
                         <p className="text-xs text-slate-400">{formatFechaClase(sol.fecha_clase)}</p>
                         {urgenciaBadge(sol.minutos_hasta_clase)}
@@ -547,7 +579,7 @@ export function SolicitudDocente() {
                   </div>
                   <div className="flex items-center gap-3 flex-shrink-0">
                     <span className="text-xs text-slate-400">
-                      {sol.items.length} insumo{sol.items.length !== 1 ? 's' : ''}
+                      {sol.items.length} ítem{sol.items.length !== 1 ? 's' : ''}
                     </span>
                     {expandido === sol.id
                       ? <ChevronUp size={15} className="text-slate-400" />

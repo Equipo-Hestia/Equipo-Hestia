@@ -4,12 +4,12 @@ from sqlalchemy import asc, func
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
-
 from app.database import get_db
 from app.models.solicitud import SolicitudRetiro, SolicitudItem, EstadoSolicitud
 from app.models.insumo import Insumo, TipoInsumo
 from app.models.movimiento import Movimiento, TipoMovimiento
 from app.models.retorno_implemento import RetornoImplemento
+from app.models.clase_docente import ClaseDocente
 from app.models.usuario import Usuario
 from app.schemas.solicitud import (
     SolicitudCreate, SolicitudResponse,
@@ -20,28 +20,25 @@ from app.utils.deps import require_docente, require_operador
 router = APIRouter(prefix="/solicitudes", tags=["Solicitudes"])
 
 # Ventana de solicitud (en minutos)
-_MIN_ANTICIPACION = 120  # 2 horas  — menos de esto, ya no se puede pedir
-_MAX_ANTICIPACION = 7 * 24 * 60  # 7 días — más de esto, es demasiado pronto
+_MIN_ANTICIPACION = 120       # 2 horas
+_MAX_ANTICIPACION = 7 * 24 * 60  # 7 dias
 
-
-# ---------------------------------------------------------------------------
-# Helpers internos
-# ---------------------------------------------------------------------------
 
 def _minutos_hasta_clase(fecha_clase: datetime) -> int:
-    """Minutos que faltan para la clase (negativo si ya paso)."""
     diff = fecha_clase - datetime.now(timezone.utc)
     return int(diff.total_seconds() / 60)
 
 
 def _cargar_solicitud(db: Session, solicitud_id: int) -> SolicitudRetiro:
-    """Carga una solicitud con todas sus relaciones via joinedload."""
     s = (
         db.query(SolicitudRetiro)
         .options(
             joinedload(SolicitudRetiro.docente),
             joinedload(SolicitudRetiro.sala),
             joinedload(SolicitudRetiro.items).joinedload(SolicitudItem.insumo),
+            joinedload(SolicitudRetiro.clase_docente).joinedload(
+                ClaseDocente.asignatura
+            ),
         )
         .filter(SolicitudRetiro.id == solicitud_id)
         .first()
@@ -52,7 +49,6 @@ def _cargar_solicitud(db: Session, solicitud_id: int) -> SolicitudRetiro:
 
 
 def _construir_response(s: SolicitudRetiro) -> SolicitudResponse:
-    """Construye SolicitudResponse enriquecida desde el ORM."""
     items_response = [
         SolicitudItemResponse(
             id=item.id,
@@ -63,6 +59,7 @@ def _construir_response(s: SolicitudRetiro) -> SolicitudResponse:
         )
         for item in s.items
     ]
+    cd = s.clase_docente
     return SolicitudResponse(
         id=s.id,
         docente_id=s.docente_id,
@@ -77,12 +74,17 @@ def _construir_response(s: SolicitudRetiro) -> SolicitudResponse:
         fecha_completada=s.fecha_completada,
         items=items_response,
         minutos_hasta_clase=_minutos_hasta_clase(s.fecha_clase),
+        clase_docente_id=s.clase_docente_id,
+        asignatura_nombre=(
+            cd.asignatura.nombre if cd and cd.asignatura else None
+        ),
+        seccion=cd.seccion if cd else None,
+        semestre=cd.semestre if cd else None,
     )
 
 
 # ---------------------------------------------------------------------------
-# IMPORTANTE: rutas estaticas (/mis-solicitudes) van ANTES que las dinamicas
-# (/{solicitud_id}) aunque int != str — buena practica preventiva.
+# IMPORTANTE: rutas estaticas van ANTES de las dinamicas /{id}
 # ---------------------------------------------------------------------------
 
 @router.get("/resumen-recientes")
@@ -90,17 +92,14 @@ def resumen_solicitudes_recientes(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(require_operador),
 ):
-    """Devuelve el conteo de solicitudes creadas desde el inicio del dia anterior."""
     inicio_ayer = datetime.now(timezone.utc).replace(
         hour=0, minute=0, second=0, microsecond=0
     ) - timedelta(days=1)
-
     total = (
         db.query(func.count(SolicitudRetiro.id))
         .filter(SolicitudRetiro.fecha_creacion >= inicio_ayer)
         .scalar()
     ) or 0
-
     pendientes = (
         db.query(func.count(SolicitudRetiro.id))
         .filter(
@@ -109,7 +108,6 @@ def resumen_solicitudes_recientes(
         )
         .scalar()
     ) or 0
-
     return {"total": total, "pendientes": pendientes}
 
 
@@ -118,13 +116,15 @@ def mis_solicitudes(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(require_docente),
 ):
-    """Docente consulta sus propias solicitudes, de mas reciente a mas antigua."""
     solicitudes = (
         db.query(SolicitudRetiro)
         .options(
             joinedload(SolicitudRetiro.docente),
             joinedload(SolicitudRetiro.sala),
             joinedload(SolicitudRetiro.items).joinedload(SolicitudItem.insumo),
+            joinedload(SolicitudRetiro.clase_docente).joinedload(
+                ClaseDocente.asignatura
+            ),
         )
         .filter(SolicitudRetiro.docente_id == usuario.id)
         .order_by(SolicitudRetiro.fecha_clase.desc())
@@ -139,13 +139,15 @@ def listar_solicitudes(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(require_operador),
 ):
-    """Operador/admin lista todas las solicitudes ordenadas por fecha de clase."""
     q = (
         db.query(SolicitudRetiro)
         .options(
             joinedload(SolicitudRetiro.docente),
             joinedload(SolicitudRetiro.sala),
             joinedload(SolicitudRetiro.items).joinedload(SolicitudItem.insumo),
+            joinedload(SolicitudRetiro.clase_docente).joinedload(
+                ClaseDocente.asignatura
+            ),
         )
         .order_by(asc(SolicitudRetiro.fecha_clase))
     )
@@ -162,11 +164,8 @@ def crear_solicitud(
 ):
     """Docente crea una solicitud de retiro de insumos para su clase.
 
-    Ventana de solicitud:
-    - Minimo: 2 horas antes de la clase (_MIN_ANTICIPACION = 120 min).
-      Si queda menos tiempo el personal no puede preparar el pedido.
-    - Maximo: 7 dias antes de la clase (_MAX_ANTICIPACION = 10080 min).
-      La planificacion mas alla de una semana es prematura.
+    Ventana: entre 2 horas y 7 dias antes de la fecha_clase.
+    Si se provee clase_docente_id, debe pertenecer al docente autenticado.
     """
     ahora = datetime.now(timezone.utc)
     minutos_hasta = (datos.fecha_clase - ahora).total_seconds() / 60
@@ -175,11 +174,10 @@ def crear_solicitud(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=(
-                f"Debes solicitar con al menos {_MIN_ANTICIPACION // 60} horas de "
-                "anticipacion. El personal necesita tiempo para preparar el pedido."
+                f"Debes solicitar con al menos {_MIN_ANTICIPACION // 60} horas "
+                "de anticipacion. El personal necesita tiempo para preparar el pedido."
             ),
         )
-
     if minutos_hasta > _MAX_ANTICIPACION:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -192,7 +190,20 @@ def crear_solicitud(
     if not sala:
         raise HTTPException(status_code=404, detail="Sala no encontrada")
 
-    # Acumular cantidades por insumo (por si el docente duplica un insumo)
+    # Validar clase_docente_id si se provee
+    if datos.clase_docente_id is not None:
+        cd = db.query(ClaseDocente).filter(
+            ClaseDocente.id == datos.clase_docente_id,
+            ClaseDocente.docente_id == usuario.id,
+            ClaseDocente.activa.is_(True),
+        ).first()
+        if not cd:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="La clase indicada no existe o no pertenece a tu perfil.",
+            )
+
+    # Acumular cantidades por insumo
     cantidades: dict[int, int] = {}
     for item in datos.items:
         cantidades[item.insumo_id] = (
@@ -225,6 +236,7 @@ def crear_solicitud(
         sala_id=datos.sala_id,
         fecha_clase=datos.fecha_clase,
         notas=datos.notas,
+        clase_docente_id=datos.clase_docente_id,
     )
     db.add(solicitud)
     db.flush()
@@ -272,7 +284,7 @@ def completar_solicitud(
 ):
     """Operador despacha el pedido: descuenta stock y registra movimientos.
 
-    Para items de tipo 'implemento' crea ademas un RetornoImplemento pendiente.
+    Para implementos crea ademas un RetornoImplemento pendiente.
     """
     s = _cargar_solicitud(db, solicitud_id)
     if s.estado not in (EstadoSolicitud.pendiente, EstadoSolicitud.en_preparacion):
