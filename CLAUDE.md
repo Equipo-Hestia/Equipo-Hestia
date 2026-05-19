@@ -6,11 +6,11 @@ Este archivo es el punto de entrada para cualquier asistente de IA que trabaje e
 
 ## 1. Qué es Hestia
 
-Sistema web de gestión de stock de insumos médicos para la Escuela de Salud de DuocUC, sede San Bernardo. Desarrollado por estudiantes de Informática Biomédica como proyecto de Ruta IE (innovación y emprendimiento). El sistema corre en red LAN interna; no tiene IP pública ni dominio.
+Sistema web de gestión de stock de insumos médicos para la Escuela de Salud de DuocUC, sede San Bernardo. Desarrollado por estudiantes de Informática Biomédica como proyecto de Ruta IE. El sistema corre en red LAN interna; no tiene IP pública ni dominio.
 
 **Stack completo:**
-- Backend: Python 3.11 · FastAPI · PostgreSQL 16 · SQLAlchemy 2.0 · Alembic · Pydantic v2
-- Frontend: React 19 · Vite · TypeScript · Tailwind CSS · Zustand · Axios · lucide-react ^0.396
+- Backend: Python 3.11 · FastAPI · PostgreSQL 16 · SQLAlchemy 2.0 · Pydantic v2
+- Frontend: React 19 · Vite · TypeScript · Tailwind CSS · Zustand · Axios · lucide-react ^0.396 · @zxing/browser ^0.1.4
 - Infra: Docker Compose (3 servicios: `db`, `api`, `frontend`)
 - Auth: JWT (python-jose) · bcrypt · TOTP 2FA (pyotp + QR)
 - CI: GitHub Actions con flake8 en push/PR a `main` y `develop`
@@ -31,23 +31,23 @@ Sistema web de gestión de stock de insumos médicos para la Escuela de Salud de
 | `api` | Dockerfile propio | 8000 | `./backend:/app` (bind mount dev) |
 | `frontend` | Dockerfile propio | 3000 | `./frontend:/app` + `/app/node_modules` |
 
-**Regla crítica:** el puerto 5432 de la BD NO está expuesto al host ni a la LAN. La BD solo es accesible desde el contenedor `api` por nombre de servicio (`db:5432`).
+**Regla crítica:** el puerto 5432 de la BD NO está expuesto al host ni a la LAN.
 
 **Comandos de ciclo de vida:**
 ```bash
 docker compose up --build     # primera vez o tras cambios en Dockerfile
 docker compose up             # levantar sin reconstruir
-docker compose restart api    # recargar backend (ej: cambios en config)
-docker compose restart frontend  # recargar Vite (ej: cambios en vite.config.ts)
+docker compose restart api    # recargar backend
+docker compose restart frontend  # recargar Vite
 docker compose down           # apagar (datos persisten en named volume)
-docker compose down -v        # apagar Y borrar la BD (irreversible)
+docker compose down -v        # apagar Y borrar la BD
 ```
 
 **Datos de demo:**
 ```bash
 docker compose exec api python seed_demo.py
 ```
-Genera 8 salas, 10 categorías, 5 usuarios, 88 insumos y ~560 movimientos distribuidos en 60 días. Requiere confirmación interactiva.
+Genera 8 salas, 10 categorías, 10 usuarios (5 docentes), 8 asignaturas, 10 clases docentes, 88 insumos (con tipo/costo/SKU), y ~560 movimientos distribuidos en 60 días. Los docentes de demo tienen clases asignadas en semestre 2025-1.
 
 ---
 
@@ -59,44 +59,52 @@ Genera 8 salas, 10 categorías, 5 usuarios, 88 insumos y ~560 movimientos distri
 backend/
 ├── app/
 │   ├── main.py            # FastAPI app, middleware, registro de routers
-│   ├── database.py        # Engine, SessionLocal, Base, get_db()
-│   ├── models/            # SQLAlchemy ORM
+│   ├── database.py        # Engine, SessionLocal, Base, get_db(), migraciones
+│   ├── models/
 │   │   ├── usuario.py
 │   │   ├── sala.py
 │   │   ├── categoria.py
 │   │   ├── insumo.py
 │   │   ├── movimiento.py
-│   │   ├── solicitud.py   # SolicitudRetiro + SolicitudItem
+│   │   ├── solicitud.py        # SolicitudRetiro + SolicitudItem
+│   │   ├── retorno_implemento.py  # RetornoImplemento (Fase 2)
+│   │   ├── asignatura.py       # Asignatura (Fase 4)
+│   │   ├── clase_docente.py    # ClaseDocente (Fase 4)
 │   │   └── audit_log.py
-│   ├── schemas/           # Pydantic v2
-│   │   ├── comun.py       # PaginatedResponse[T]
+│   ├── schemas/
+│   │   ├── comun.py            # PaginatedResponse[T]
 │   │   ├── usuario.py
-│   │   ├── insumo.py
+│   │   ├── insumo.py           # TipoInsumo enum, sku, codigo_barras, costo_unitario
 │   │   ├── movimiento.py
-│   │   ├── solicitud.py   # SolicitudCreate, SolicitudResponse, etc.
+│   │   ├── solicitud.py        # clase_docente_id, asignatura_nombre, seccion, semestre
+│   │   ├── retorno.py          # RetornoResponse, MarcarRetornoRequest
+│   │   ├── asignatura.py
+│   │   ├── clase_docente.py
 │   │   ├── sala.py
 │   │   ├── categoria.py
 │   │   └── audit_log.py
-│   ├── routes/            # FastAPI routers (1 archivo = 1 prefix)
-│   │   ├── auth.py        # /auth
-│   │   ├── usuarios.py    # /usuarios
-│   │   ├── insumos.py     # /insumos
-│   │   ├── movimientos.py # /movimientos
-│   │   ├── solicitudes.py # /solicitudes
-│   │   ├── salas.py       # /salas
-│   │   ├── categorias.py  # /categorias
-│   │   ├── resumen.py     # /resumen
-│   │   ├── importar.py    # /importar
-│   │   └── audit_log.py   # /audit-log
+│   ├── routes/
+│   │   ├── auth.py             # /auth
+│   │   ├── usuarios.py         # /usuarios
+│   │   ├── insumos.py          # /insumos
+│   │   ├── movimientos.py      # /movimientos
+│   │   ├── solicitudes.py      # /solicitudes
+│   │   ├── retornos.py         # /retornos (Fase 2)
+│   │   ├── asignaturas.py      # /asignaturas (Fase 4)
+│   │   ├── clases_docente.py   # /clases-docente (Fase 4)
+│   │   ├── salas.py            # /salas
+│   │   ├── categorias.py       # /categorias
+│   │   ├── resumen.py          # /resumen
+│   │   ├── importar.py         # /importar
+│   │   └── audit_log.py        # /audit-log
 │   └── utils/
-│       ├── security.py    # hashing, JWT
-│       ├── deps.py        # FastAPI dependencies (RBAC)
-│       ├── rate_limit.py  # rate limiter en memoria
-│       └── auditoria.py   # helper registrar() y get_ip()
-├── seed_demo.py           # script de carga de datos de demo
-├── crear_admin.py         # crea usuario admin inicial (entrypoint Docker)
-├── .env                   # variables de entorno (NO en git)
-├── .flake8                # config linter
+│       ├── security.py         # hashing, JWT
+│       ├── deps.py             # FastAPI dependencies (RBAC)
+│       ├── rate_limit.py
+│       └── auditoria.py
+├── seed_demo.py
+├── crear_admin.py
+├── .flake8
 └── requirements.txt
 ```
 
@@ -105,28 +113,25 @@ backend/
 **`Usuario`** (`usuarios`)
 ```
 id · nombre · email (unique) · password_hash · rol (Enum: admin|operador|visor|docente)
-totp_secret · totp_habilitado · totp_recovery_codes (JSON Text)
-foto_perfil (Text, base64 PNG 256×256, nullable)
+totp_secret · totp_habilitado · recovery_codes (JSON Text)
+avatar_b64 (Text, base64 PNG 256×256, nullable)
 activo (Boolean, default True — soft-delete)
-Relaciones: movimientos → · solicitudes →
+Relaciones: solicitudes_retiro → · clases_docente →
 ```
 
-**`Sala`** (`salas`)
-```
-id · nombre · tipo · descripcion
-Relaciones: insumos →
-```
+**`Sala`** (`salas`) — `id · nombre · tipo · descripcion`
 
-**`Categoria`** (`categorias`)
-```
-id · nombre
-Relaciones: insumos →
-```
+**`Categoria`** (`categorias`) — `id · nombre`
 
 **`Insumo`** (`insumos`)
 ```
 id · nombre · descripcion · stock_actual · stock_minimo
+tipo (Enum PG: insumo|implemento)  ← implemento debe retornar al área común
+sku (VARCHAR 20, unique index parcial WHERE NOT NULL, auto-generado HST-XXXXX)
+codigo_barras (VARCHAR 100, unique index parcial WHERE NOT NULL)
+costo_unitario (NUMERIC 10,2, nullable — para reportes de valorización)
 sala_id (FK nullable) · categoria_id (FK nullable)
+activo (Boolean, soft-delete)
 Relaciones: sala ← · categoria ← · movimientos →
 ```
 
@@ -135,149 +140,199 @@ Relaciones: sala ← · categoria ← · movimientos →
 id · tipo (Enum: entrada|salida) · cantidad · motivo
 fecha (DateTime timezone=True, server_default=now())
 insumo_id (FK) · usuario_id (FK)
-Relaciones: insumo ← · usuario ←
+```
+
+**`Asignatura`** (`asignaturas`) ← Fase 4
+```
+id · nombre · codigo (VARCHAR 20, unique) · activa (Boolean)
+Relaciones: clases →
+```
+
+**`ClaseDocente`** (`clases_docente`) ← Fase 4
+```
+id · docente_id (FK usuarios) · asignatura_id (FK asignaturas)
+seccion (VARCHAR 10, ej: '001D') · semestre (VARCHAR 10, ej: '2025-1')
+activa (Boolean)
+Relaciones: docente ← · asignatura ←
 ```
 
 **`SolicitudRetiro`** (`solicitudes_retiro`)
 ```
 id · docente_id (FK usuarios) · sala_id (FK salas)
-fecha_clase (DateTime timezone=True) · estado (Enum: pendiente|en_preparacion|completada)
+clase_docente_id (FK clases_docente, nullable — permite trazabilidad académica)
+fecha_clase (DateTime timezone=True)
+estado (Enum: pendiente|en_preparacion|completada)
 notas (Text nullable) · notas_operador (Text nullable)
-fecha_creacion (DateTime timezone=True, server_default=now())
-fecha_completada (DateTime timezone=True, nullable)
-Relaciones: docente ← · sala ← · items →
+fecha_creacion · fecha_completada
+Relaciones: docente ← · sala ← · clase_docente ← · items →
 ```
 
-**`SolicitudItem`** (`solicitud_items`)
+El stock se descuenta al completar (no al crear). Para items de tipo `implemento`, se crea un `RetornoImplemento` pendiente al completar.
+
+**`SolicitudItem`** (`solicitudes_items`)
 ```
-id · solicitud_id (FK solicitudes_retiro, cascade delete) · insumo_id (FK insumos)
-cantidad_solicitada (Integer)
-Relaciones: solicitud ← · insumo ←
+id · solicitud_id (FK, cascade delete) · insumo_id (FK) · cantidad_solicitada
 ```
-El stock se descuenta al completar la solicitud (no al crearla). Los items son inmutables tras la creación.
+
+**`RetornoImplemento`** (`retornos_implemento`) ← Fase 2
+```
+id · insumo_id (FK) · solicitud_id (FK nullable) · docente_id (FK nullable)
+sala_id (FK nullable) · cantidad · fecha_retiro · fecha_retorno (nullable)
+estado (Enum PG: pendiente|retornado|no_retornado)
+operador_id (FK nullable) · notas (Text nullable)
+```
+- `retornado`: el operador confirmó que volvió al área común; se suma stock
+- `no_retornado`: no apareció; se registra como merma sin tocar stock
 
 **`AuditLog`** (`audit_log`)
 ```
-id · fecha (DateTime timezone=True, server_default=now())
-accion (String 64, indexed) · entidad (String 64) · entidad_id
-detalle (Text) · ip (String 64)
-usuario_id (FK nullable, ondelete=SET NULL) · usuario_nombre (String 256, denormalizado)
+id · fecha · accion · entidad · entidad_id · detalle · ip
+usuario_id (FK nullable, ondelete=SET NULL) · usuario_nombre (denormalizado)
 ```
-`usuario_nombre` se almacena al momento de la acción para preservar el historial incluso si el usuario es eliminado después.
 
-### 3.3 Registro de modelos
+### 3.3 Registro de modelos en `main.py`
 
-En `main.py`, todos los modelos se importan explícitamente antes de `Base.metadata.create_all()`:
 ```python
 from app.models import sala, categoria, usuario, movimiento, insumo  # noqa
-from app.models import audit_log  # noqa
-from app.models import solicitud  # noqa
+from app.models import audit_log         # noqa
+from app.models import asignatura        # noqa  ← importar antes de clase_docente
+from app.models import clase_docente     # noqa  ← FK a asignatura y usuario
+from app.models import solicitud         # noqa  ← FK a clase_docente
+from app.models import token_recuperacion  # noqa
+from app.models import retorno_implemento  # noqa
 ```
-**Regla:** al agregar un modelo nuevo, importarlo en `main.py` antes de `create_all()`.
+**Regla:** al agregar un modelo nuevo, importarlo en `main.py` antes de `create_all()` respetando el orden de FKs.
 
 ### 3.4 Endpoints
 
 **`/auth`**
 ```
-POST /auth/login                   → LoginResponse (JWT o pre_token si tiene 2FA)
-POST /auth/2fa/completar-login     → JWT completo tras validar TOTP
-POST /auth/2fa/recuperar-acceso    → JWT usando recovery code (desactiva 2FA)
-POST /auth/2fa/setup               → QR base64 + secret (requiere JWT)
-POST /auth/2fa/activar             → activa 2FA, devuelve 10 recovery codes
-POST /auth/2fa/desactivar          → desactiva 2FA (requiere TOTP válido)
+POST /auth/login
+POST /auth/2fa/completar-login
+POST /auth/2fa/recuperar-acceso
+POST /auth/2fa/setup
+POST /auth/2fa/activar
+POST /auth/2fa/desactivar
 ```
 
-**`/usuarios`** (RBAC: admin para escritura, cualquier rol para /me)
+**`/usuarios`** (admin para escritura, /me para cualquier rol)
 ```
-GET  /usuarios/                    → PaginatedResponse[UsuarioResponse] (admin)
-GET  /usuarios/me                  → UsuarioResponse (cualquier rol)
-POST /usuarios/me/cambiar-password → 200 (cualquier rol)
-POST /usuarios/                    → UsuarioResponse (admin)
-GET  /usuarios/{id}                → UsuarioResponse (admin)
-PUT  /usuarios/{id}                → UsuarioResponse; password opcional (admin)
-DELETE /usuarios/{id}             → 200 (admin; no puede auto-eliminarse)
-POST /usuarios/{id}/reset-2fa     → 200 (admin)
+GET  /usuarios/              → PaginatedResponse[UsuarioResponse]
+GET  /usuarios/me
+POST /usuarios/me/cambiar-password
+POST /usuarios/
+GET  /usuarios/{id}
+PUT  /usuarios/{id}
+DELETE /usuarios/{id}
+POST /usuarios/{id}/reset-2fa
 ```
 
 **`/insumos`** — rutas estáticas ANTES de `/{insumo_id}`
 ```
-GET  /insumos/alertas              → list[InsumoAlerta] (stock <= minimo)
-GET  /insumos/alertas-resueltas   → list[InsumoAlerta] ?dias=30 (subquery DISTINCT)
-GET  /insumos/exportar            → StreamingResponse CSV (BOM UTF-8)
-GET  /insumos/                    → PaginatedResponse[InsumoResponse] (filtros: nombre, sala_id, categoria_id, bajo_stock)
-GET  /insumos/{id}                → InsumoResponse
-POST /insumos/                    → InsumoResponse (operador+)
-PUT  /insumos/{id}                → InsumoResponse (operador+)
-DELETE /insumos/{id}             → 200 (admin + TOTP requerido)
+GET  /insumos/alertas
+GET  /insumos/alertas-resueltas    ?dias=30
+GET  /insumos/exportar             ?formato=csv|xlsx  ← ambos formatos reales
+GET  /insumos/sugerencias          ?q= (autocompletado)
+GET  /insumos/                     filtros: nombre, sala_id, categoria_id,
+                                            bajo_stock, incluir_inactivos, tipo
+GET  /insumos/{id}
+POST /insumos/                     auto-genera sku HST-XXXXX si no se provee
+PUT  /insumos/{id}
+DELETE /insumos/{id}              admin + TOTP
 ```
 
 **`/movimientos`**
 ```
-GET  /movimientos/exportar         → StreamingResponse CSV o XLSX (filtros: insumo, tipo, fecha_desde, fecha_hasta)
-GET  /movimientos/                 → PaginatedResponse[MovimientoEnriquecido] (mismos filtros)
-POST /movimientos/                 → MovimientoResponse (operador+; actualiza stock_actual con SELECT FOR UPDATE)
-GET  /movimientos/insumo/{id}      → PaginatedResponse[MovimientoEnriquecido]
-GET  /movimientos/sala/{id}        → PaginatedResponse[MovimientoEnriquecido]
+GET  /movimientos/exportar         ?formato=csv|xlsx
+GET  /movimientos/
+POST /movimientos/                 SELECT FOR UPDATE
+GET  /movimientos/insumo/{id}
+GET  /movimientos/sala/{id}
 ```
 
-**`/solicitudes`** — flujo docente → operador
+**`/solicitudes`** — ventana [+2h, +7 días] antes de fecha_clase
 ```
-GET  /solicitudes/resumen-recientes → {total, pendientes} (operador+; para pop-up de bienvenida)
-GET  /solicitudes/mis-solicitudes   → list[SolicitudResponse] (solo docente)
-GET  /solicitudes/                  → list[SolicitudResponse] (operador+; filtro opcional ?estado=)
-POST /solicitudes/                  → SolicitudResponse 201 (solo docente; valida stock pero NO descuenta)
-PUT  /solicitudes/{id}/en-preparacion → SolicitudResponse (operador+)
-POST /solicitudes/{id}/completar    → SolicitudResponse (operador+; descuenta stock con SELECT FOR UPDATE)
+GET  /solicitudes/resumen-recientes
+GET  /solicitudes/mis-solicitudes   (docente)
+GET  /solicitudes/                  (operador+; ?estado=)
+POST /solicitudes/                  valida clase_docente_id si se provee
+PUT  /solicitudes/{id}/en-preparacion
+POST /solicitudes/{id}/completar    genera RetornoImplemento para implementos
+```
+
+**`/retornos`** ← Fase 2
+```
+GET  /retornos/hoy                  implementos retirados desde medianoche UTC
+GET  /retornos/pendientes           todos los pendientes (incluye días anteriores)
+PUT  /retornos/{id}/marcar          {estado: retornado|no_retornado, notas?}
+                                    retornado → suma stock con SELECT FOR UPDATE
+```
+
+**`/asignaturas`** ← Fase 4 (admin escritura, cualquier rol lectura)
+```
+GET  /asignaturas/                  ?incluir_inactivas=bool
+POST /asignaturas/
+PUT  /asignaturas/{id}
+```
+
+**`/clases-docente`** ← Fase 4 — /mis-clases ANTES de /{clase_id}
+```
+GET  /clases-docente/mis-clases     clases activas del usuario autenticado
+GET  /clases-docente/               admin/operador: todas; docente: las suyas
+                                    ?docente_id= ?semestre= ?solo_activas=
+POST /clases-docente/               (admin)
+PUT  /clases-docente/{id}           (admin)
 ```
 
 **`/salas`** · **`/categorias`**: CRUD estándar.
 
 **`/resumen`**
 ```
-GET  /resumen/                   → ResumenResponse (total_insumos, insumos_bajo_stock, insumos_agotados,
-                                   movimientos_hoy, entradas_hoy, salidas_hoy, total_salas, total_usuarios)
-GET  /resumen/grafico-semana     → list[DiaMovimiento] — 7 elementos con fecha/entradas/salidas
-GET  /resumen/actividad-reciente → list[ActividadReciente] — últimos movimientos para feed del dashboard
-GET  /resumen/top-insumos-retirados → list[TopInsumo] — insumos más retirados (últimos 30 días)
+GET  /resumen/
+GET  /resumen/grafico-semana
+GET  /resumen/actividad-reciente
+GET  /resumen/top-insumos-retirados
 ```
 
-**`/importar`**
-```
-POST /importar/csv-xlsx            → resultado bulk (requiere TOTP del usuario admin)
-```
+**`/importar`**: POST acepta CSV/XLSX con campos tipo, sku, codigo_barras, costo_unitario.
 
-**`/audit-log`** (solo admin)
-```
-GET  /audit-log/                   → PaginatedResponse[AuditLogResponse] ?accion=&usuario_id=
-```
+**`/audit-log`** (admin)
 
 ### 3.5 RBAC y dependencias
 
 ```python
-get_usuario_actual  # cualquier JWT válido (rechaza pre_tokens de 2FA)
-require_docente     # solo docente
-require_operador    # admin u operador
-require_admin       # solo admin
+get_usuario_actual   # cualquier JWT válido
+require_docente      # solo docente
+require_operador     # admin u operador
+require_admin        # solo admin
 ```
 
 ### 3.6 Seguridad
 
-**Hashing de contraseñas:** SHA-256 prehash → bcrypt. Nunca usar `bcrypt.hashpw` directamente; siempre usar `hashear_password()` y `verificar_password()` de `app/utils/security.py`.
-
-**JWT:** access token (expiración en .env) y pre_token (5 min, campo `tipo=pre_auth`). Los endpoints protegidos rechazan pre_tokens explícitamente.
-
-**Rate limiting:** en memoria, por email (no por IP — en Docker todas las peticiones llegan desde la IP del contenedor frontend). 5 intentos en 5 min → bloqueo 15 min. Thread-safe con `threading.Lock`. Si se migra a múltiples workers, reemplazar por Redis.
-
-**Security headers:** middleware en `main.py` que agrega `X-Content-Type-Options`, `X-Frame-Options: DENY`, `X-XSS-Protection`, `Referrer-Policy`, `Permissions-Policy` en todas las respuestas.
-
-**Audit log:** `registrar()` hace commit propio e inmediato para que el log persista incluso cuando la operación principal lanza `HTTPException`. Integrado en: `auth/login` (EXITOSO/FALLIDO), CRUD de usuarios, reset-2FA.
+- **Hashing:** SHA-256 prehash → bcrypt. Siempre usar `hashear_password()` / `verificar_password()` de `app/utils/security.py`.
+- **JWT:** access token + pre_token (5 min, tipo=pre_auth). Los endpoints protegidos rechazan pre_tokens.
+- **Rate limiting:** por email, en memoria. 5 intentos / 5 min → bloqueo 15 min.
+- **Security headers:** CSP, X-Frame-Options, Permissions-Policy: `camera=(self)` (necesario para escaneo de código de barras desde móvil).
+- **Audit log:** `registrar()` hace commit propio e inmediato.
 
 ### 3.7 Convenciones flake8
 
-Configuración en `backend/.flake8`: `max-line-length=100`. Ignorados: E302, W292, W503, E402, F401.
-El CI corre `flake8 app/` en push a `main` y `develop`. **Errores que causaron fallos previos y hay que evitar:**
-- E241: múltiples espacios después de `:` (no alinear valores en dicts con espacios)
-- E221: múltiples espacios antes de `=` (no alinear asignaciones con espacios)
+`backend/.flake8`: `max-line-length=100`. Ignorados: E302, W292, W503, E402, F401.
+
+**Errores que causan fallos en CI y hay que evitar:**
+- **E221:** múltiples espacios antes de `=` — NO alinear asignaciones de variables o columnas:
+  ```python
+  # MAL
+  id       = Column(...)
+  nombre   = Column(...)
+  # BIEN
+  id = Column(...)
+  nombre = Column(...)
+  ```
+- **E241:** múltiples espacios después de `:` en dicts.
+- **E501:** líneas > 100 caracteres.
+
+Nota: los espacios de alineación DENTRO de tuplas o listas (ej: en `INSUMOS` de `seed_demo.py`) no son E221 porque no hay operador `=`.
 
 ---
 
@@ -287,101 +342,102 @@ El CI corre `flake8 app/` en push a `main` y `develop`. **Errores que causaron f
 
 ```
 frontend/src/
-├── App.tsx                # BrowserRouter + Routes (todas las rutas)
-├── main.tsx
-├── api/
-│   └── client.ts          # Axios instance; interceptor JWT; redirect 401 → /login
-├── store/
-│   └── auth.ts            # Zustand: token, user (nombre+rol), login(), logout()
-├── types/
-│   └── api.ts             # Interfaces TS sincronizadas con schemas Pydantic
-├── pages/                 # 1 archivo = 1 ruta
+├── App.tsx
+├── api/client.ts
+├── store/auth.ts
+├── types/api.ts          # sincronizado con schemas Pydantic
+├── pages/
 │   ├── Login.tsx
-│   ├── Dashboard.tsx         # métricas + gráfico semanal + feed actividad + top insumos
-│   ├── Alertas.tsx           # tabs Activas/Resueltas + selector 7/14/30 días
-│   ├── Insumos.tsx           # tabla filtrable + CRUD + exportar CSV + autocompletado
-│   ├── Movimientos.tsx       # tabla paginada + filtros + exportar CSV/XLSX
-│   ├── SolicitudDocente.tsx  # carrito de retiro + historial (solo docente)
-│   ├── SolicitudOperador.tsx # gestión de solicitudes pendientes (operador+)
+│   ├── Dashboard.tsx
+│   ├── Alertas.tsx
+│   ├── Insumos.tsx           # tipo/SKU/barcode/costo + escaneo cámara
+│   ├── Movimientos.tsx
+│   ├── SolicitudDocente.tsx  # selector de clase, ventana 2h-7d
+│   ├── SolicitudOperador.tsx # muestra asignatura/sección en cada tarjeta
+│   ├── RetornosOperador.tsx  # tabs Hoy/Pendientes, marcar retornado/merma
+│   ├── Asignaturas.tsx       # CRUD (admin)
+│   ├── ClasesDocente.tsx     # asignación docente→asignatura+sección (admin)
 │   ├── Salas.tsx
 │   ├── Categorias.tsx
-│   ├── Configuracion2FA.tsx  # setup QR, activar, desactivar, recovery codes
-│   ├── ImportarInsumos.tsx   # upload CSV/XLSX con TOTP
-│   ├── Perfil.tsx            # info usuario + foto de perfil + cambiar contraseña
-│   ├── Usuarios.tsx          # CRUD usuarios + reset 2FA (solo admin)
-│   └── AuditLog.tsx          # tabla paginada + filtro por acción (solo admin)
+│   ├── Configuracion2FA.tsx
+│   ├── ImportarInsumos.tsx
+│   ├── Perfil.tsx
+│   ├── Usuarios.tsx
+│   └── AuditLog.tsx
 └── components/
-    ├── layout/
-    │   ├── Layout.tsx     # outlet + guard JWT + aviso 2FA
-    │   └── Sidebar.tsx    # nav por rol + footer perfil/seguridad/logout
+    ├── layout/Layout.tsx
+    ├── layout/Sidebar.tsx
     └── ui/
-        ├── Badge.tsx           # variants: default|warning|danger|success|info
-        ├── Card.tsx            # MetricCard
-        ├── Logo.tsx            # prop light=true para fondos oscuros (sidebar)
-        ├── Modal.tsx           # size: sm|md|lg
-        ├── SearchSuggestions.tsx  # dropdown de autocompletado (Insumos, Movimientos)
-        └── Skeleton.tsx        # Skeleton, MetricCardSkeleton, TableRowSkeleton, AlertaCardSkeleton
+        ├── Badge.tsx
+        ├── BarcodeScanner.tsx    # @zxing/browser, importación dinámica
+        ├── Card.tsx
+        ├── Logo.tsx
+        ├── Modal.tsx
+        ├── SearchSuggestions.tsx
+        └── Skeleton.tsx
 ```
 
 ### 4.2 Rutas
 
 ```tsx
-/login             → <Login />                (pública)
-/                  → redirect /dashboard      (protegida por Layout)
+/login             → <Login />          (pública)
 /dashboard         → <Dashboard />
 /alertas           → <Alertas />
 /insumos           → <Insumos />
 /movimientos       → <Movimientos />
-/solicitudes       → <SolicitudDocente />     (visible solo docente en sidebar)
-/solicitudes/admin → <SolicitudOperador />    (visible solo operador+admin en sidebar)
+/solicitudes       → <SolicitudDocente /> (docente) | <SolicitudOperador /> (operador+)
+/retornos          → <RetornosOperador />  (operador+)
+/asignaturas       → <Asignaturas />       (admin)
+/clases-docente    → <ClasesDocente />     (admin)
 /salas             → <Salas />
 /categorias        → <Categorias />
 /seguridad         → <Configuracion2FA />
-/importar          → <ImportarInsumos />      (visible solo admin en sidebar)
+/importar          → <ImportarInsumos />   (admin)
 /perfil            → <Perfil />
-/usuarios          → <Usuarios />             (visible solo admin en sidebar)
-/audit-log         → <AuditLog />             (visible solo admin en sidebar)
+/usuarios          → <Usuarios />          (admin)
+/audit-log         → <AuditLog />          (admin)
 ```
 
 ### 4.3 Proxy de Vite — regla crítica
 
-Todo prefijo de ruta backend debe estar listado en `frontend/vite.config.ts`:
 ```typescript
 proxy: {
-  '/auth':        API,
-  '/insumos':     API,
-  '/importar':    API,
-  '/resumen':     API,
-  '/salas':       API,
-  '/categorias':  API,
-  '/usuarios':    API,
-  '/movimientos': API,
-  '/solicitudes': API,
-  '/audit-log':   API,
+  '/auth':           API,
+  '/insumos':        API,
+  '/importar':       API,
+  '/resumen':        API,
+  '/salas':          API,
+  '/categorias':     API,
+  '/usuarios':       API,
+  '/movimientos':    API,
+  '/audit-log':      API,
+  '/solicitudes':    API,
+  '/retornos':       API,
+  '/asignaturas':    API,
+  '/clases-docente': API,
 }
 ```
-**Regla:** al agregar un nuevo router en FastAPI, agregar su prefix aquí o el frontend devolverá HTML en lugar de JSON, causando página en blanco.
+**Regla:** al agregar un router en FastAPI, agregar su prefix aquí o el frontend devolverá HTML en lugar de JSON.
 
-Tras editar `vite.config.ts`: `docker compose restart frontend`.
+### 4.4 BarcodeScanner
 
-### 4.4 Patrones de componente
+Usa `@zxing/browser` con importación dinámica (code-splitting). Requiere HTTPS o localhost para acceder a `getUserMedia`. El header `Permissions-Policy: camera=(self)` ya está configurado en el backend. Para LAN con HTTPS se recomienda un proxy inverso (Caddy o nginx + cert autofirmado).
 
-Todos los componentes de página siguen el mismo patrón:
+### 4.5 Patrones de componente
+
 ```typescript
 // 1. Estado con useState
 // 2. load() con useCallback
 // 3. useEffect con dependencias explícitas
-// 4. try/catch/finally en TODOS los fetches (evitar página en blanco por Promise rejection)
-// 5. Estado de loading → skeleton, luego datos
-// 6. Toast para feedback de acciones (aparece 3 segundos)
+// 4. try/catch/finally en TODOS los fetches
+// 5. Loading → skeleton → datos
+// 6. Toast 3 segundos para feedback
 // 7. Modal para crear/editar/eliminar
 ```
 
-Las interfaces TypeScript en `src/types/api.ts` deben mantenerse sincronizadas con los schemas Pydantic. Cuando se modifique un response schema en el backend, actualizar el tipo correspondiente en `api.ts`.
+### 4.6 Store de autenticación
 
-### 4.5 Store de autenticación
-
-Zustand persiste `token` y `user: {nombre, email, rol}` en localStorage bajo las claves `hestia_token` y `hestia_user`. El interceptor de Axios inyecta el JWT automáticamente. Si el backend devuelve 401, el interceptor limpia el storage y redirige a `/login`.
+Zustand persiste `token` y `user: {nombre, email, rol}` en localStorage. El interceptor Axios inyecta el JWT. 401 → limpia storage + redirect `/login`.
 
 ---
 
@@ -389,23 +445,39 @@ Zustand persiste `token` y `user: {nombre, email, rol}` en localStorage bajo las
 
 ```
 POST /auth/login
-  ├─ Sin 2FA: → access_token (JWT completo) → guardar en store
-  └─ Con 2FA: → pre_token (5 min, tipo=pre_auth)
-                   ↓
-             POST /auth/2fa/completar-login
-                   ↓
-             access_token → guardar en store
+  ├─ Sin 2FA: → access_token
+  └─ Con 2FA: → pre_token → POST /auth/2fa/completar-login → access_token
 ```
-
-Los pre_tokens son rechazados por todos los endpoints protegidos (`get_usuario_actual` verifica `payload.tipo != 'pre_auth'`).
-
-**Recovery codes:** 10 códigos en formato `XXXXXXXX-XXXXXXXX`, mostrados UNA sola vez al activar 2FA. Almacenados como JSON con SHA-256 hashes. Un código usado se marca `"usado": true`. Al usar un recovery code exitosamente, el 2FA se desactiva para que el usuario lo reconfigure.
 
 ---
 
-## 6. Variables de entorno
+## 6. Flujo de retiro (Fases 1-4)
 
-`backend/.env` (no en git):
+```
+Docente crea solicitud (ventana 2h-7d antes de clase)
+  → opcionalmente vincula a ClaseDocente (asignatura+sección)
+  → estado: pendiente
+
+Operador ve bandeja → "Marcar en preparación"
+  → estado: en_preparacion
+
+Operador completa:
+  → descuenta stock (SELECT FOR UPDATE)
+  → crea Movimiento(salida) por cada item
+  → si item.insumo.tipo == implemento:
+      crea RetornoImplemento(estado=pendiente)
+  → estado: completada
+
+Operador revisa RetornosOperador (fin del día):
+  → retornado   → stock += cantidad
+  → no_retornado → merma, stock sin cambio
+```
+
+---
+
+## 7. Variables de entorno
+
+`backend/.env`:
 ```
 DATABASE_URL=postgresql://postgres:hestia_pass@db:5432/hestia_db
 SECRET_KEY=<clave secreta JWT>
@@ -413,81 +485,88 @@ ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=480
 ```
 
-`frontend/.env` (solo necesario en producción/despliegue externo):
+`frontend/.env` (solo producción/LAN):
 ```
 VITE_API_URL=http://<IP_SERVIDOR>:8000
 ```
-En desarrollo, el proxy de Vite maneja el enrutamiento; `VITE_API_URL` queda vacío.
 
 ---
 
-## 7. CI/CD
+## 8. CI/CD
 
-Archivo: `.github/workflows/validacion.yml`
-- Trigger: push y PR a `main` o `develop`
-- Pasos: checkout → Python 3.11 → pip install (requirements.txt + flake8) → `flake8 app/ --max-line-length=100`
-- El `requirements.txt` raíz es el mismo que `backend/requirements.txt` (o un symlink/copia)
-
-No hay CI para el frontend (TypeScript, ESLint o build check). El build de Vite falla silenciosamente en PR si hay errores de tipos.
+- Trigger: push a `main` o `develop`
+- `flake8 app/ --max-line-length=100`
+- `seed_demo.py` no es chequeado por CI (está fuera de `app/`)
+- No hay CI para TypeScript/ESLint actualmente
 
 ---
 
-## 8. Funcionalidades implementadas
+## 9. Funcionalidades implementadas
 
 | Área | Funcionalidad | Estado |
 |---|---|---|
 | Inventario | CRUD insumos con filtros server-side | ✅ |
+| Inventario | Tipo insumo/implemento | ✅ Fase 1 |
+| Inventario | SKU auto-generado + código de barras | ✅ Fase 1 |
+| Inventario | Costo unitario | ✅ Fase 1 |
+| Inventario | Escaneo por cámara (@zxing/browser) | ✅ Fase 1 |
 | Inventario | Alertas stock mínimo (activas + resueltas) | ✅ |
-| Inventario | Exportación CSV con filtros | ✅ |
-| Inventario | Importación masiva CSV/XLSX con TOTP | ✅ |
-| Inventario | Autocompletado en búsqueda de insumos | ✅ |
-| Movimientos | Registro entrada/salida + listado paginado + filtros | ✅ |
-| Movimientos | Exportación CSV/XLSX con filtros | ✅ |
-| Solicitudes | Flujo docente → operador (carrito + historial + gestión) | ✅ |
-| Solicitudes | Descuento de stock con bloqueo pesimista (SELECT FOR UPDATE) | ✅ |
+| Inventario | Exportación CSV/XLSX real con filtros | ✅ |
+| Inventario | Importación CSV/XLSX + tipo/sku/costo | ✅ |
+| Inventario | Autocompletado en búsqueda | ✅ |
+| Movimientos | Registro entrada/salida + listado + filtros | ✅ |
+| Movimientos | Exportación CSV/XLSX | ✅ |
+| Solicitudes | Flujo docente → operador | ✅ |
+| Solicitudes | Ventana 2h-7d antes de clase | ✅ Fase 3 |
+| Solicitudes | Trazabilidad por asignatura/sección | ✅ Fase 4 |
+| Solicitudes | SELECT FOR UPDATE en completar | ✅ |
+| Retornos | Flujo retorno de implementos | ✅ Fase 2 |
+| Retornos | Restaurar stock al retornar | ✅ Fase 2 |
+| Académico | Asignaturas CRUD | ✅ Fase 4 |
+| Académico | Clases docentes (asig+sección+semestre) | ✅ Fase 4 |
 | Auth | Login + JWT + TOTP 2FA + recovery codes | ✅ |
-| Auth | Rate limiting (5 intentos, 15 min bloqueo) | ✅ |
-| Auth | Security headers HTTP | ✅ |
+| Auth | Rate limiting | ✅ |
+| Auth | Security headers + Permissions-Policy | ✅ |
 | Usuarios | RBAC admin/operador/visor/docente | ✅ |
-| Usuarios | CRUD desde UI (solo admin) | ✅ |
-| Usuarios | Perfil + foto de perfil + cambiar contraseña | ✅ |
-| Usuarios | Reset 2FA desde admin | ✅ |
-| Dashboard | Métricas + gráfico semanal + feed actividad + top insumos | ✅ |
-| Audit log | Registro de acciones (login, CRUD usuarios) | ✅ parcial |
-| Salas | CRUD | ✅ |
-| Categorías | CRUD | ✅ |
+| Usuarios | CRUD + perfil + foto + cambiar clave | ✅ |
+| Dashboard | Métricas + gráfico + feed + top insumos | ✅ |
+| Audit log | Acciones de login y CRUD usuarios | ✅ parcial |
 
 ### Pendiente / ideas para versiones futuras
 
-| Funcionalidad | Dependencias | Complejidad |
-|---|---|---|
-| Audit log en insumos y movimientos | — | Baja |
-| Predicción de desabastecimiento | Datos históricos suficientes | Media |
-| Clasificación ABC de inventario | — | Media |
-| Campo `fecha_vencimiento` en insumos | Migración Alembic + refactor UI | Alta |
-| Reportes PDF para directivos | weasyprint o similar | Media |
-| Gestión de lotes | Modelo Lote + refactor movimientos | Muy alta |
+| Funcionalidad | Complejidad |
+|---|---|
+| Recomendación de insumos por asignatura (historial) | Media |
+| Reportes PDF: valorización, ABC, costo por estudiante | Media |
+| Predicción de desabastecimiento | Media |
+| Audit log en insumos y movimientos | Baja |
+| Campo `fecha_vencimiento` en insumos | Media |
+| Gestión de lotes | Muy alta |
 
 ---
 
-## 9. Reglas para trabajar en este repositorio
+## 10. Reglas para trabajar en este repositorio
 
-1. **Leer el código real antes de escribir.** Usar MCP de GitHub para ver los archivos actuales. Nunca asumir la estructura basándose en conversaciones anteriores.
+1. **Leer el código real antes de escribir.** Usar MCP de GitHub para ver los archivos actuales.
 
-2. **Flake8 primero.** Todo código Python debe pasar `flake8 app/ --max-line-length=100`. No usar espacios de alineación visual en dicts ni en asignaciones.
+2. **Flake8 primero.** No usar espacios de alineación visual en asignaciones (E221). Líneas ≤ 100 chars.
 
-3. **Proxy de Vite.** Al agregar un router en FastAPI, agregar su prefix en `vite.config.ts`. Olvidarlo causa página en blanco.
+3. **Proxy de Vite.** Al agregar un router FastAPI, agregar su prefix en `vite.config.ts`.
 
-4. **Importar modelos en `main.py`.** Al crear un modelo SQLAlchemy nuevo, importar su módulo en `main.py` antes de `create_all()`.
+4. **Importar modelos en `main.py` en orden de FK.** `asignatura` antes de `clase_docente`, `clase_docente` antes de `solicitud`.
 
-5. **Rutas estáticas antes que dinámicas.** En `insumos.py`, `/alertas` y `/exportar` van ANTES de `/{insumo_id}` para que FastAPI no interprete la cadena como entero.
+5. **Rutas estáticas antes que dinámicas.** `/alertas`, `/exportar`, `/mis-clases` van ANTES de `/{id}`.
 
-6. **Try/catch en fetches del frontend.** Siempre incluir `catch` (no solo `finally`) en funciones `load()` asíncronas para evitar páginas en blanco por Promise rejection no manejada.
+6. **Try/catch en fetches del frontend.** Siempre incluir `catch` en funciones `load()` asíncronas.
 
-7. **Sincronizar tipos.** Al modificar un schema Pydantic en el backend, actualizar la interfaz correspondiente en `frontend/src/types/api.ts`.
+7. **Sincronizar tipos.** Al modificar un schema Pydantic, actualizar `frontend/src/types/api.ts`.
 
-8. **No exponer el puerto 5432.** El servicio `db` en `docker-compose.yml` no tiene `ports:`. No agregar esa sección en producción.
+8. **No exponer el puerto 5432.** El servicio `db` no tiene `ports:` en docker-compose.
 
-9. **Usar `hashear_password()` de `security.py`.** Nunca llamar directamente a `bcrypt.hashpw()` — el sistema usa prehash SHA-256 antes de bcrypt.
+9. **`hashear_password()` de `security.py`.** La columna del modelo es `password_hash`. Nunca llamar `bcrypt.hashpw()` directamente.
 
-10. **`registrar()` tiene commit propio.** Llamar a `registrar()` después del commit de la operación principal, no antes. Para errores (LOGIN_FALLIDO), llamar antes del `raise HTTPException`.
+10. **`registrar()` tiene commit propio.** Llamar después del commit principal; para errores (LOGIN_FALLIDO) antes del `raise HTTPException`.
+
+11. **SKU auto-generado.** Al crear insumos, hacer `db.flush()` para obtener el ID, luego `sku = f"HST-{id:05d}"` si no se proveyó uno.
+
+12. **`datetime-local` usa hora local.** El helper `toDatetimeLocal(date)` del frontend formatea correctamente sin usar `toISOString()` (que daría UTC y desplazaría min/max por la zona horaria).

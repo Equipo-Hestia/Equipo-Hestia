@@ -21,13 +21,16 @@ Hestia es una aplicación web para el control de stock de insumos e implementos 
 
 ## Funcionalidades
 
-- **Inventario** — CRUD de insumos con filtros por nombre, sala, categoría y estado de stock
+- **Inventario** — CRUD de insumos con tipo (insumo desechable / implemento retornable), SKU, código de barras escaneable, costo unitario y filtros por nombre, sala, categoría, tipo y estado de stock
+- **Escaneo de código de barras** — cámara del móvil desde el navegador (HTTPS/LAN, sin app nativa) usando `@zxing/browser`
 - **Movimientos** — registro de entradas y salidas con trazabilidad por usuario; exportación CSV/XLSX con filtros
 - **Alertas de stock** — insumos bajo mínimo y alertas resueltas con rango configurable
 - **Dashboard** — métricas en tiempo real, gráfico semanal, feed de actividad reciente y top insumos retirados
-- **Solicitudes de retiro** — flujo de retiro para docentes: carrito de insumos por clase y sala; bandeja de gestión para operadores con indicadores de urgencia
+- **Solicitudes de retiro** — flujo de retiro para docentes: carrito de insumos por clase, sala y asignatura/sección; ventana de 2 horas a 7 días antes de la clase; bandeja de gestión para operadores con indicadores de urgencia
+- **Retorno de implementos** — al completar una solicitud, los implementos generan un registro pendiente de retorno; el operador confirma cuáles volvieron al área común (restaurando stock) y cuáles no (registrados como merma)
+- **Asignaturas y clases docentes** — el admin asigna docentes a asignaturas y secciones por semestre; el docente selecciona su clase al solicitar, habilitando trazabilidad académica y futuros reportes de costo por estudiante
 - **Importación masiva** — carga de insumos desde CSV o XLSX con verificación TOTP
-- **Exportación CSV** — descarga del inventario con los filtros activos
+- **Exportación CSV/XLSX** — descarga del inventario con los filtros activos
 - **Gestión de usuarios** — CRUD desde la UI con roles admin / operador / visor / docente
 - **Foto de perfil** — upload con redimensionado automático a 256×256
 - **2FA** — setup wizard con códigos QR, códigos de recuperación y reset desde admin
@@ -41,8 +44,8 @@ Hestia es una aplicación web para el control de stock de insumos e implementos 
 
 | Rol | Acceso |
 |---|---|
-| `admin` | Acceso completo — gestión de usuarios, insumos, importar, audit log |
-| `operador` | Insumos, movimientos, alertas, salas, categorías, bandeja de solicitudes |
+| `admin` | Acceso completo — gestión de usuarios, insumos, asignaturas, clases, importar, audit log |
+| `operador` | Insumos, movimientos, alertas, salas, categorías, bandeja de solicitudes, retornos |
 | `visor` | Solo lectura — dashboard, insumos, movimientos, alertas, salas, categorías |
 | `docente` | Exclusivo — carrito de retiro de insumos para su clase + historial propio |
 
@@ -92,7 +95,7 @@ La base de datos se crea automáticamente al iniciar la API. Las migraciones de 
 
 ### 4. Cargar datos de demo (opcional)
 
-Para una demo con 88 insumos médicos reales y ~560 movimientos distribuidos en 60 días:
+Para una demo con 88 insumos médicos (incluyendo implementos retornables), 8 asignaturas, 10 clases asignadas a docentes, y ~560 movimientos distribuidos en 60 días:
 
 ```bash
 docker compose exec api python seed_demo.py
@@ -109,8 +112,13 @@ El script pide confirmación antes de borrar datos existentes y muestra las cred
 | `cfuentes@hestia.duoc.cl` | `Oper2024!` | Operador |
 | `amartinez@hestia.duoc.cl` | `Visor2024!` | Visor |
 | `lperez@hestia.duoc.cl` | `Visor2024!` | Visor |
+| `c.moreno@hestia.duoc.cl` | `Doc2024!` | Docente |
+| `p.vasquez@hestia.duoc.cl` | `Doc2024!` | Docente |
+| `r.ibanez@hestia.duoc.cl` | `Doc2024!` | Docente |
+| `s.reyes@hestia.duoc.cl` | `Doc2024!` | Docente |
+| `m.tapia@hestia.duoc.cl` | `Doc2024!` | Docente |
 
-> Los usuarios con rol **docente** se crean desde la sección Usuarios (admin). No hay docentes de demo precargados.
+> Los 5 docentes ya tienen clases asignadas en el semestre 2025-1, por lo que al iniciar sesión verán el selector de clase al crear solicitudes.
 
 ---
 
@@ -146,6 +154,8 @@ Hestia está diseñado para correr en un servidor dentro de la red interna de Du
 2. Verificar la IP del servidor en la red local (ej. `192.168.1.50`).
 3. Los usuarios acceden desde `http://192.168.1.50:3000`.
 
+Para habilitar el escaneo de códigos de barras por cámara desde dispositivos móviles, el sitio debe servirse por HTTPS. Agregar un proxy inverso (ej. Caddy o nginx con certificado autofirmado) frente al frontend resuelve el requisito del navegador.
+
 Para que el frontend llame a la API correctamente desde otros equipos, crear `frontend/.env` con:
 
 ```
@@ -163,7 +173,9 @@ hestia/
 ├── backend/
 │   ├── app/
 │   │   ├── models/        → SQLAlchemy (usuario, insumo, sala, categoria,
-│   │   │                               movimiento, solicitud, audit_log)
+│   │   │                               movimiento, solicitud, audit_log,
+│   │   │                               asignatura, clase_docente,
+│   │   │                               retorno_implemento)
 │   │   ├── schemas/       → Pydantic v2
 │   │   ├── routes/        → FastAPI routers
 │   │   └── utils/         → security, deps (RBAC), rate_limit, auditoria
@@ -175,9 +187,11 @@ hestia/
 │   ├── src/
 │   │   ├── pages/         → Dashboard, Insumos, Alertas, Movimientos,
 │   │   │                    Usuarios, SolicitudDocente, SolicitudOperador,
+│   │   │                    RetornosOperador, Asignaturas, ClasesDocente,
 │   │   │                    Perfil, Configuracion2FA, AuditLog, Importar…
 │   │   ├── components/    → Layout, Sidebar, ui/ (Badge, Card, Modal,
-│   │   │                    Skeleton, SearchSuggestions, Logo)
+│   │   │                    Skeleton, SearchSuggestions, BarcodeScanner,
+│   │   │                    Logo)
 │   │   ├── api/           → Axios client con interceptor JWT
 │   │   ├── store/         → Zustand (auth)
 │   │   └── types/         → interfaces TypeScript sincronizadas con el backend
@@ -195,10 +209,9 @@ hestia/
 
 ## Flujo de trabajo del equipo
 
-- No trabajar directamente en `main`
-- Una rama por funcionalidad: `feat/nombre`, `fix/nombre`, `chore/nombre`
-- Abrir Pull Request para mergear a `main`
+- Commits directos a `main` durante la fase de desarrollo activo
 - El CI valida automáticamente con flake8 en cada push
+- Para funcionalidades grandes o colaboración externa, abrir rama `feat/nombre` y Pull Request
 
 Ver [`.github/CONTRIBUTING.md`](.github/CONTRIBUTING.md) para más detalles.
 
