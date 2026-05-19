@@ -3,13 +3,13 @@ import {
   LayoutDashboard, AlertTriangle, Package,
   ArrowLeftRight, DoorOpen, Tag,
   LogOut, ShieldCheck, Upload,
-  UserCircle, Users, ScrollText, ClipboardList
+  UserCircle, Users, ScrollText, ClipboardList, RotateCcw
 } from 'lucide-react'
 import { useAuthStore } from '../../store/auth'
 import { Logo } from '../ui/Logo'
 
 // Cada item define en que roles es visible.
-// El rol 'docente' solo ve Solicitudes; el resto no cambia.
+// El rol 'docente' solo ve Solicitudes e Insumos.
 const NAV_ITEMS = [
   // Seccion principal (admin, operador, visor)
   { to: '/dashboard',   icon: LayoutDashboard, label: 'Dashboard',   roles: ['admin', 'operador', 'visor'] },
@@ -19,16 +19,16 @@ const NAV_ITEMS = [
   // Seccion gestion
   { to: '/salas',       icon: DoorOpen,        label: 'Salas',       roles: ['admin', 'operador', 'visor'], divider: true },
   { to: '/categorias',  icon: Tag,             label: 'Categorias',  roles: ['admin', 'operador', 'visor'] },
-  // Seccion operaciones
-  { to: '/importar',    icon: Upload,          label: 'Importar',    roles: ['admin'], divider: true },
+  // Seccion operaciones — solicitudes y retornos de implementos
+  { to: '/solicitudes', icon: ClipboardList,   label: 'Solicitudes', roles: ['admin', 'operador'], divider: true },
+  { to: '/retornos',    icon: RotateCcw,       label: 'Retornos',    roles: ['admin', 'operador'] },
   // Seccion administracion
-  { to: '/usuarios',    icon: Users,           label: 'Usuarios',    roles: ['admin'], divider: true },
+  { to: '/importar',    icon: Upload,          label: 'Importar',    roles: ['admin'], divider: true },
+  { to: '/usuarios',    icon: Users,           label: 'Usuarios',    roles: ['admin'] },
   { to: '/audit-log',   icon: ScrollText,      label: 'Audit Log',   roles: ['admin'] },
-  // Flujo docente: retiro de insumos y insumos
+  // Flujo docente
   { to: '/solicitudes', icon: ClipboardList,   label: 'Retiro de insumos', roles: ['docente'] },
-  { to: '/insumos',     icon: Package,         label: 'Insumos', roles: ['docente'] },
-  // Operador/admin tambien gestiona solicitudes (Bloque 4)
-  { to: '/solicitudes', icon: ClipboardList,   label: 'Solicitudes', roles: ['operador'], divider: true },
+  { to: '/insumos',     icon: Package,         label: 'Insumos',           roles: ['docente'] },
 ]
 
 const ROL_LABELS: Record<string, string> = {

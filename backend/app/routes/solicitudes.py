@@ -7,8 +7,9 @@ from typing import Optional
 
 from app.database import get_db
 from app.models.solicitud import SolicitudRetiro, SolicitudItem, EstadoSolicitud
-from app.models.insumo import Insumo
+from app.models.insumo import Insumo, TipoInsumo
 from app.models.movimiento import Movimiento, TipoMovimiento
+from app.models.retorno_implemento import RetornoImplemento
 from app.models.usuario import Usuario
 from app.schemas.solicitud import (
     SolicitudCreate, SolicitudResponse,
@@ -277,7 +278,8 @@ def completar_solicitud(
     2. Re-verifica stock actual por cada item (puede haber cambiado).
     3. Descuenta stock_actual de cada insumo.
     4. Crea un Movimiento de salida por item con referencia a la solicitud.
-    5. Marca la solicitud como 'completada' y guarda fecha_completada.
+    5. Para items de tipo 'implemento', crea un RetornoImplemento pendiente.
+    6. Marca la solicitud como 'completada' y guarda fecha_completada.
 
     El stock se descuenta aqui (no al crear la solicitud) porque la solicitud
     es una intencion, no una reserva. El movimiento fisico ocurre al despachar.
@@ -316,13 +318,15 @@ def completar_solicitud(
             )
         insumos_bloqueados[item.insumo_id] = insumo
 
-    # Descontar stock y registrar movimientos de salida
+    # Descontar stock, registrar movimientos y crear retornos para implementos
     docente_nombre = s.docente.nombre if s.docente else "Docente"
     sala_nombre = s.sala.nombre if s.sala else "Sala"
     motivo = f"Solicitud #{s.id} \u2014 {docente_nombre} \u2014 {sala_nombre}"
+    ahora = datetime.now(timezone.utc)
 
     for item in s.items:
-        insumos_bloqueados[item.insumo_id].stock_actual -= item.cantidad_solicitada
+        insumo = insumos_bloqueados[item.insumo_id]
+        insumo.stock_actual -= item.cantidad_solicitada
         db.add(Movimiento(
             tipo=TipoMovimiento.salida,
             cantidad=item.cantidad_solicitada,
@@ -330,9 +334,19 @@ def completar_solicitud(
             usuario_id=usuario.id,
             motivo=motivo,
         ))
+        # Los implementos deben retornar al area comun; se registra el pendiente
+        if insumo.tipo == TipoInsumo.implemento:
+            db.add(RetornoImplemento(
+                insumo_id=item.insumo_id,
+                solicitud_id=s.id,
+                docente_id=s.docente_id,
+                sala_id=s.sala_id,
+                cantidad=item.cantidad_solicitada,
+                fecha_retiro=ahora,
+            ))
 
     s.estado = EstadoSolicitud.completada
-    s.fecha_completada = datetime.now(timezone.utc)
+    s.fecha_completada = ahora
     if datos.notas_operador is not None:
         s.notas_operador = datos.notas_operador
 

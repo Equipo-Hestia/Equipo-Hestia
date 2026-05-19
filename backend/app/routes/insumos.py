@@ -9,6 +9,10 @@ import pyotp
 import csv
 import io
 
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill, Alignment
+from openpyxl.utils import get_column_letter
+
 from app.database import get_db
 from app.models.insumo import Insumo, TipoInsumo
 from app.models.movimiento import Movimiento, TipoMovimiento
@@ -144,6 +148,7 @@ def alertas_resueltas(
 
 @router.get("/exportar")
 def exportar_insumos(
+    formato: str = "csv",
     nombre: Optional[str] = None,
     sala_id: Optional[int] = None,
     categoria_id: Optional[int] = None,
@@ -153,29 +158,32 @@ def exportar_insumos(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(get_usuario_actual)
 ):
-    """Exporta el inventario como CSV con los mismos filtros del listado."""
+    """Exporta el inventario como CSV o Excel con los filtros activos.
+
+    formato=csv  -> archivo .csv con BOM UTF-8 (abre bien en Excel).
+    formato=xlsx -> archivo .xlsx con cabecera coloreada y columnas ajustadas.
+    """
     insumos = _build_query(
         db, nombre, sala_id, categoria_id, bajo_stock, incluir_inactivos, tipo
     ).order_by(Insumo.nombre).all()
 
-    output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow([
-        "nombre", "tipo", "sku", "codigo_barras", "descripcion",
-        "stock_actual", "stock_minimo", "costo_unitario",
-        "sala", "categoria", "estado"
-    ])
-    for i in insumos:
+    cabecera = [
+        "Nombre", "Tipo", "SKU", "Codigo de barras", "Descripcion",
+        "Stock actual", "Stock minimo", "Costo unitario",
+        "Sala", "Categoria", "Estado"
+    ]
+
+    def _estado(i: Insumo) -> str:
         if not i.activo:
-            estado = "inactivo"
-        elif i.stock_actual == 0:
-            estado = "agotado"
-        elif i.stock_actual <= i.stock_minimo:
-            estado = "bajo_stock"
-        else:
-            estado = "ok"
-        costo = float(i.costo_unitario) if i.costo_unitario is not None else ""
-        writer.writerow([
+            return "inactivo"
+        if i.stock_actual == 0:
+            return "agotado"
+        if i.stock_actual <= i.stock_minimo:
+            return "bajo_stock"
+        return "ok"
+
+    filas = [
+        [
             i.nombre,
             i.tipo.value if i.tipo else "insumo",
             i.sku or "",
@@ -183,11 +191,53 @@ def exportar_insumos(
             i.descripcion or "",
             i.stock_actual,
             i.stock_minimo,
-            costo,
+            float(i.costo_unitario) if i.costo_unitario is not None else "",
             i.sala.nombre if i.sala else "",
             i.categoria.nombre if i.categoria else "",
-            estado,
-        ])
+            _estado(i),
+        ]
+        for i in insumos
+    ]
+
+    if formato == "xlsx":
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Inventario"
+
+        header_fill = PatternFill("solid", fgColor="0F766E")  # teal-700
+        header_font = Font(color="FFFFFF", bold=True)
+        for col_idx, titulo in enumerate(cabecera, 1):
+            cell = ws.cell(row=1, column=col_idx, value=titulo)
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal="center")
+
+        for fila in filas:
+            ws.append(fila)
+
+        for col_idx, _ in enumerate(cabecera, 1):
+            col_letter = get_column_letter(col_idx)
+            max_len = max(
+                (len(str(ws.cell(row=r, column=col_idx).value or ""))
+                 for r in range(1, ws.max_row + 1)),
+                default=10,
+            )
+            ws.column_dimensions[col_letter].width = min(max_len + 4, 50)
+
+        buf = io.BytesIO()
+        wb.save(buf)
+        buf.seek(0)
+        return StreamingResponse(
+            buf,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": "attachment; filename=inventario_hestia.xlsx"},
+        )
+
+    # CSV con BOM UTF-8 para compatibilidad con Excel en Windows
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(cabecera)
+    writer.writerows(filas)
     output.seek(0)
     return StreamingResponse(
         io.BytesIO(output.getvalue().encode("utf-8-sig")),

@@ -182,3 +182,24 @@ export interface SolicitudResponse {
   items: SolicitudItemResponse[]
   minutos_hasta_clase: number
 }
+
+// ---------------------------------------------------------------------------
+// Retornos de implementos (Fase 2)
+// ---------------------------------------------------------------------------
+
+export type EstadoRetorno = 'pendiente' | 'retornado' | 'no_retornado'
+
+export interface RetornoResponse {
+  id: number
+  insumo_id: number
+  insumo_nombre: string
+  solicitud_id: number | null
+  docente_nombre: string | null
+  sala_nombre: string | null
+  cantidad: number
+  fecha_retiro: string
+  fecha_retorno: string | null
+  estado: EstadoRetorno
+  operador_nombre: string | null
+  notas: string | null
+}

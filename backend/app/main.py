@@ -10,11 +10,13 @@ from app.models import sala, categoria, usuario, movimiento, insumo  # noqa
 from app.models import audit_log  # noqa
 from app.models import solicitud  # noqa  <- SolicitudRetiro y SolicitudItem
 from app.models import token_recuperacion  # noqa  <- TokenRecuperacion
+from app.models import retorno_implemento  # noqa  <- RetornoImplemento
 from app.routes import (
     salas, categorias, usuarios, movimientos, insumos, auth, resumen, importar
 )
 from app.routes import audit_log as audit_log_routes
 from app.routes import solicitudes
+from app.routes import retornos
 
 # 1) crea tablas que no existen. 2) aplica ALTER TABLE / ALTER TYPE idempotentes
 # para columnas y valores de enum agregados a tablas ya existentes.
@@ -94,6 +96,7 @@ app.include_router(resumen.router)
 app.include_router(importar.router)
 app.include_router(audit_log_routes.router)
 app.include_router(solicitudes.router)
+app.include_router(retornos.router)
 
 
 @app.get("/")

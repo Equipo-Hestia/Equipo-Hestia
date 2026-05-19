@@ -9,8 +9,8 @@ import type { IncomingMessage } from 'http'
 const API = process.env.API_URL ?? 'http://localhost:8000'
 
 // Content Security Policy compartida entre el servidor de desarrollo y
-// cualquier proxy de producción. 'unsafe-inline' en script/style es necesario
-// para Vite HMR y Tailwind. Para un build de producción servido con nginx
+// cualquier proxy de produccion. 'unsafe-inline' en script/style es necesario
+// para Vite HMR y Tailwind. Para un build de produccion servido con nginx
 // se puede endurecer con nonces y eliminar 'unsafe-inline' de script-src.
 const CSP = [
   "default-src 'self'",
@@ -74,6 +74,7 @@ export default defineConfig({
       '/movimientos':  apiProxy(API),
       '/audit-log':    apiProxy(API),
       '/solicitudes':  apiProxy(API),
+      '/retornos':     apiProxy(API),
     },
   },
 })
