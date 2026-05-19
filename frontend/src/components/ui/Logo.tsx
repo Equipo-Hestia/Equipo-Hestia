@@ -8,7 +8,7 @@
 export function Logo({ className = 'w-32 h-32'}) {
   const img = (
     <img
-      src="/logo_hestia_icon.ico"
+      src="/logo_hestia_circular.ico"
       alt="Hestia"
       className={className}
       draggable={false}
