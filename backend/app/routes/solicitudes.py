@@ -19,6 +19,10 @@ from app.utils.deps import require_docente, require_operador
 
 router = APIRouter(prefix="/solicitudes", tags=["Solicitudes"])
 
+# Ventana de solicitud (en minutos)
+_MIN_ANTICIPACION  = 120      # 2 horas  — menos de esto, ya no se puede pedir
+_MAX_ANTICIPACION  = 7 * 24 * 60  # 7 días — más de esto, es demasiado pronto
+
 
 # ---------------------------------------------------------------------------
 # Helpers internos
@@ -79,9 +83,6 @@ def _construir_response(s: SolicitudRetiro) -> SolicitudResponse:
 # ---------------------------------------------------------------------------
 # IMPORTANTE: rutas estaticas (/mis-solicitudes) van ANTES que las dinamicas
 # (/{solicitud_id}) aunque int != str — buena practica preventiva.
-# Se añade otra ruta estatica (/resumen-recientes)
-# para el pop-up de bienvenida del operador, que muestra un
-# resumen de las solicitudes recientes.
 # ---------------------------------------------------------------------------
 
 @router.get("/resumen-recientes")
@@ -89,11 +90,7 @@ def resumen_solicitudes_recientes(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(require_operador),
 ):
-    """Devuelve el conteo de solicitudes creadas desde el inicio del dia anterior.
-
-    Usado por el pop-up de bienvenida del operador al iniciar sesion.
-    Solo accesible para operador y admin.
-    """
+    """Devuelve el conteo de solicitudes creadas desde el inicio del dia anterior."""
     inicio_ayer = datetime.now(timezone.utc).replace(
         hour=0, minute=0, second=0, microsecond=0
     ) - timedelta(days=1)
@@ -114,6 +111,7 @@ def resumen_solicitudes_recientes(
     ) or 0
 
     return {"total": total, "pendientes": pendientes}
+
 
 @router.get("/mis-solicitudes", response_model=list[SolicitudResponse])
 def mis_solicitudes(
@@ -141,11 +139,7 @@ def listar_solicitudes(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(require_operador),
 ):
-    """Operador/admin lista todas las solicitudes ordenadas por fecha de clase.
-
-    Ordenadas ascendente: las mas proximas (urgentes) aparecen primero.
-    Filtro opcional por estado: pendiente | en_preparacion | completada.
-    """
+    """Operador/admin lista todas las solicitudes ordenadas por fecha de clase."""
     q = (
         db.query(SolicitudRetiro)
         .options(
@@ -168,18 +162,28 @@ def crear_solicitud(
 ):
     """Docente crea una solicitud de retiro de insumos para su clase.
 
-    Validaciones:
-    - fecha_clase no puede ser mas de 5 minutos en el pasado.
-    - Cada insumo debe existir, estar activo y tener stock suficiente.
-      Si se repite un insumo en los items, se suman las cantidades.
+    Ventana de solicitud:
+    - Minimo: 2 horas antes de la clase (_MIN_ANTICIPACION = 120 min).
+      Si queda menos tiempo el personal no puede preparar el pedido.
+    - Maximo: 7 dias antes de la clase (_MAX_ANTICIPACION = 10080 min).
+      La planificacion mas alla de una semana es prematura.
     """
-    # Validar fecha_clase (tolerancia de 5 minutos para desfases de reloj)
     ahora = datetime.now(timezone.utc)
-    segundos_en_pasado = (ahora - datos.fecha_clase).total_seconds()
-    if segundos_en_pasado > 300:
+    minutos_hasta = (datos.fecha_clase - ahora).total_seconds() / 60
+
+    if minutos_hasta < _MIN_ANTICIPACION:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="La fecha de clase no puede ser en el pasado.",
+            detail=(
+                f"Debes solicitar con al menos {_MIN_ANTICIPACION // 60} horas de "
+                "anticipacion. El personal necesita tiempo para preparar el pedido."
+            ),
+        )
+
+    if minutos_hasta > _MAX_ANTICIPACION:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Solo puedes solicitar hasta 1 semana (7 dias) antes de tu clase.",
         )
 
     # Validar sala
@@ -216,7 +220,6 @@ def crear_solicitud(
                 ),
             )
 
-    # Crear la solicitud y sus items
     solicitud = SolicitudRetiro(
         docente_id=usuario.id,
         sala_id=datos.sala_id,
@@ -224,7 +227,7 @@ def crear_solicitud(
         notas=datos.notas,
     )
     db.add(solicitud)
-    db.flush()  # Obtiene el id sin hacer commit
+    db.flush()
 
     for item_data in datos.items:
         db.add(SolicitudItem(
@@ -244,10 +247,6 @@ def marcar_en_preparacion(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(require_operador),
 ):
-    """Operador toma la solicitud e indica que esta preparando el pedido.
-
-    Solo transiciona desde 'pendiente'. Si ya esta en otro estado, retorna 409.
-    """
     s = _cargar_solicitud(db, solicitud_id)
     if s.estado != EstadoSolicitud.pendiente:
         raise HTTPException(
@@ -273,16 +272,7 @@ def completar_solicitud(
 ):
     """Operador despacha el pedido: descuenta stock y registra movimientos.
 
-    Flujo:
-    1. Verifica estado pendiente o en_preparacion.
-    2. Re-verifica stock actual por cada item (puede haber cambiado).
-    3. Descuenta stock_actual de cada insumo.
-    4. Crea un Movimiento de salida por item con referencia a la solicitud.
-    5. Para items de tipo 'implemento', crea un RetornoImplemento pendiente.
-    6. Marca la solicitud como 'completada' y guarda fecha_completada.
-
-    El stock se descuenta aqui (no al crear la solicitud) porque la solicitud
-    es una intencion, no una reserva. El movimiento fisico ocurre al despachar.
+    Para items de tipo 'implemento' crea ademas un RetornoImplemento pendiente.
     """
     s = _cargar_solicitud(db, solicitud_id)
     if s.estado not in (EstadoSolicitud.pendiente, EstadoSolicitud.en_preparacion):
@@ -291,8 +281,6 @@ def completar_solicitud(
             detail="Solo se pueden completar solicitudes pendientes o en preparacion.",
         )
 
-    # Re-verificar stock con bloqueo pesimista para evitar race conditions.
-    # Con FOR UPDATE, dos completar_solicitud concurrentes se serializan.
     insumos_bloqueados: dict[int, Insumo] = {}
     for item in s.items:
         insumo = (
@@ -318,7 +306,6 @@ def completar_solicitud(
             )
         insumos_bloqueados[item.insumo_id] = insumo
 
-    # Descontar stock, registrar movimientos y crear retornos para implementos
     docente_nombre = s.docente.nombre if s.docente else "Docente"
     sala_nombre = s.sala.nombre if s.sala else "Sala"
     motivo = f"Solicitud #{s.id} \u2014 {docente_nombre} \u2014 {sala_nombre}"
@@ -334,7 +321,6 @@ def completar_solicitud(
             usuario_id=usuario.id,
             motivo=motivo,
         ))
-        # Los implementos deben retornar al area comun; se registra el pendiente
         if insumo.tipo == TipoInsumo.implemento:
             db.add(RetornoImplemento(
                 insumo_id=item.insumo_id,

@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import {
   ClipboardList, Search, Plus, Trash2, CheckCircle,
-  AlertTriangle, Clock, ChevronDown, ChevronUp, Package
+  AlertTriangle, Clock, ChevronDown, ChevronUp, Package, Info
 } from 'lucide-react'
 import { api } from '../api/client'
 import type {
@@ -15,8 +15,28 @@ interface CartItem {
   cantidad: number
 }
 
+// ---------------------------------------------------------------------------
+// Ventana de solicitud — debe coincidir con los valores del backend
+// ---------------------------------------------------------------------------
+const MIN_ANTICIPACION_MS = 2 * 60 * 60 * 1000   // 2 horas
+const MAX_ANTICIPACION_MS = 7 * 24 * 60 * 60 * 1000 // 7 días
+
+/**
+ * Formatea un Date como string compatible con <input type="datetime-local">.
+ * datetime-local usa hora LOCAL del dispositivo, no UTC, por eso no usamos
+ * toISOString() (que devuelve UTC y desplazaría el min/max por la diferencia
+ * de zona horaria).
+ */
+function toDatetimeLocal(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return (
+    `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}` +
+    `T${pad(date.getHours())}:${pad(date.getMinutes())}`
+  )
+}
+
 function estadoBadge(estado: EstadoSolicitud) {
-  if (estado === 'completada') return <Badge variant="success">Completada</Badge>
+  if (estado === 'completada')    return <Badge variant="success">Completada</Badge>
   if (estado === 'en_preparacion') return <Badge variant="info">En preparación</Badge>
   return <Badge variant="warning">Pendiente</Badge>
 }
@@ -73,10 +93,9 @@ export function SolicitudDocente() {
     setToast(msg); setTimeout(() => setToast(null), 3500)
   }
 
-  const fechaMin = new Date(Date.now() - 5 * 60 * 1000).toISOString().slice(0, 16)
-  const minutosHastaClase = fechaClase
-    ? Math.round((new Date(fechaClase).getTime() - Date.now()) / 60000)
-    : null
+  // Límites del datetime-local en hora LOCAL del dispositivo
+  const fechaMin = toDatetimeLocal(new Date(Date.now() + MIN_ANTICIPACION_MS))
+  const fechaMax = toDatetimeLocal(new Date(Date.now() + MAX_ANTICIPACION_MS))
 
   useEffect(() => {
     api.get<PaginatedResponse<SalaResponse>>('/salas/', { params: { limit: 200 } })
@@ -153,17 +172,33 @@ export function SolicitudDocente() {
     setCartItems(prev => prev.filter(i => i.insumo.id !== insumoId))
   }
 
-  // Valida el formulario y muestra el aviso antes de enviar
   function handlePreSubmit(e: React.FormEvent) {
     e.preventDefault()
     setSubmitError(null)
-    if (!salaId) { setSubmitError('Selecciona una sala.'); return }
-    if (!fechaClase) { setSubmitError('Indica la fecha y hora de tu clase.'); return }
+    if (!salaId)       { setSubmitError('Selecciona una sala.'); return }
+    if (!fechaClase)   { setSubmitError('Indica la fecha y hora de tu clase.'); return }
     if (cartItems.length === 0) { setSubmitError('Agrega al menos un insumo al carrito.'); return }
+
+    // Validación client-side de la ventana (duplica la del backend como UX)
+    const ahora = Date.now()
+    const fechaMs = new Date(fechaClase).getTime()
+    const diff = fechaMs - ahora
+
+    if (diff < MIN_ANTICIPACION_MS) {
+      setSubmitError(
+        'Debes solicitar con al menos 2 horas de anticipación a tu clase. ' +
+        'El personal necesita tiempo para preparar el pedido.'
+      )
+      return
+    }
+    if (diff > MAX_ANTICIPACION_MS) {
+      setSubmitError('Solo puedes solicitar hasta 7 días antes de tu clase.')
+      return
+    }
+
     setShowWarning(true)
   }
 
-  // Envío real tras confirmar el aviso
   async function handleConfirmSubmit() {
     setShowWarning(false)
     setSubmitting(true)
@@ -201,7 +236,7 @@ export function SolicitudDocente() {
         </div>
       )}
 
-      {/* ── Modal de advertencia de mermas ── */}
+      {/* Modal de advertencia de mermas */}
       {showWarning && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4
                         bg-black/60 backdrop-blur-sm">
@@ -237,9 +272,7 @@ export function SolicitudDocente() {
                   <li key={insumo.id}
                     className="flex items-center justify-between text-sm">
                     <span className="text-slate-700 truncate mr-4">{insumo.nombre}</span>
-                    <span className="font-bold text-slate-900 flex-shrink-0">
-                      x{cantidad}
-                    </span>
+                    <span className="font-bold text-slate-900 flex-shrink-0">x{cantidad}</span>
                   </li>
                 ))}
               </ul>
@@ -249,22 +282,15 @@ export function SolicitudDocente() {
             </div>
 
             <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={() => setShowWarning(false)}
+              <button type="button" onClick={() => setShowWarning(false)}
                 className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600
-                           font-semibold text-sm hover:bg-slate-50 transition-colors"
-              >
+                           font-semibold text-sm hover:bg-slate-50 transition-colors">
                 Cancelar
               </button>
-              <button
-                type="button"
-                onClick={handleConfirmSubmit}
-                disabled={submitting}
+              <button type="button" onClick={handleConfirmSubmit} disabled={submitting}
                 className="flex-1 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700
                            text-white font-bold text-sm transition-colors
-                           disabled:opacity-50 disabled:cursor-not-allowed"
-              >
+                           disabled:opacity-50 disabled:cursor-not-allowed">
                 {submitting ? 'Enviando...' : 'Confirmar y enviar'}
               </button>
             </div>
@@ -286,7 +312,7 @@ export function SolicitudDocente() {
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 mb-6">
           <h2 className="text-sm font-bold text-slate-700 mb-4">Nueva solicitud</h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
             <div>
               <label className="block text-xs font-bold text-slate-500 uppercase
                                tracking-wide mb-1.5">Sala *</label>
@@ -299,24 +325,28 @@ export function SolicitudDocente() {
             <div>
               <label className="block text-xs font-bold text-slate-500 uppercase
                                tracking-wide mb-1.5">Fecha y hora de clase *</label>
-              <input type="datetime-local" value={fechaClase} min={fechaMin}
-                onChange={e => setFechaClase(e.target.value)} className={inputCls} />
+              <input
+                type="datetime-local"
+                value={fechaClase}
+                min={fechaMin}
+                max={fechaMax}
+                onChange={e => setFechaClase(e.target.value)}
+                className={inputCls}
+              />
             </div>
           </div>
 
-          {minutosHastaClase !== null && minutosHastaClase <= 60 && minutosHastaClase >= 0 && (
-            <div className={`flex items-start gap-2 p-3 rounded-xl mb-4 text-sm ${
-              minutosHastaClase <= 30
-                ? 'bg-rose-50 border border-rose-200 text-rose-700'
-                : 'bg-amber-50 border border-amber-200 text-amber-700'
-            }`}>
-              <AlertTriangle size={15} className="flex-shrink-0 mt-0.5" />
-              <span>
-                <strong>Clase en {minutosHastaClase} minutos.</strong>{' '}
-                El personal podría no alcanzar a preparar el pedido a tiempo.
-              </span>
-            </div>
-          )}
+          {/* Aviso de ventana de solicitud */}
+          <div className="flex items-start gap-2 p-3 rounded-xl mb-4
+                          bg-slate-50 border border-slate-200 text-slate-500">
+            <Info size={14} className="flex-shrink-0 mt-0.5 text-slate-400" />
+            <p className="text-xs leading-relaxed">
+              Puedes solicitar entre{' '}
+              <strong className="text-slate-700">2 horas</strong> y{' '}
+              <strong className="text-slate-700">7 días</strong>{' '}
+              antes de tu clase. Solicitudes fuera de este rango serán rechazadas.
+            </p>
+          </div>
 
           <div className="mb-4">
             <label className="block text-xs font-bold text-slate-500 uppercase
@@ -356,6 +386,12 @@ export function SolicitudDocente() {
                             <span className="font-semibold text-slate-800 truncate">
                               {insumo.nombre}
                             </span>
+                            {insumo.tipo === 'implemento' && (
+                              <span className="text-[10px] font-bold text-blue-600
+                                               bg-blue-50 px-1.5 py-0.5 rounded">
+                                Implemento
+                              </span>
+                            )}
                             {enCarrito && (
                               <span className="text-[10px] font-bold text-teal-600
                                                bg-teal-50 px-1.5 py-0.5 rounded">
@@ -404,9 +440,17 @@ export function SolicitudDocente() {
                 {cartItems.map(({ insumo, cantidad }) => (
                   <li key={insumo.id} className="flex items-center gap-3 px-4 py-3">
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-slate-900 truncate">
-                        {insumo.nombre}
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-semibold text-slate-900 truncate">
+                          {insumo.nombre}
+                        </p>
+                        {insumo.tipo === 'implemento' && (
+                          <span className="text-[10px] font-bold text-blue-600
+                                           bg-blue-50 px-1.5 py-0.5 rounded flex-shrink-0">
+                            Retornable
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs text-slate-400 mt-0.5">
                         Disponible: <span className="font-bold text-slate-600">
                           {insumo.stock_actual}
