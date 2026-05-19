@@ -4,31 +4,30 @@ from fastapi.openapi.utils import get_openapi
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from app.database import Base, engine, aplicar_migraciones_pendientes
-# Importar todos los modelos para que SQLAlchemy registre sus tablas.
-# create_all() necesita conocer TODOS los modelos antes de ejecutarse.
+# Importar todos los modelos para que SQLAlchemy registre sus tablas antes de
+# create_all(). El orden importa: modelos con FK deben cargarse despues del
+# modelo referenciado.
 from app.models import sala, categoria, usuario, movimiento, insumo  # noqa
-from app.models import audit_log  # noqa
-from app.models import solicitud  # noqa  <- SolicitudRetiro y SolicitudItem
-from app.models import token_recuperacion  # noqa  <- TokenRecuperacion
-from app.models import retorno_implemento  # noqa  <- RetornoImplemento
+from app.models import audit_log         # noqa
+from app.models import asignatura        # noqa  <- Fase 4
+from app.models import clase_docente     # noqa  <- Fase 4 (FK a asignatura y usuario)
+from app.models import solicitud         # noqa  <- FK a clase_docente
+from app.models import token_recuperacion  # noqa
+from app.models import retorno_implemento  # noqa
 from app.routes import (
     salas, categorias, usuarios, movimientos, insumos, auth, resumen, importar
 )
 from app.routes import audit_log as audit_log_routes
 from app.routes import solicitudes
 from app.routes import retornos
+from app.routes import asignaturas
+from app.routes import clases_docente
 
-# 1) crea tablas que no existen. 2) aplica ALTER TABLE / ALTER TYPE idempotentes
-# para columnas y valores de enum agregados a tablas ya existentes.
+# 1) crea tablas nuevas. 2) aplica ALTER TABLE / ALTER TYPE idempotentes.
 Base.metadata.create_all(bind=engine)
 aplicar_migraciones_pendientes()
 
-# /docs y /redoc solo se habilitan si DOCS_HABILITADOS=true en el entorno.
-# En produccion debe quedar en false (valor por defecto).
 _docs_habilitados = os.getenv("DOCS_HABILITADOS", "false").lower() == "true"
-
-# Origen del frontend permitido por CORS. En LAN usar la IP del servidor.
-# Ej: CORS_ORIGIN=http://192.168.1.50:3000
 _cors_origin = os.getenv("CORS_ORIGIN", "http://localhost:3000")
 
 app = FastAPI(
@@ -39,10 +38,6 @@ app = FastAPI(
     redoc_url="/redoc" if _docs_habilitados else None,
 )
 
-
-# ---------------------------------------------------------------------------
-# Security Headers Middleware
-# ---------------------------------------------------------------------------
 _CSP = (
     "default-src 'self'; "
     "script-src 'self' 'unsafe-inline'; "
@@ -60,8 +55,6 @@ SECURITY_HEADERS = {
     "X-Frame-Options": "DENY",
     "X-XSS-Protection": "1; mode=block",
     "Referrer-Policy": "strict-origin-when-cross-origin",
-    # camera=(self) permite que el frontend use la camara del dispositivo
-    # para escanear codigos de barras desde movil. Restringido al origen propio.
     "Permissions-Policy": "camera=(self), microphone=(), geolocation=()",
     "Content-Security-Policy": _CSP,
 }
@@ -75,8 +68,6 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         return response
 
 
-# SecurityHeadersMiddleware es interior; CORSMiddleware es exterior para que
-# responda a preflight OPTIONS antes de que el request llegue a las rutas.
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(
     CORSMiddleware,
@@ -97,6 +88,8 @@ app.include_router(importar.router)
 app.include_router(audit_log_routes.router)
 app.include_router(solicitudes.router)
 app.include_router(retornos.router)
+app.include_router(asignaturas.router)
+app.include_router(clases_docente.router)
 
 
 @app.get("/")

@@ -37,23 +37,17 @@ def get_db():
 # Base.metadata.create_all() solo crea tablas nuevas; NO agrega columnas a
 # tablas ya existentes. Mientras el proyecto no use Alembic, declaramos aqui
 # las migraciones necesarias para evolucionar el esquema sin perder datos.
-#
-# IMPORTANTE: el nombre del tipo enum en PostgreSQL se deriva del nombre de la
-# clase Python lowercaseado SIN separadores:
-#   class RolUsuario  ->  pg type: rolusuario   (una sola 's')
-# El nombre incorrecto 'rolususario' (doble 's') nunca existio en la BD;
-# por eso la migracion anterior no encontraba el tipo y no hacia nada.
 # ---------------------------------------------------------------------------
 
 MIGRACIONES_COLUMNAS = [
+    # Fase 0 — columnas de usuarios e insumos
     "ALTER TABLE IF EXISTS usuarios "
     "ADD COLUMN IF NOT EXISTS activo BOOLEAN NOT NULL DEFAULT TRUE",
     "ALTER TABLE IF EXISTS insumos "
     "ADD COLUMN IF NOT EXISTS activo BOOLEAN NOT NULL DEFAULT TRUE",
     "ALTER TABLE IF EXISTS usuarios "
     "ADD COLUMN IF NOT EXISTS avatar_b64 TEXT",
-    # --- Fase 1: identificadores, tipo y costo en insumos ---
-    # Crear el tipo enum tipoinsumo si no existe (idempotente via EXCEPTION)
+    # Fase 1 — identificadores, tipo y costo en insumos
     (
         "DO $$ BEGIN "
         "CREATE TYPE tipoinsumo AS ENUM ('insumo', 'implemento'); "
@@ -66,15 +60,17 @@ MIGRACIONES_COLUMNAS = [
     "ADD COLUMN IF NOT EXISTS codigo_barras VARCHAR(100)",
     "ALTER TABLE IF EXISTS insumos "
     "ADD COLUMN IF NOT EXISTS costo_unitario NUMERIC(10,2)",
-    # Indices unicos parciales: multiples NULL permitidos, duplicados no
     "CREATE UNIQUE INDEX IF NOT EXISTS uix_insumos_sku "
     "ON insumos (sku) WHERE sku IS NOT NULL",
     "CREATE UNIQUE INDEX IF NOT EXISTS uix_insumos_codigo_barras "
     "ON insumos (codigo_barras) WHERE codigo_barras IS NOT NULL",
+    # Fase 4 — trazabilidad academica en solicitudes
+    # clases_docente se crea via create_all(); solo necesitamos la FK en solicitudes
+    "ALTER TABLE IF EXISTS solicitudes_retiro "
+    "ADD COLUMN IF NOT EXISTS clase_docente_id INTEGER",
 ]
 
 # (tabla, tipo_enum_pg, columna, valores_requeridos)
-# El tipo enum correcto es 'rolusuario' (clase RolUsuario -> lowercase -> rolusuario)
 MIGRACIONES_ROL = [
     ("usuarios", "rolusuario", "rol", ("admin", "operador", "visor", "docente")),
 ]
@@ -98,11 +94,7 @@ def aplicar_migraciones_pendientes() -> None:
 
 
 def _aplicar_migracion_rol() -> None:
-    """Migra el campo 'rol' para aceptar el nuevo valor 'docente'.
-
-    El tipo enum de PostgreSQL se llama 'rolusuario' (RolUsuario lowercased).
-    Usa ADD VALUE IF NOT EXISTS para que sea completamente idempotente.
-    """
+    """Migra el campo 'rol' para aceptar el nuevo valor 'docente'."""
     import psycopg2
 
     dsn = (DATABASE_URL or "").replace("postgresql+psycopg2://", "postgresql://")
@@ -111,9 +103,7 @@ def _aplicar_migracion_rol() -> None:
     conn.autocommit = True
     try:
         cur = conn.cursor()
-
         for tabla, tipo_enum, columna, valores in MIGRACIONES_ROL:
-            # Caso A: enum nativo PostgreSQL
             cur.execute("SELECT 1 FROM pg_type WHERE typname = %s", (tipo_enum,))
             if cur.fetchone():
                 log.info("[Hestia] Enum nativo '%s' encontrado.", tipo_enum)
@@ -132,8 +122,6 @@ def _aplicar_migracion_rol() -> None:
                     else:
                         log.info("[Hestia] '%s' ya existe en '%s'.", valor, tipo_enum)
                 continue
-
-            # Caso B: VARCHAR con CHECK constraint
             log.info(
                 "[Hestia] Enum '%s' no encontrado, revisando CHECK constraints.", tipo_enum
             )
@@ -150,7 +138,6 @@ def _aplicar_migracion_rol() -> None:
                     continue
                 log.info("[Hestia] Eliminando constraint '%s'.", conname)
                 cur.execute(f"ALTER TABLE {tabla} DROP CONSTRAINT IF EXISTS {conname}")
-
         cur.close()
         log.info("[Hestia] Migracion de rol completada.")
     finally:

@@ -17,7 +17,7 @@ class SolicitudItemResponse(BaseModel):
     id: int
     insumo_id: int
     insumo_nombre: str
-    stock_actual: int  # Stock al momento de consultar (no al momento de pedir)
+    stock_actual: int
     cantidad_solicitada: int
 
     class Config:
@@ -31,25 +31,20 @@ class SolicitudItemResponse(BaseModel):
 class SolicitudCreate(BaseModel):
     """Payload que envia el docente al crear una solicitud.
 
-    fecha_clase debe ser un datetime con timezone (ISO 8601). El frontend
-    siempre envia con offset (ej. 2025-05-26T13:00:00-04:00). Validacion
-    de que fecha_clase sea futura se hace en el route handler para poder
-    devolver un mensaje claro en espanol.
+    clase_docente_id es opcional. Si se provee, debe pertenecer al docente
+    autenticado y estar activa. Permite ligar la solicitud a una asignatura
+    y seccion especificas para trazabilidad y reportes.
     """
     sala_id: int = Field(..., gt=0)
     fecha_clase: datetime
     notas: Optional[str] = None
+    clase_docente_id: Optional[int] = None
     items: list[SolicitudItemCreate] = Field(
         ..., min_length=1, description="Debe tener al menos un insumo"
     )
 
 
 class SolicitudResponse(BaseModel):
-    """Representacion completa de una solicitud, incluyendo items enriquecidos.
-
-    docente_nombre y sala_nombre se resuelven desde las relaciones SQLAlchemy
-    en el route handler; no vienen directamente del modelo.
-    """
     id: int
     docente_id: int
     docente_nombre: str
@@ -62,12 +57,16 @@ class SolicitudResponse(BaseModel):
     fecha_creacion: datetime
     fecha_completada: Optional[datetime]
     items: list[SolicitudItemResponse]
-    minutos_hasta_clase: int  # Calculado: util para indicador de urgencia
+    minutos_hasta_clase: int
+    # Campos de trazabilidad academica (Fase 4)
+    clase_docente_id: Optional[int] = None
+    asignatura_nombre: Optional[str] = None
+    seccion: Optional[str] = None
+    semestre: Optional[str] = None
 
     class Config:
         from_attributes = True
 
 
 class SolicitudUpdateEstado(BaseModel):
-    """Payload del operador para actualizar el estado o agregar notas."""
     notas_operador: Optional[str] = None

@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import {
   ClipboardList, RefreshCw, CheckCircle, Clock,
-  AlertTriangle, ChevronDown, ChevronUp, Package
+  AlertTriangle, ChevronDown, ChevronUp, Package, GraduationCap
 } from 'lucide-react'
 import { api } from '../api/client'
 import type { SolicitudResponse, EstadoSolicitud } from '../types/api'
@@ -10,10 +10,10 @@ import { Badge } from '../components/ui/Badge'
 type FiltroEstado = EstadoSolicitud | 'todas' | 'activas'
 
 function urgenciaConfig(sol: SolicitudResponse) {
-  if (sol.estado === 'completada') return { border: 'border-l-slate-200', chip: null }
+  if (sol.estado === 'completada')    return { border: 'border-l-slate-200', chip: null }
   if (sol.estado === 'en_preparacion') return { border: 'border-l-blue-400', chip: null }
   const min = sol.minutos_hasta_clase
-  if (min < 0) return { border: 'border-l-slate-300', chip: null }
+  if (min < 0)  return { border: 'border-l-slate-300', chip: null }
   if (min < 30) return {
     border: 'border-l-rose-500',
     chip: (
@@ -53,21 +53,20 @@ function formatFechaClase(iso: string) {
 }
 
 function estadoBadge(estado: EstadoSolicitud) {
-  if (estado === 'completada') return <Badge variant="success">Completada</Badge>
+  if (estado === 'completada')     return <Badge variant="success">Completada</Badge>
   if (estado === 'en_preparacion') return <Badge variant="info">En preparación</Badge>
   return <Badge variant="warning">Pendiente</Badge>
 }
 
 export function SolicitudOperador() {
   const [solicitudes, setSolicitudes] = useState<SolicitudResponse[]>([])
-  const [loading, setLoading] = useState(true)
-  const [filtro, setFiltro] = useState<FiltroEstado>('activas')
-  const [accionando, setAccionando] = useState<number | null>(null)
+  const [loading, setLoading]         = useState(true)
+  const [filtro, setFiltro]           = useState<FiltroEstado>('activas')
+  const [accionando, setAccionando]   = useState<number | null>(null)
   const [completandoId, setCompletandoId] = useState<number | null>(null)
-  const [notasMap, setNotasMap] = useState<Record<number, string>>({})
-  // Set de IDs expandidos — las activas arrancan expandidas al cargar
-  const [expandidos, setExpandidos] = useState<Set<number>>(new Set())
-  const [toast, setToast] = useState<string | null>(null)
+  const [notasMap, setNotasMap]       = useState<Record<number, string>>({})
+  const [expandidos, setExpandidos]   = useState<Set<number>>(new Set())
+  const [toast, setToast]             = useState<string | null>(null)
 
   function showToast(msg: string) {
     setToast(msg); setTimeout(() => setToast(null), 3000)
@@ -87,7 +86,6 @@ export function SolicitudOperador() {
     try {
       const { data } = await api.get<SolicitudResponse[]>('/solicitudes/')
       setSolicitudes(data)
-      // Expandir por defecto todas las solicitudes activas (pendiente o en_preparacion)
       setExpandidos(new Set(
         data.filter(s => s.estado !== 'completada').map(s => s.id)
       ))
@@ -99,9 +97,8 @@ export function SolicitudOperador() {
   useEffect(() => { cargar() }, [cargar])
 
   const filtradas = solicitudes.filter(s => {
-    if (filtro === 'todas') return true
+    if (filtro === 'todas')   return true
     if (filtro === 'activas') return s.estado === 'pendiente' || s.estado === 'en_preparacion'
-    // 'completada' | 'pendiente' | 'en_preparacion' — match exacto con EstadoSolicitud
     return s.estado === filtro
   })
 
@@ -109,8 +106,7 @@ export function SolicitudOperador() {
     setAccionando(id)
     try {
       await api.put(`/solicitudes/${id}/en-preparacion`, { notas_operador: null })
-      showToast('Solicitud marcada en preparación')
-      cargar()
+      showToast('Solicitud marcada en preparación'); cargar()
     } catch (err: unknown) {
       const detail = (err as { response?: { data?: { detail?: string } } })
         .response?.data?.detail
@@ -135,13 +131,12 @@ export function SolicitudOperador() {
   }
 
   const cuentas = {
-    activas:       solicitudes.filter(s => s.estado === 'pendiente' || s.estado === 'en_preparacion').length,
-    pendientes:    solicitudes.filter(s => s.estado === 'pendiente').length,
-    en_preparacion:solicitudes.filter(s => s.estado === 'en_preparacion').length,
-    completadas:   solicitudes.filter(s => s.estado === 'completada').length,
+    activas:        solicitudes.filter(s => s.estado === 'pendiente' || s.estado === 'en_preparacion').length,
+    pendientes:     solicitudes.filter(s => s.estado === 'pendiente').length,
+    en_preparacion: solicitudes.filter(s => s.estado === 'en_preparacion').length,
+    completadas:    solicitudes.filter(s => s.estado === 'completada').length,
   }
 
-  // IMPORTANTE: los keys deben coincidir exactamente con EstadoSolicitud o los alias 'todas'/'activas'
   const FILTROS: { key: FiltroEstado; label: string; count?: number }[] = [
     { key: 'activas',        label: 'Activas',        count: cuentas.activas },
     { key: 'pendiente',      label: 'Pendientes',     count: cuentas.pendientes },
@@ -231,7 +226,14 @@ export function SolicitudOperador() {
                         {chip}
                       </div>
                       <p className="text-base font-bold text-slate-900">{sol.docente_nombre}</p>
-                      <p className="text-sm text-slate-500">
+                      {/* Trazabilidad academica — visible cuando la clase esta especificada */}
+                      {sol.asignatura_nombre && (
+                        <p className="text-xs text-blue-600 font-semibold mt-0.5">
+                          <GraduationCap size={10} className="inline mr-1" />
+                          {sol.asignatura_nombre} · Secc. {sol.seccion} · {sol.semestre}
+                        </p>
+                      )}
+                      <p className="text-sm text-slate-500 mt-0.5">
                         {sol.sala_nombre}{' '}
                         <span className="text-slate-300">·</span>{' '}
                         {formatFechaClase(sol.fecha_clase)}
@@ -241,7 +243,6 @@ export function SolicitudOperador() {
                       onClick={() => toggleExpand(sol.id)}
                       className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100
                                  transition-colors flex-shrink-0"
-                      aria-label={estaExpandido ? 'Colapsar' : 'Expandir'}
                     >
                       {estaExpandido ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                     </button>

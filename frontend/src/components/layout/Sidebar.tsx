@@ -3,39 +3,39 @@ import {
   LayoutDashboard, AlertTriangle, Package,
   ArrowLeftRight, DoorOpen, Tag,
   LogOut, ShieldCheck, Upload,
-  UserCircle, Users, ScrollText, ClipboardList, RotateCcw
+  UserCircle, Users, ScrollText, ClipboardList,
+  RotateCcw, BookOpen, GraduationCap
 } from 'lucide-react'
 import { useAuthStore } from '../../store/auth'
 import { Logo } from '../ui/Logo'
 
-// Cada item define en que roles es visible.
-// El rol 'docente' solo ve Solicitudes e Insumos.
 const NAV_ITEMS = [
-  // Seccion principal (admin, operador, visor)
-  { to: '/dashboard',   icon: LayoutDashboard, label: 'Dashboard',   roles: ['admin', 'operador', 'visor'] },
-  { to: '/alertas',     icon: AlertTriangle,   label: 'Alertas',     roles: ['admin', 'operador', 'visor'] },
-  { to: '/insumos',     icon: Package,         label: 'Insumos',     roles: ['admin', 'operador', 'visor'] },
-  { to: '/movimientos', icon: ArrowLeftRight,  label: 'Movimientos', roles: ['admin', 'operador', 'visor'] },
-  // Seccion gestion
-  { to: '/salas',       icon: DoorOpen,        label: 'Salas',       roles: ['admin', 'operador', 'visor'], divider: true },
-  { to: '/categorias',  icon: Tag,             label: 'Categorias',  roles: ['admin', 'operador', 'visor'] },
-  // Seccion operaciones — solicitudes y retornos de implementos
-  { to: '/solicitudes', icon: ClipboardList,   label: 'Solicitudes', roles: ['admin', 'operador'], divider: true },
-  { to: '/retornos',    icon: RotateCcw,       label: 'Retornos',    roles: ['admin', 'operador'] },
-  // Seccion administracion
-  { to: '/importar',    icon: Upload,          label: 'Importar',    roles: ['admin'], divider: true },
-  { to: '/usuarios',    icon: Users,           label: 'Usuarios',    roles: ['admin'] },
-  { to: '/audit-log',   icon: ScrollText,      label: 'Audit Log',   roles: ['admin'] },
+  // Inventario
+  { to: '/dashboard',      icon: LayoutDashboard, label: 'Dashboard',      roles: ['admin', 'operador', 'visor'] },
+  { to: '/alertas',        icon: AlertTriangle,   label: 'Alertas',        roles: ['admin', 'operador', 'visor'] },
+  { to: '/insumos',        icon: Package,         label: 'Insumos',        roles: ['admin', 'operador', 'visor'] },
+  { to: '/movimientos',    icon: ArrowLeftRight,  label: 'Movimientos',    roles: ['admin', 'operador', 'visor'] },
+  // Configuracion general
+  { to: '/salas',          icon: DoorOpen,        label: 'Salas',          roles: ['admin', 'operador', 'visor'], divider: true },
+  { to: '/categorias',     icon: Tag,             label: 'Categorias',     roles: ['admin', 'operador', 'visor'] },
+  // Flujo operativo: solicitudes y retornos
+  { to: '/solicitudes',    icon: ClipboardList,   label: 'Solicitudes',    roles: ['admin', 'operador'], divider: true },
+  { to: '/retornos',       icon: RotateCcw,       label: 'Retornos',       roles: ['admin', 'operador'] },
+  // Academico (solo admin): asignaturas y clases docentes
+  { to: '/asignaturas',    icon: BookOpen,        label: 'Asignaturas',    roles: ['admin'], divider: true },
+  { to: '/clases-docente', icon: GraduationCap,   label: 'Clases Docentes', roles: ['admin'] },
+  // Administracion
+  { to: '/importar',       icon: Upload,          label: 'Importar',       roles: ['admin'], divider: true },
+  { to: '/usuarios',       icon: Users,           label: 'Usuarios',       roles: ['admin'] },
+  { to: '/audit-log',      icon: ScrollText,      label: 'Audit Log',      roles: ['admin'] },
   // Flujo docente
-  { to: '/solicitudes', icon: ClipboardList,   label: 'Retiro de insumos', roles: ['docente'] },
-  { to: '/insumos',     icon: Package,         label: 'Insumos',           roles: ['docente'] },
+  { to: '/solicitudes',    icon: ClipboardList,   label: 'Retiro de insumos', roles: ['docente'] },
+  { to: '/insumos',        icon: Package,         label: 'Insumos',           roles: ['docente'] },
 ]
 
 const ROL_LABELS: Record<string, string> = {
-  admin: 'Administrador',
-  operador: 'Operador',
-  visor: 'Visor',
-  docente: 'Docente',
+  admin: 'Administrador', operador: 'Operador',
+  visor: 'Visor',         docente: 'Docente',
 }
 
 export function Sidebar() {
@@ -56,12 +56,10 @@ export function Sidebar() {
   const itemsVisibles = NAV_ITEMS.filter(
     item => user?.rol && item.roles.includes(user.rol)
   )
-
   const rolLabel = user?.rol ? (ROL_LABELS[user.rol] ?? user.rol) : 'Escuela de Salud'
 
   return (
     <aside className="w-60 h-full bg-slate-900 flex flex-col border-r border-slate-800 flex-shrink-0">
-      {/* Logo */}
       <div className="px-5 pt-7 pb-6 border-b border-slate-800">
         <div className="flex items-center gap-3">
           <Logo className="w-12 h-12" />
@@ -72,7 +70,6 @@ export function Sidebar() {
         </div>
       </div>
 
-      {/* Navegacion */}
       <nav className="flex-1 px-3 py-5 space-y-1 overflow-y-auto">
         {itemsVisibles.map(({ to, icon: Icon, label, divider }, idx) => (
           <div key={`${to}-${idx}`}>
@@ -85,22 +82,17 @@ export function Sidebar() {
         ))}
       </nav>
 
-      {/* Pie: perfil, seguridad, logout (todos los roles) */}
       <div className="px-3 pb-5 border-t border-slate-800 pt-4 space-y-1">
         <NavLink to="/perfil" className={navLinkCls}>
-          <UserCircle size={17} />
-          Mi perfil
+          <UserCircle size={17} /> Mi perfil
         </NavLink>
         <NavLink to="/seguridad" className={navLinkCls}>
-          <ShieldCheck size={17} />
-          Seguridad
+          <ShieldCheck size={17} /> Seguridad
         </NavLink>
-        <button
-          onClick={handleLogout}
+        <button onClick={handleLogout}
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400
                      hover:bg-slate-800 hover:text-rose-400 text-sm font-semibold
-                     transition-colors duration-150"
-        >
+                     transition-colors duration-150">
           <LogOut size={17} /> Cerrar sesión
         </button>
       </div>
