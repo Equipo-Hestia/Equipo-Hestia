@@ -9,7 +9,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@sheetjs/xlsx": "^0.20.3",
     "@zxing/browser": "^0.1.4",
     "axios": "^1.7.2",
     "lucide-react": "^0.396.0",
