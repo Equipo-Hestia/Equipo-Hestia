@@ -1,9 +1,9 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # Hestia — Docker Compose
-# Levanta cuatro servicios: PostgreSQL, FastAPI, el frontend Vite (React) y nginx.
+# Levanta cinco servicios: PostgreSQL, FastAPI, frontend Vite (React), nginx y backup.
 #
 # Uso:
-#   docker compose up --build  → construye imagenes y levanta todo (certificado se genera solo)
+#   docker compose up --build  → construye imágenes y levanta todo
 #   ./generate-cert.sh         → (opcional) regenera cert con tu IP LAN como SAN
 #   docker compose up          → levanta sin reconstruir
 #   docker compose down        → apaga los contenedores
@@ -11,15 +11,21 @@
 #
 # Acceso:
 #   https://<IP-LAN>   → nginx (HTTPS, recomendado)
-#   http://<IP-LAN>    → redirige a HTTPS automaticamente
+#   http://<IP-LAN>    → redirige a HTTPS automáticamente
 #
-# En produccion se pueden comentar los puertos 8000 y 3000 del api y frontend
-# para que solo nginx sea accesible desde la LAN.
+# Backups:
+#   Los respaldos cifrados se almacenan en el volumen 'backup_data'.
+#   Para acceder: docker compose exec backup ls /backups/diarios
+#   Para descifrar un backup:
+#     docker compose exec backup bash
+#     openssl enc -d -aes-256-cbc -pbkdf2 -iter 100000 \
+#       -pass pass:"<BACKUP_ENCRYPTION_KEY>" \
+#       -in /backups/diarios/<archivo>.enc | gunzip > dump.sql
 # ─────────────────────────────────────────────────────────────────────────────
 
 services:
 
-  # ── Base de datos PostgreSQL ────────────────────────────────────────────
+  # ── Base de datos PostgreSQL ──────────────────────────────────────────
   db:
     image: postgres:16
     environment:
@@ -37,7 +43,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # ── API FastAPI ─────────────────────────────────────────────────────
+  # ── API FastAPI ─────────────────────────────────────────────────────────
   api:
     build:
       context: ./backend
@@ -53,7 +59,7 @@ services:
     volumes:
       - ./backend:/app
 
-  # ── Frontend Vite (React) ───────────────────────────────────────────
+  # ── Frontend Vite (React) ──────────────────────────────────────────
   frontend:
     build:
       context: ./frontend
@@ -73,7 +79,7 @@ services:
       # (compilada para el OS del host) sobreescriba los binarios del contenedor.
       - /app/node_modules
 
-  # ── Nginx Reverse Proxy (HTTPS/TLS) ────────────────────────────────────
+  # ── Nginx Reverse Proxy (HTTPS/TLS) ──────────────────────────────────
   # Genera un certificado auto-firmado automaticamente en el primer arranque
   # si no existe en docker/nginx/certs/. Para incluir la IP LAN real como SAN,
   # ejecuta ./generate-cert.sh antes de levantar (o tras el primer arranque).
@@ -92,6 +98,30 @@ services:
       - frontend
     restart: unless-stopped
 
-# ── Volumes persistentes ───────────────────────────────────────────────
+  # ── Backup automático de PostgreSQL ───────────────────────────────────
+  # Ejecuta pg_dump diariamente a las 02:00 AM UTC.
+  # Cifra con AES-256-CBC (BACKUP_ENCRYPTION_KEY del .env).
+  # Retención: 7 diarios + 4 semanales (copia extra cada lunes).
+  # Los backups se almacenan en el volumen 'backup_data' (/backups).
+  # Ver logs: docker compose logs -f backup
+  backup:
+    build:
+      context: ./docker/backup
+      dockerfile: Dockerfile
+    environment:
+      - POSTGRES_DB=hestia_db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=hestia_pass
+      - DB_HOST=db
+      - BACKUP_ENCRYPTION_KEY=${BACKUP_ENCRYPTION_KEY:-cambia-esta-clave-en-produccion}
+    volumes:
+      - backup_data:/backups
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+# ── Volúmenes persistentes ──────────────────────────────────────────────────
 volumes:
   postgres_data:
+  backup_data:    # respaldos cifrados (diarios + semanales)
