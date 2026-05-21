@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import {
   Package, ChevronLeft, ChevronRight,
   Plus, Pencil, Archive, ArchiveRestore, CheckCircle, ShieldAlert,
-  Download, FileText, X, SlidersHorizontal, Camera
+  Download, FileText, X, SlidersHorizontal, Camera, CalendarClock
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { api } from '../api/client'
@@ -22,12 +22,14 @@ interface FormState {
   nombre: string; descripcion: string
   stock_actual: string; stock_minimo: string
   sala_id: string; categoria_id: string
-  tipo: string; sku: string; codigo_barras: string; costo_unitario: string
+  tipo: string; sku: string; codigo_barras: string
+  costo_unitario: string; fecha_vencimiento: string
 }
 const FORM_VACIO: FormState = {
   nombre: '', descripcion: '', stock_actual: '',
   stock_minimo: '', sala_id: '', categoria_id: '',
-  tipo: 'insumo', sku: '', codigo_barras: '', costo_unitario: ''
+  tipo: 'insumo', sku: '', codigo_barras: '',
+  costo_unitario: '', fecha_vencimiento: ''
 }
 function insumoAForm(i: InsumoResponse): FormState {
   return {
@@ -38,8 +40,23 @@ function insumoAForm(i: InsumoResponse): FormState {
     tipo: i.tipo ?? 'insumo',
     sku: i.sku ?? '',
     codigo_barras: i.codigo_barras ?? '',
-    costo_unitario: i.costo_unitario != null ? String(i.costo_unitario) : ''
+    costo_unitario: i.costo_unitario != null ? String(i.costo_unitario) : '',
+    fecha_vencimiento: i.fecha_vencimiento ?? ''
   }
+}
+
+/** Calcula los días hasta el vencimiento.
+ * Usa T00:00:00 para evitar el corrimiento de zona horaria de new Date(ISO). */
+function diasHastaVencer(fechaISO: string): number {
+  const hoy = new Date(); hoy.setHours(0, 0, 0, 0)
+  const venc = new Date(fechaISO + 'T00:00:00')
+  return Math.round((venc.getTime() - hoy.getTime()) / 86_400_000)
+}
+
+function formatFechaVenc(fechaISO: string): string {
+  return new Date(fechaISO + 'T00:00:00').toLocaleDateString('es-CL', {
+    day: '2-digit', month: '2-digit', year: 'numeric'
+  })
 }
 
 export function Insumos() {
@@ -185,6 +202,7 @@ export function Insumos() {
       sku: form.sku.trim() || null,
       codigo_barras: form.codigo_barras.trim() || null,
       costo_unitario: form.costo_unitario ? parseFloat(form.costo_unitario) : null,
+      fecha_vencimiento: form.fecha_vencimiento || null,
     }
     try {
       if (editTarget) {
@@ -230,12 +248,38 @@ export function Insumos() {
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
   const showModal  = showCrear || editTarget !== null
-  const totalCols  = puedeEscribir ? 7 : 6
+  // 7 columnas de datos + 1 acciones = 8; sin acciones = 7
+  const totalCols  = puedeEscribir ? 8 : 7
 
   function stockBadge(i: InsumoResponse) {
     if (i.stock_actual === 0) return <Badge variant="danger">Agotado</Badge>
     if (i.stock_actual <= i.stock_minimo) return <Badge variant="warning">Bajo stock</Badge>
     return <Badge variant="success">OK</Badge>
+  }
+
+  /** Celda de vencimiento: muestra fecha coloreada según urgencia. */
+  function vencimientoCelda(i: InsumoResponse) {
+    if (!i.fecha_vencimiento) {
+      return <span className="text-slate-300 text-xs">—</span>
+    }
+    const dias = diasHastaVencer(i.fecha_vencimiento)
+    const fecha = formatFechaVenc(i.fecha_vencimiento)
+    if (dias < 0) {
+      return (
+        <span className="inline-flex items-center gap-1">
+          <Badge variant="danger">Vencido</Badge>
+        </span>
+      )
+    }
+    if (dias <= 30) {
+      return (
+        <span className="inline-flex flex-col items-center gap-0.5">
+          <Badge variant="warning">{dias === 0 ? 'Hoy' : `${dias}d`}</Badge>
+          <span className="text-[10px] text-slate-400 font-mono">{fecha}</span>
+        </span>
+      )
+    }
+    return <span className="text-xs text-slate-500 font-mono">{fecha}</span>
   }
 
   const inputCls = `w-full px-3 py-2.5 rounded-lg border border-slate-200 text-slate-900 text-sm
@@ -335,7 +379,7 @@ export function Insumos() {
             className="flex-1 min-w-36 px-3 py-1.5 rounded-lg border border-slate-200
                        text-sm text-slate-600 bg-white focus:outline-none
                        focus:ring-2 focus:ring-teal-500 cursor-pointer">
-            <option value="">Todas las categorias</option>
+            <option value="">Todas las categorías</option>
             {categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
           </select>
           <select value={tipoFiltro} onChange={e => { setTipoFiltro(e.target.value); setPage(0) }}
@@ -380,6 +424,11 @@ export function Insumos() {
               <th className="text-center px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Stock</th>
               <th className="text-center px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Mínimo</th>
               <th className="text-right px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Costo/u</th>
+              <th className="text-center px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">
+                <span className="flex items-center justify-center gap-1">
+                  <CalendarClock size={11} /> Vencimiento
+                </span>
+              </th>
               <th className="text-center px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Estado</th>
               {puedeEscribir && (
                 <th className="text-center px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Acciones</th>
@@ -426,6 +475,7 @@ export function Insumos() {
                     ? `$${Number(i.costo_unitario).toLocaleString('es-CL')}`
                     : <span className="text-slate-300">—</span>}
                 </td>
+                <td className="px-4 py-3 text-center">{vencimientoCelda(i)}</td>
                 <td className="px-4 py-3 text-center">{stockBadge(i)}</td>
                 {puedeEscribir && (
                   <td className="px-4 py-3">
@@ -565,20 +615,31 @@ export function Insumos() {
               </div>
             </div>
 
-            {/* Costo unitario */}
-            <div>
-              <label className={labelCls}>Costo unitario</label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400
-                                 text-sm font-semibold pointer-events-none">$</span>
-                <input type="number" min="0" step="0.01" value={form.costo_unitario}
-                  onChange={e => setField('costo_unitario', e.target.value)}
-                  className={`${inputCls} pl-6`} placeholder="0.00" />
+            {/* Costo y fecha de vencimiento */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className={labelCls}>Costo unitario</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400
+                                   text-sm font-semibold pointer-events-none">$</span>
+                  <input type="number" min="0" step="0.01" value={form.costo_unitario}
+                    onChange={e => setField('costo_unitario', e.target.value)}
+                    className={`${inputCls} pl-6`} placeholder="0.00" />
+                </div>
               </div>
-              <p className="text-xs text-slate-400 mt-1">
-                Opcional — para reportes de valorización y costo por estudiante
-              </p>
+              <div>
+                <label className={labelCls}>Fecha de vencimiento</label>
+                <input
+                  type="date"
+                  value={form.fecha_vencimiento}
+                  onChange={e => setField('fecha_vencimiento', e.target.value)}
+                  className={inputCls}
+                />
+              </div>
             </div>
+            <p className="text-xs text-slate-400 -mt-2">
+              Vencimiento especialmente útil para reactivos, insumos de enfermería y banco de sangre.
+            </p>
 
             {/* Sala y Categoría */}
             <div className="grid grid-cols-2 gap-4">
@@ -591,10 +652,10 @@ export function Insumos() {
                 </select>
               </div>
               <div>
-                <label className={labelCls}>Categoria</label>
+                <label className={labelCls}>Categoría</label>
                 <select value={form.categoria_id} onChange={e => setField('categoria_id', e.target.value)}
                   className={selectCls}>
-                  <option value="">Sin categoria</option>
+                  <option value="">Sin categoría</option>
                   {categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
                 </select>
               </div>
@@ -637,8 +698,8 @@ export function Insumos() {
               </div>
               <p className="font-bold text-slate-900 mb-1">¿Desactivar este insumo?</p>
               <p className="text-slate-500 text-sm mb-3">
-                <strong>{deleteTarget.nombre}</strong> desaparecera de los listados
-                y no se le podran registrar movimientos. Su historial se conserva
+                <strong>{deleteTarget.nombre}</strong> desaparecerá de los listados
+                y no se le podrán registrar movimientos. Su historial se conserva
                 y puede reactivarse cuando quieras.
               </p>
               {userHas2FA === false ? (
@@ -648,7 +709,7 @@ export function Insumos() {
                     <div>
                       <p className="text-amber-800 font-bold text-xs">2FA requerido</p>
                       <p className="text-amber-700 text-xs mt-0.5">
-                        Activa la verificacion en dos pasos para desactivar insumos.
+                        Activa la verificación en dos pasos para desactivar insumos.
                       </p>
                     </div>
                   </div>
@@ -661,7 +722,7 @@ export function Insumos() {
                 </div>
               ) : (
                 <>
-                  <p className="text-slate-400 text-xs mb-5">Necesitaras tu codigo TOTP para confirmar.</p>
+                  <p className="text-slate-400 text-xs mb-5">Necesitarás tu código TOTP para confirmar.</p>
                   <div className="flex gap-3">
                     <button onClick={cerrarModal}
                       className="flex-1 py-2.5 rounded-xl border border-slate-200
@@ -676,7 +737,7 @@ export function Insumos() {
           ) : (
             <div>
               <p className="text-slate-600 text-sm mb-5 text-center">
-                Ingresa tu codigo TOTP para confirmar la desactivacion de
+                Ingresa tu código TOTP para confirmar la desactivación de
                 <strong> {deleteTarget.nombre}</strong>.
               </p>
               <input type="text" inputMode="numeric" maxLength={6} value={deleteTotp}
@@ -716,8 +777,8 @@ export function Insumos() {
             </div>
             <p className="font-bold text-slate-900 mb-1">¿Reactivar este insumo?</p>
             <p className="text-slate-500 text-sm mb-5">
-              <strong>{reactivarTarget.nombre}</strong> volvera a aparecer en
-              los listados y podra recibir movimientos de stock.
+              <strong>{reactivarTarget.nombre}</strong> volverá a aparecer en
+              los listados y podrá recibir movimientos de stock.
             </p>
             {formError && (
               <p className="text-rose-600 text-xs bg-rose-50 border border-rose-200
