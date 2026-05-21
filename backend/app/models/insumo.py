@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, Boolean
+from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, Date
 from sqlalchemy import Enum as SAEnum, Numeric
 from sqlalchemy.orm import relationship
 from app.database import Base
@@ -31,6 +31,10 @@ class Insumo(Base):
 
     # Valoracion economica para reportes de costo por estudiante y ABC
     costo_unitario = Column(Numeric(10, 2), nullable=True)
+
+    # Vencimiento: especialmente util para reactivos, insumos de enfermeria
+    # y banco de sangre. Nullable: los implementos retornables no vencen.
+    fecha_vencimiento = Column(Date, nullable=True)
 
     stock_actual = Column(Integer, default=0)
     stock_minimo = Column(Integer, default=0)

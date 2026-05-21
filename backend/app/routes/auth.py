@@ -20,7 +20,8 @@ from app.database import get_db
 from app.models.usuario import Usuario
 from app.models.token_recuperacion import TokenRecuperacion
 from app.utils.security import (
-    verificar_password, crear_token, crear_pre_token, verificar_token, hashear_password,
+    verificar_password, crear_token, crear_pre_token, crear_setup_token,
+    verificar_token, hashear_password,
 )
 from app.utils.deps import get_usuario_actual, oauth2_scheme
 from app.utils.rate_limit import verificar_limite, registrar_fallo, limpiar, intentos_restantes
@@ -52,11 +53,13 @@ _PASSWORD_REGLAS = [
 
 class LoginResponse(BaseModel):
     requires_2fa: bool = False
+    requires_2fa_setup: bool = False  # True: debe configurar 2FA (es obligatorio)
     access_token: Optional[str] = None
     token_type: str = "bearer"
     usuario: Optional[str] = None
     rol: Optional[str] = None
     pre_token: Optional[str] = None
+    recovery_codes: Optional[list[str]] = None  # devueltos al activar 2FA inicial
 
 
 class Setup2FAResponse(BaseModel):
@@ -80,6 +83,15 @@ class RecuperoRequest(BaseModel):
 
 
 class CodigoTOTPRequest(BaseModel):
+    codigo: str
+
+
+class Setup2FAInicialRequest(BaseModel):
+    setup_token: str
+
+
+class Activar2FAInicialRequest(BaseModel):
+    setup_token: str
     codigo: str
 
 
@@ -168,7 +180,9 @@ def login(
        Si quedan <= 2 intentos, registra ALERTA_INTENTOS_FALLIDOS.
     3. Cuenta inactiva -> LOGIN_BLOQUEADO_INACTIVO.
     4. Login exitoso fuera del horario configurado -> ALERTA_ACCESO_FUERA_HORARIO.
-    Sin 2FA: devuelve JWT completo. Con 2FA: devuelve pre_token de 5 min.
+    Con 2FA habilitado: devuelve pre_token (5 min).
+    Sin 2FA configurado (nuevo usuario o reset): devuelve setup_token (15 min)
+    con requires_2fa_setup=True — el usuario DEBE configurar 2FA antes de entrar.
     """
     try:
         verificar_limite(form_data.username)
@@ -250,12 +264,12 @@ def login(
         pre_token = crear_pre_token({"sub": str(usuario.id)})
         return LoginResponse(requires_2fa=True, pre_token=pre_token)
 
-    token = crear_token({"sub": str(usuario.id), "rol": usuario.rol.value})
+    # 2FA es obligatorio: el usuario no lo tiene configurado aun.
+    # Emitir setup_token para que complete la configuracion antes de acceder.
+    setup_token = crear_setup_token({"sub": str(usuario.id)})
     return LoginResponse(
-        requires_2fa=False,
-        access_token=token,
-        usuario=usuario.nombre,
-        rol=usuario.rol.value,
+        requires_2fa_setup=True,
+        pre_token=setup_token,
     )
 
 
@@ -329,7 +343,11 @@ def completar_login_2fa(
 def recuperar_acceso_2fa(
     datos: RecuperoRequest, db: Session = Depends(get_db)
 ):
-    """Paso 2 alternativo usando un codigo de recuperacion de un solo uso."""
+    """Paso 2 alternativo usando un codigo de recuperacion de un solo uso.
+
+    Tras consumir el codigo, el 2FA queda deshabilitado y se emite un
+    setup_token para que el usuario lo reconfigure obligatoriamente.
+    """
     payload = verificar_token(datos.pre_token)
     if payload is None or payload.get("tipo") != "pre_auth":
         raise HTTPException(
@@ -359,16 +377,15 @@ def recuperar_acceso_2fa(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Codigo de recuperacion invalido o ya utilizado",
         )
+    # Deshabilitar 2FA y forzar reconfigurar (2FA es obligatorio)
     usuario.totp_habilitado = False
     usuario.totp_secret = None
     usuario.totp_recovery_codes = None
     db.commit()
-    token = crear_token({"sub": str(usuario.id), "rol": usuario.rol.value})
+    setup_token = crear_setup_token({"sub": str(usuario.id)})
     return LoginResponse(
-        requires_2fa=False,
-        access_token=token,
-        usuario=usuario.nombre,
-        rol=usuario.rol.value,
+        requires_2fa_setup=True,
+        pre_token=setup_token,
     )
 
 
@@ -425,19 +442,114 @@ def desactivar_2fa(
     usuario: Usuario = Depends(get_usuario_actual),
     db: Session = Depends(get_db),
 ):
-    if not usuario.totp_habilitado:
-        raise HTTPException(status_code=400, detail="El 2FA no esta habilitado")
+    """El 2FA es obligatorio en Hestia y no puede desactivarse por el usuario.
+    Solo un administrador puede resetear el 2FA desde el panel de usuarios
+    (/usuarios/{id}/reset-2fa).
+    """
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail=(
+            "El 2FA es obligatorio en Hestia y no puede desactivarse. "
+            "Contacta al administrador si necesitas resetear tu configuracion."
+        ),
+    )
+
+
+@router.post("/2fa/setup-inicial", response_model=Setup2FAResponse)
+def setup_2fa_inicial(
+    datos: Setup2FAInicialRequest, db: Session = Depends(get_db)
+):
+    """Setup inicial de 2FA usando un setup_token.
+
+    El setup_token se obtiene en dos casos:
+    - Usuario que inicia sesion por primera vez (sin 2FA configurado).
+    - Usuario que uso un codigo de recuperacion (2FA reseteado).
+    Tiene una validez de 15 minutos. Devuelve QR y clave manual.
+    """
+    payload = verificar_token(datos.setup_token)
+    if payload is None or payload.get("tipo") != "setup_2fa":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token de configuracion invalido o expirado",
+        )
+    try:
+        uid = int(payload["sub"])
+    except (KeyError, ValueError, TypeError):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token de configuracion invalido",
+        )
+    usuario = db.query(Usuario).filter(
+        Usuario.id == uid, Usuario.activo.is_(True)
+    ).first()
+    if not usuario:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Usuario no valido",
+        )
+    if not usuario.totp_secret:
+        usuario.totp_secret = pyotp.random_base32()
+        db.commit()
+    totp = pyotp.TOTP(usuario.totp_secret)
+    uri = totp.provisioning_uri(name=usuario.email, issuer_name="Hestia")
+    return Setup2FAResponse(
+        qr_code=_generar_qr_base64(uri),
+        secret=usuario.totp_secret,
+    )
+
+
+@router.post("/2fa/activar-inicial", response_model=LoginResponse)
+def activar_2fa_inicial(
+    datos: Activar2FAInicialRequest, db: Session = Depends(get_db)
+):
+    """Confirma el QR, activa el 2FA y devuelve JWT completo + recovery codes.
+
+    Finaliza el flujo de configuracion inicial obligatoria: el usuario pasa
+    directamente a estar autenticado tras configurar correctamente el 2FA.
+    """
+    payload = verificar_token(datos.setup_token)
+    if payload is None or payload.get("tipo") != "setup_2fa":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token de configuracion invalido o expirado",
+        )
+    try:
+        uid = int(payload["sub"])
+    except (KeyError, ValueError, TypeError):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token de configuracion invalido",
+        )
+    usuario = db.query(Usuario).filter(
+        Usuario.id == uid, Usuario.activo.is_(True)
+    ).first()
+    if not usuario or not usuario.totp_secret:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Usuario no valido o configuracion 2FA no iniciada",
+        )
+    if usuario.totp_habilitado:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El 2FA ya esta habilitado",
+        )
     totp = pyotp.TOTP(usuario.totp_secret)
     if not totp.verify(datos.codigo, valid_window=TOTP_VALID_WINDOW):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Codigo incorrecto",
+            detail="Codigo incorrecto. Asegurate de haber escaneado el QR.",
         )
-    usuario.totp_habilitado = False
-    usuario.totp_secret = None
-    usuario.totp_recovery_codes = None
+    codigos_planos, json_hashes = _generar_recovery_codes()
+    usuario.totp_habilitado = True
+    usuario.totp_recovery_codes = json_hashes
     db.commit()
-    return {"mensaje": "2FA desactivado correctamente"}
+    token = crear_token({"sub": str(usuario.id), "rol": usuario.rol.value})
+    return LoginResponse(
+        access_token=token,
+        usuario=usuario.nombre,
+        rol=usuario.rol.value,
+        recovery_codes=codigos_planos,
+    )
 
 
 # ---------------------------------------------------------------------------

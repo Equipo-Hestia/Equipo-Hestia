@@ -1,3 +1,4 @@
+from datetime import date
 from pydantic import BaseModel
 from app.models.insumo import TipoInsumo
 
@@ -13,6 +14,7 @@ class InsumoCreate(BaseModel):
     sku: str | None = None
     codigo_barras: str | None = None
     costo_unitario: float | None = None
+    fecha_vencimiento: date | None = None
 
 
 class InsumoUpdate(BaseModel):
@@ -33,6 +35,7 @@ class InsumoUpdate(BaseModel):
     sku: str | None = None
     codigo_barras: str | None = None
     costo_unitario: float | None = None
+    fecha_vencimiento: date | None = None
 
 
 class InsumoResponse(BaseModel):
@@ -48,6 +51,7 @@ class InsumoResponse(BaseModel):
     sku: str | None = None
     codigo_barras: str | None = None
     costo_unitario: float | None = None
+    fecha_vencimiento: date | None = None
 
     class Config:
         from_attributes = True

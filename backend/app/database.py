@@ -68,6 +68,11 @@ MIGRACIONES_COLUMNAS = [
     # clases_docente se crea via create_all(); solo necesitamos la FK en solicitudes
     "ALTER TABLE IF EXISTS solicitudes_retiro "
     "ADD COLUMN IF NOT EXISTS clase_docente_id INTEGER",
+    # Fase 5 — fecha de vencimiento en insumos
+    # Util para reactivos, insumos de enfermeria y banco de sangre.
+    # Nullable: los implementos retornables generalmente no vencen.
+    "ALTER TABLE IF EXISTS insumos "
+    "ADD COLUMN IF NOT EXISTS fecha_vencimiento DATE",
 ]
 
 # (tabla, tipo_enum_pg, columna, valores_requeridos)

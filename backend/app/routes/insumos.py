@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from pydantic import BaseModel
 from typing import Optional
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 import pyotp
 import csv
 import io
@@ -36,6 +36,22 @@ class InsumoAlerta(BaseModel):
     sala: str | None
     categoria: str | None
     tipo: str = "insumo"
+
+    class Config:
+        from_attributes = True
+
+
+class InsumoVencimiento(BaseModel):
+    """Insumo cuya fecha_vencimiento esta proxima o ya ha vencido."""
+    id: int
+    nombre: str
+    stock_actual: int
+    sala: str | None
+    categoria: str | None
+    tipo: str
+    fecha_vencimiento: str  # ISO date (YYYY-MM-DD)
+    dias_para_vencer: int   # negativo si ya vencio
+    vencido: bool
 
     class Config:
         from_attributes = True
@@ -146,6 +162,47 @@ def alertas_resueltas(
     ]
 
 
+@router.get("/alertas-vencimiento", response_model=list[InsumoVencimiento])
+def alertas_vencimiento(
+    dias: int = 30,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_usuario_actual),
+):
+    """Insumos activos cuya fecha_vencimiento ya paso o vence dentro de `dias` dias.
+
+    dias=30 (defecto): muestra vencidos + los que vencen en el proximo mes.
+    Ordenados del mas urgente (vencido o mas proximo a vencer) al mas lejano.
+    Solo incluye insumos que tienen fecha_vencimiento registrada.
+    """
+    hoy = date.today()
+    limite = hoy + timedelta(days=dias)
+    insumos = (
+        db.query(Insumo)
+        .filter(
+            Insumo.activo.is_(True),
+            Insumo.fecha_vencimiento.isnot(None),
+            Insumo.fecha_vencimiento <= limite,
+        )
+        .order_by(Insumo.fecha_vencimiento.asc())
+        .all()
+    )
+    resultado = []
+    for i in insumos:
+        delta = (i.fecha_vencimiento - hoy).days
+        resultado.append(InsumoVencimiento(
+            id=i.id,
+            nombre=i.nombre,
+            stock_actual=i.stock_actual,
+            sala=i.sala.nombre if i.sala else None,
+            categoria=i.categoria.nombre if i.categoria else None,
+            tipo=i.tipo.value if i.tipo else "insumo",
+            fecha_vencimiento=i.fecha_vencimiento.isoformat(),
+            dias_para_vencer=delta,
+            vencido=delta < 0,
+        ))
+    return resultado
+
+
 @router.get("/exportar")
 def exportar_insumos(
     formato: str = "csv",
@@ -170,7 +227,7 @@ def exportar_insumos(
     cabecera = [
         "Nombre", "Tipo", "SKU", "Codigo de barras", "Descripcion",
         "Stock actual", "Stock minimo", "Costo unitario",
-        "Sala", "Categoria", "Estado"
+        "Fecha de vencimiento", "Sala", "Categoria", "Estado"
     ]
 
     def _estado(i: Insumo) -> str:
@@ -192,6 +249,7 @@ def exportar_insumos(
             i.stock_actual,
             i.stock_minimo,
             float(i.costo_unitario) if i.costo_unitario is not None else "",
+            i.fecha_vencimiento.isoformat() if i.fecha_vencimiento else "",
             i.sala.nombre if i.sala else "",
             i.categoria.nombre if i.categoria else "",
             _estado(i),

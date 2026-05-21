@@ -54,6 +54,19 @@ def crear_pre_token(data: dict) -> str:
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
 
+def crear_setup_token(data: dict) -> str:
+    """JWT de vida corta (15 min) para el flujo de configuracion inicial de 2FA.
+    Lleva tipo='setup_2fa' para diferenciarlo del pre_auth y del access token.
+    Se emite cuando el usuario inicia sesion sin tener el 2FA habilitado,
+    forzando la configuracion antes de acceder al sistema."""
+    payload = data.copy()
+    payload.update({
+        "exp": datetime.now(timezone.utc) + timedelta(minutes=15),
+        "tipo": "setup_2fa"
+    })
+    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+
+
 def verificar_token(token: str) -> dict | None:
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
