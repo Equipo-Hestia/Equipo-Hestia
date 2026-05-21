@@ -89,8 +89,7 @@ export function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps) {
             const msg = e instanceof Error ? e.message.toLowerCase() : ''
             if (msg.includes('permission') || msg.includes('denied') || msg.includes('notallowed')) {
               setErrorMsg(
-                'Permiso denegado. Haz clic en el ícono de cámara en la barra del
-                navegador, permite el acceso y vuelve a intentarlo.'
+                'Permiso denegado. Haz clic en el ícono de cámara en la barra del navegador, permite el acceso y vuelve a intentarlo.'
               )
             } else if (msg.includes('notfound') || msg.includes('devicenotfound')) {
               setErrorMsg('No se encontró ningún dispositivo de cámara en este equipo.')
