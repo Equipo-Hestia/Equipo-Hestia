@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Shield, CheckCircle, Copy, ChevronRight,
-  AlertTriangle, ArrowLeft, Smartphone, Key
+  Lock, ArrowLeft, Smartphone, Key
 } from 'lucide-react'
 import { api } from '../api/client'
 import type { UsuarioMe, Setup2FAResponse, ActivarResponse } from '../types/api'
@@ -20,7 +20,6 @@ export function Configuracion2FA() {
   const [setupData, setSetupData] = useState<Setup2FAResponse | null>(null)
   const [totp2FAEnabled, set2FAEnabled] = useState(false)
   const [codigo, setCodigo] = useState('')
-  const [codigoDesactivar, setCodigoDesactivar] = useState('')
   const [recoveryCodes, setRecoveryCodes] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -58,20 +57,6 @@ export function Configuracion2FA() {
     } finally { setLoading(false) }
   }
 
-  async function handleDesactivar(e: React.FormEvent) {
-    e.preventDefault()
-    setLoading(true); setError(null)
-    try {
-      await api.post('/auth/2fa/desactivar', { codigo: codigoDesactivar })
-      set2FAEnabled(false)
-      setCodigoDesactivar('')
-    } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { detail?: string } } })
-        .response?.data?.detail
-      setError(msg ?? 'Código incorrecto')
-    } finally { setLoading(false) }
-  }
-
   function copySecret() {
     if (!setupData?.secret) return
     navigator.clipboard.writeText(setupData.secret)
@@ -104,7 +89,7 @@ export function Configuracion2FA() {
           <ArrowLeft size={14} /> Dashboard
         </Link>
         <h1 className="text-2xl font-black text-slate-900">Verificación en dos pasos</h1>
-        <p className="text-slate-500 text-sm mt-0.5">Protege tu cuenta con Google Authenticator.</p>
+        <p className="text-slate-500 text-sm mt-0.5">Configuración de Google Authenticator.</p>
       </div>
 
       {step === 'loading' && (
@@ -116,19 +101,20 @@ export function Configuracion2FA() {
 
       {step === 'intro' && (
         <div className="space-y-4">
+          {/* Banner de estado */}
           <div className={`rounded-2xl border p-5 flex items-center gap-4 ${
-            totp2FAEnabled ? 'bg-teal-50 border-teal-200' : 'bg-slate-50 border-slate-200'
+            totp2FAEnabled ? 'bg-teal-50 border-teal-200' : 'bg-amber-50 border-amber-200'
           }`}>
             <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${
-              totp2FAEnabled ? 'bg-teal-100' : 'bg-slate-200'
+              totp2FAEnabled ? 'bg-teal-100' : 'bg-amber-100'
             }`}>
-              <Shield size={22} className={totp2FAEnabled ? 'text-teal-600' : 'text-slate-400'} />
+              <Shield size={22} className={totp2FAEnabled ? 'text-teal-600' : 'text-amber-500'} />
             </div>
             <div className="flex-1">
               <div className="flex items-center gap-2">
                 <p className="font-bold text-slate-900 text-sm">Verificación en dos pasos</p>
                 <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                  totp2FAEnabled ? 'bg-teal-600 text-white' : 'bg-slate-300 text-slate-600'
+                  totp2FAEnabled ? 'bg-teal-600 text-white' : 'bg-amber-400 text-white'
                 }`}>
                   {totp2FAEnabled ? 'Activa' : 'Inactiva'}
                 </span>
@@ -136,12 +122,13 @@ export function Configuracion2FA() {
               <p className="text-xs text-slate-500 mt-0.5">
                 {totp2FAEnabled
                   ? 'Cada inicio de sesión requiere tu código TOTP.'
-                  : 'Agrega una capa extra de seguridad a tu cuenta.'
+                  : 'El 2FA es obligatorio. Configúralo para acceder al sistema.'
                 }
               </p>
             </div>
           </div>
 
+          {/* Si 2FA no está activo: mostrar wizard de configuración */}
           {!totp2FAEnabled && (
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
               <h2 className="font-bold text-slate-900 mb-4">Cómo funciona</h2>
@@ -176,39 +163,25 @@ export function Configuracion2FA() {
             </div>
           )}
 
+          {/* Si 2FA está activo: información + bloqueo de desactivación */}
           {totp2FAEnabled && (
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-              <div className="flex items-start gap-3 mb-5">
-                <AlertTriangle size={17} className="text-amber-500 flex-shrink-0 mt-0.5" />
+              <div className="flex items-start gap-3">
+                <Lock size={18} className="text-teal-600 flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="font-bold text-slate-900 text-sm">Desactivar 2FA</p>
-                  <p className="text-slate-500 text-xs mt-0.5">
-                    Ingresa tu código TOTP actual para confirmar.
+                  <p className="font-bold text-slate-900 text-sm mb-1">El 2FA es obligatorio</p>
+                  <p className="text-slate-500 text-sm leading-relaxed">
+                    La verificación en dos pasos no puede desactivarse en Hestia. Esto garantiza
+                    la seguridad del sistema, especialmente para el acceso desde fuera de la
+                    red interna de DuocUC.
+                  </p>
+                  <p className="text-slate-400 text-xs mt-3">
+                    Si necesitas resetear tu configuración (cambio de teléfono, pérdida
+                    de acceso a la app), contacta al administrador del sistema para que
+                    realice el reset desde el panel de usuarios.
                   </p>
                 </div>
               </div>
-              <form onSubmit={handleDesactivar} className="space-y-3">
-                <input
-                  type="text" inputMode="numeric" pattern="[0-9]{6}" maxLength={6}
-                  value={codigoDesactivar}
-                  onChange={(e) => {
-                    setCodigoDesactivar(e.target.value.replace(/\D/g, '')); setError(null)
-                  }}
-                  placeholder="Código de 6 dígitos"
-                  className={`${inputCls} text-xl text-center font-bold tracking-[0.4em]`}
-                />
-                {error && (
-                  <p className="text-rose-600 text-xs bg-rose-50 border border-rose-200
-                                px-3 py-2 rounded-lg font-semibold">{error}</p>
-                )}
-                <button
-                  type="submit" disabled={loading || codigoDesactivar.length !== 6}
-                  className="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold
-                             py-2.5 rounded-xl transition-colors disabled:opacity-50"
-                >
-                  {loading ? 'Desactivando...' : 'Desactivar 2FA'}
-                </button>
-              </form>
             </div>
           )}
         </div>
@@ -259,11 +232,9 @@ export function Configuracion2FA() {
                   <code className="text-sm font-mono text-slate-800 tracking-wider break-all">
                     {setupData.secret}
                   </code>
-                  <button
-                    onClick={copySecret}
+                  <button onClick={copySecret}
                     className="flex-shrink-0 flex items-center gap-1 text-xs font-bold
-                               text-teal-600 hover:text-teal-800"
-                  >
+                               text-teal-600 hover:text-teal-800">
                     <Copy size={12} />{copied ? '¡Copiado!' : 'Copiar'}
                   </button>
                 </div>

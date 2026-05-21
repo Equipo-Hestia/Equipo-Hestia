@@ -3,32 +3,33 @@ import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import { useAuthStore } from '../store/auth'
 import { Logo } from '../components/ui/Logo'
-import type { LoginResponse } from '../types/api'
+import type { LoginResponse, Setup2FAResponse } from '../types/api'
 
 type Modo2FA = 'totp' | 'recovery'
+type SetupStep = 'qr' | 'code' | 'recovery'
 
 const SOPORTE_EMAIL = 'hestia.soporte.cc@gmail.com'
 
 const FAQ_ITEMS = [
   {
     q: '¿Olvidé mi contraseña. ¿Qué hago?',
-    a: 'Usa el enlace «¿Olvidaste tu contraseña?» debajo del botón Ingresar. Recibirás un correo con instrucciones.'
+    a: 'Usa el enlace «¿Olvidaste tu contraseña?» debajo del botón Ingresar. Recibirás un correo con instrucciones.',
   },
   {
     q: '¿Por qué no puedo ver mis solicitudes enviadas?',
-    a: 'Ingresa a la sección «Solicitudes». Si recién enviaste una, espera unos segundos y recarga la página.'
+    a: 'Ingresa a la sección «Solicitudes». Si recién enviaste una, espera unos segundos y recarga la página.',
   },
   {
     q: 'El stock de un insumo parece incorrecto.',
-    a: 'El inventario se actualiza automáticamente al completar cada pedido. Contacta al operador o al administrador del sistema.'
+    a: 'El inventario se actualiza automáticamente al completar cada pedido. Contacta al operador o al administrador del sistema.',
   },
   {
     q: 'No recibo el correo de recuperación de contraseña.',
-    a: 'Revisa tu carpeta de spam. El enlace es válido por 1 hora. Si persiste, envínos un ticket desde este formulario.'
+    a: 'Revisa tu carpeta de spam. El enlace es válido por 1 hora. Si persiste, envíanos un ticket desde este formulario.',
   },
   {
     q: 'No puedo iniciar sesión y tengo 2FA activo.',
-    a: 'Usa uno de tus códigos de recuperación de un solo uso. Si tampoco los tienes, contacta al administrador.'
+    a: 'Usa uno de tus códigos de recuperación de un solo uso. Si tampoco los tienes, contacta al administrador.',
   },
 ]
 
@@ -42,7 +43,6 @@ const TEMAS = [
   'Otro',
 ]
 
-// ── Modal: Acerca de ──
 function ModalAcercaDe({ onClose }: { onClose: () => void }) {
   return (
     <div
@@ -91,7 +91,6 @@ function ModalAcercaDe({ onClose }: { onClose: () => void }) {
   )
 }
 
-// ── Modal: Soporte ──
 function ModalSoporte({ onClose }: { onClose: () => void }) {
   const [nombre, setNombre]   = useState('')
   const [tema, setTema]       = useState(TEMAS[0])
@@ -124,7 +123,6 @@ function ModalSoporte({ onClose }: { onClose: () => void }) {
                    w-full max-w-md relative flex flex-col max-h-[90vh]"
         onClick={e => e.stopPropagation()}
       >
-        {/* Header */}
         <div className="flex items-center justify-between px-7 pt-6 pb-4
                         border-b border-slate-700 flex-shrink-0">
           <div>
@@ -135,27 +133,20 @@ function ModalSoporte({ onClose }: { onClose: () => void }) {
             className="text-slate-500 hover:text-slate-300 text-xl leading-none transition-colors"
             aria-label="Cerrar">×</button>
         </div>
-
         <div className="overflow-y-auto flex-1 px-7 py-5 space-y-6">
-
-          {/* Formulario de contacto */}
           {enviado ? (
             <div className="text-center py-4">
               <div className="w-12 h-12 rounded-full bg-teal-900 border border-teal-700
-                              flex items-center justify-center mx-auto mb-4 text-xl">
-                ✉️
-              </div>
+                              flex items-center justify-center mx-auto mb-4 text-xl">✉️</div>
               <h3 className="text-base font-bold text-white mb-2">Ticket enviado</h3>
               <p className="text-slate-400 text-xs mb-4">
                 Se abrió tu cliente de correo con el mensaje listo para enviar a{' '}
                 <span className="text-teal-400 font-semibold">{SOPORTE_EMAIL}</span>.
                 Responderemos a la brevedad.
               </p>
-              <button
-                onClick={() => setEnviado(false)}
+              <button onClick={() => setEnviado(false)}
                 className="text-xs text-slate-500 hover:text-slate-300 font-semibold
-                           transition-colors underline"
-              >
+                           transition-colors underline">
                 Enviar otro ticket
               </button>
             </div>
@@ -165,38 +156,27 @@ function ModalSoporte({ onClose }: { onClose: () => void }) {
               <form onSubmit={handleEnviar} className="space-y-3">
                 <div>
                   <label className={labelCls}>Nombre (opcional)</label>
-                  <input
-                    type="text" value={nombre}
-                    onChange={e => setNombre(e.target.value)}
-                    className={inputCls} placeholder="Tu nombre o usuario"
-                  />
+                  <input type="text" value={nombre} onChange={e => setNombre(e.target.value)}
+                    className={inputCls} placeholder="Tu nombre o usuario" />
                 </div>
                 <div>
                   <label className={labelCls}>Tipo de problema *</label>
-                  <select
-                    required value={tema}
-                    onChange={e => setTema(e.target.value)}
-                    className={inputCls + ' cursor-pointer'}
-                  >
+                  <select required value={tema} onChange={e => setTema(e.target.value)}
+                    className={inputCls + ' cursor-pointer'}>
                     {TEMAS.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className={labelCls}>Descripción *</label>
-                  <textarea
-                    required rows={4} value={mensaje}
+                  <textarea required rows={4} value={mensaje}
                     onChange={e => setMensaje(e.target.value)}
                     className={inputCls + ' resize-none'}
-                    placeholder="Describe el problema con el mayor detalle posible..."
-                  />
+                    placeholder="Describe el problema con el mayor detalle posible..." />
                 </div>
-                <button
-                  type="submit"
-                  disabled={!mensaje.trim()}
+                <button type="submit" disabled={!mensaje.trim()}
                   className="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold
                              py-2.5 rounded-lg transition-colors disabled:opacity-50
-                             disabled:cursor-not-allowed text-sm"
-                >
+                             disabled:cursor-not-allowed text-sm">
                   Abrir cliente de correo
                 </button>
                 <p className="text-[10px] text-slate-600 text-center">
@@ -206,20 +186,15 @@ function ModalSoporte({ onClose }: { onClose: () => void }) {
               </form>
             </div>
           )}
-
-          {/* FAQ */}
           <div>
             <h3 className="text-sm font-bold text-slate-300 mb-3">Preguntas frecuentes</h3>
             <div className="space-y-1.5">
               {FAQ_ITEMS.map((item, i) => (
-                <div key={i}
-                  className="rounded-xl border border-slate-700 overflow-hidden">
-                  <button
-                    type="button"
+                <div key={i} className="rounded-xl border border-slate-700 overflow-hidden">
+                  <button type="button"
                     onClick={() => setExpandFaq(expandFaq === i ? null : i)}
                     className="w-full flex items-center justify-between gap-3
-                               px-4 py-3 text-left hover:bg-slate-700/50 transition-colors"
-                  >
+                               px-4 py-3 text-left hover:bg-slate-700/50 transition-colors">
                     <span className="text-xs font-semibold text-slate-300">{item.q}</span>
                     <span className="text-slate-500 flex-shrink-0 text-sm">
                       {expandFaq === i ? '−' : '+'}
@@ -240,26 +215,41 @@ function ModalSoporte({ onClose }: { onClose: () => void }) {
   )
 }
 
-// ── Componente principal ──
 export function Login() {
   const navigate = useNavigate()
-  const setAuth = useAuthStore((s) => s.setAuth)
+  const setAuth  = useAuthStore((s) => s.setAuth)
 
-  const [email, setEmail] = useState('')
+  // Estado: login
+  const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
-  const [totp, setTotp] = useState('')
-  const [recovery, setRecovery] = useState('')
+  const [loading, setLoading]   = useState(false)
+  const [error, setError]       = useState<string | null>(null)
+
+  // Estado: flujo 2FA normal (ya configurado)
   const [preToken, setPreToken] = useState<string | null>(null)
-  const [modo2FA, setModo2FA] = useState<Modo2FA>('totp')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [totp, setTotp]         = useState('')
+  const [recovery, setRecovery] = useState('')
+  const [modo2FA, setModo2FA]   = useState<Modo2FA>('totp')
 
-  const [isForgot, setIsForgot] = useState(false)
-  const [forgotEmail, setForgotEmail] = useState('')
+  // Estado: configuración inicial obligatoria de 2FA
+  const [isSetup2FA, setIsSetup2FA]     = useState(false)
+  const [setupToken, setSetupToken]     = useState<string | null>(null)
+  const [setupQR, setSetupQR]           = useState<Setup2FAResponse | null>(null)
+  const [setupStep, setSetupStep]       = useState<SetupStep>('qr')
+  const [setupTotp, setSetupTotp]       = useState('')
+  const [setupCodes, setSetupCodes]     = useState<string[]>([])
+  const [showSecret, setShowSecret]     = useState(false)
+  const [setupLoading, setSetupLoading] = useState(false)
+  const [copiado, setCopiado]           = useState(false)
+
+  // Estado: recuperar contraseña
+  const [isForgot, setIsForgot]           = useState(false)
+  const [forgotEmail, setForgotEmail]     = useState('')
   const [forgotLoading, setForgotLoading] = useState(false)
-  const [forgotError, setForgotError] = useState<string | null>(null)
-  const [forgotOk, setForgotOk] = useState(false)
+  const [forgotError, setForgotError]     = useState<string | null>(null)
+  const [forgotOk, setForgotOk]           = useState(false)
 
+  // Estado: modales informativos
   const [showAbout, setShowAbout]     = useState(false)
   const [showSoporte, setShowSoporte] = useState(false)
 
@@ -270,6 +260,23 @@ export function Login() {
     return clean.length <= 8 ? clean : `${clean.slice(0, 8)}-${clean.slice(8)}`
   }
 
+  async function iniciarSetup2FA(token: string) {
+    setSetupLoading(true)
+    setError(null)
+    try {
+      const { data } = await api.post<Setup2FAResponse>('/auth/2fa/setup-inicial', {
+        setup_token: token,
+      })
+      setSetupQR(data)
+      setSetupStep('qr')
+    } catch {
+      setError('No fue posible cargar el QR. Intenta iniciar sesión de nuevo.')
+      setIsSetup2FA(false)
+    } finally {
+      setSetupLoading(false)
+    }
+  }
+
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
@@ -278,10 +285,18 @@ export function Login() {
       form.append('username', email)
       form.append('password', password)
       const { data } = await api.post<LoginResponse>('/auth/login', form, {
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       })
-      if (data.requires_2fa && data.pre_token) {
-        setPreToken(data.pre_token); setModo2FA('totp'); setError(null)
+      if (data.requires_2fa_setup && data.pre_token) {
+        // 2FA obligatorio: usuario sin 2FA configurado → forzar setup
+        setSetupToken(data.pre_token)
+        setIsSetup2FA(true)
+        setError(null)
+        await iniciarSetup2FA(data.pre_token)
+      } else if (data.requires_2fa && data.pre_token) {
+        setPreToken(data.pre_token)
+        setModo2FA('totp')
+        setError(null)
       } else if (data.access_token) {
         setAuth(data.access_token, { nombre: data.usuario!, rol: data.rol! })
         navigate('/dashboard')
@@ -289,14 +304,18 @@ export function Login() {
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
       setError(msg ?? 'Error al iniciar sesión')
-    } finally { setLoading(false) }
+    } finally {
+      setLoading(false)
+    }
   }
 
   async function handleTotp(e: React.FormEvent) {
-    e.preventDefault(); setLoading(true)
+    e.preventDefault()
+    setLoading(true)
     try {
       const { data } = await api.post<LoginResponse>('/auth/2fa/completar-login', {
-        pre_token: preToken, codigo: totp
+        pre_token: preToken,
+        codigo: totp,
       })
       if (data.access_token) {
         setAuth(data.access_token, { nombre: data.usuario!, rol: data.rol! })
@@ -305,38 +324,104 @@ export function Login() {
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
       setError(msg ?? 'Código incorrecto')
-    } finally { setLoading(false) }
+    } finally {
+      setLoading(false)
+    }
   }
 
   async function handleRecovery(e: React.FormEvent) {
-    e.preventDefault(); setLoading(true)
+    e.preventDefault()
+    setLoading(true)
     try {
       const { data } = await api.post<LoginResponse>('/auth/2fa/recuperar-acceso', {
-        pre_token: preToken, recovery_code: recovery
+        pre_token: preToken,
+        recovery_code: recovery,
       })
-      if (data.access_token) {
+      if (data.requires_2fa_setup && data.pre_token) {
+        // Código válido → 2FA deshabilitado → debe reconfigurar obligatoriamente
+        setPreToken(null)
+        setSetupToken(data.pre_token)
+        setIsSetup2FA(true)
+        setError(null)
+        await iniciarSetup2FA(data.pre_token)
+      } else if (data.access_token) {
         setAuth(data.access_token, { nombre: data.usuario!, rol: data.rol! })
-        navigate('/seguridad')
+        navigate('/dashboard')
       }
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
       setError(msg ?? 'Código de recuperación inválido')
-    } finally { setLoading(false) }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleSetupActivar(e: React.FormEvent) {
+    e.preventDefault()
+    setLoading(true)
+    try {
+      const { data } = await api.post<LoginResponse>('/auth/2fa/activar-inicial', {
+        setup_token: setupToken,
+        codigo: setupTotp,
+      })
+      if (data.access_token && data.recovery_codes) {
+        setAuth(data.access_token, { nombre: data.usuario!, rol: data.rol! })
+        setSetupCodes(data.recovery_codes)
+        setSetupStep('recovery')
+        setError(null)
+      }
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
+      setError(msg ?? 'Código incorrecto. Verifica que la app esté sincronizada.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  function handleSetupFinalizar() {
+    navigate('/dashboard')
+  }
+
+  function copiarCodigos() {
+    navigator.clipboard.writeText(setupCodes.join('\n'))
+    setCopiado(true)
+    setTimeout(() => setCopiado(false), 2500)
   }
 
   async function handleForgot(e: React.FormEvent) {
-    e.preventDefault(); setForgotLoading(true); setForgotError(null)
+    e.preventDefault()
+    setForgotLoading(true)
+    setForgotError(null)
     try {
       await api.post('/auth/recuperar-password', { email: forgotEmail })
       setForgotOk(true)
     } catch {
       setForgotError('No fue posible procesar la solicitud. Intenta de nuevo.')
-    } finally { setForgotLoading(false) }
+    } finally {
+      setForgotLoading(false)
+    }
   }
 
-  function volverAlLogin() { setPreToken(null); setError(null); setTotp(''); setRecovery('') }
-  function abrirForgot() { setIsForgot(true); setForgotEmail(email); setForgotError(null); setForgotOk(false) }
-  function cerrarForgot() { setIsForgot(false); setForgotEmail(''); setForgotError(null); setForgotOk(false) }
+  function volverAlLogin() {
+    setPreToken(null)
+    setError(null)
+    setTotp('')
+    setRecovery('')
+  }
+
+  function abrirForgot() {
+    setIsForgot(true)
+    setForgotEmail(email)
+    setForgotError(null)
+    setForgotOk(false)
+  }
+
+  function cerrarForgot() {
+    setIsForgot(false)
+    setForgotEmail('')
+    setForgotError(null)
+    setForgotOk(false)
+  }
 
   const inputCls = `
     w-full px-3.5 py-2.5 rounded-lg border border-slate-700 bg-slate-800 text-white text-sm
@@ -371,7 +456,154 @@ export function Login() {
 
         <div className="bg-slate-800 rounded-2xl border border-slate-700 shadow-2xl p-7">
 
-          {!is2FA && !isForgot ? (
+          {/* ── Flujo: Configuración inicial obligatoria de 2FA ── */}
+          {isSetup2FA ? (
+            setupLoading ? (
+              <div className="text-center py-8">
+                <div className="w-10 h-10 border-4 border-teal-500 border-t-transparent
+                                rounded-full animate-spin mx-auto mb-4" />
+                <p className="text-slate-400 text-sm">Generando código QR...</p>
+              </div>
+
+            ) : setupStep === 'qr' ? (
+              <>
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="w-6 h-6 rounded-full bg-teal-600 text-white text-xs font-black
+                                   flex items-center justify-center flex-shrink-0">1</span>
+                  <h2 className="text-base font-bold text-white">Configura la verificación en dos pasos</h2>
+                </div>
+                <p className="text-slate-400 text-xs mb-4 leading-relaxed">
+                  El 2FA es obligatorio en Hestia. Abre{' '}
+                  <strong className="text-slate-300">Google Authenticator</strong>, toca{' '}
+                  <strong className="text-slate-300">+</strong> y escanea el código QR.
+                </p>
+                {setupQR && (
+                  <div className="flex justify-center mb-4">
+                    <div className="p-3 bg-white rounded-xl border-2 border-slate-600">
+                      <img src={setupQR.qr_code} alt="QR 2FA" className="w-48 h-48" />
+                    </div>
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setShowSecret(!showSecret)}
+                  className="text-xs text-slate-500 hover:text-teal-400 font-semibold
+                             transition-colors flex items-center gap-1 mb-3"
+                >
+                  {showSecret ? '▲' : '▼'} Ingresar clave manual en la app
+                </button>
+                {showSecret && setupQR && (
+                  <div className="mb-4 bg-slate-900 rounded-lg border border-slate-700
+                                  px-3 py-2 flex items-center justify-between gap-2">
+                    <code className="text-teal-400 font-mono text-xs tracking-wider break-all">
+                      {setupQR.secret}
+                    </code>
+                    <button
+                      type="button"
+                      onClick={() => navigator.clipboard.writeText(setupQR.secret)}
+                      className="text-xs text-slate-500 hover:text-slate-300 flex-shrink-0"
+                      title="Copiar clave"
+                    >📋</button>
+                  </div>
+                )}
+                {error && (
+                  <p className="text-rose-400 text-xs bg-rose-950 border border-rose-800
+                                px-3 py-2 rounded-lg font-semibold mb-3">{error}</p>
+                )}
+                <button
+                  type="button"
+                  onClick={() => { setSetupStep('code'); setError(null) }}
+                  disabled={!setupQR}
+                  className={btnCls}
+                >
+                  Ya escaneé el QR →
+                </button>
+              </>
+
+            ) : setupStep === 'code' ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => { setSetupStep('qr'); setError(null) }}
+                  className="text-slate-400 hover:text-slate-200 text-sm font-semibold
+                             mb-4 flex items-center gap-1"
+                >← Volver al QR</button>
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="w-6 h-6 rounded-full bg-teal-600 text-white text-xs font-black
+                                   flex items-center justify-center flex-shrink-0">2</span>
+                  <h2 className="text-base font-bold text-white">Confirma el código</h2>
+                </div>
+                <p className="text-slate-400 text-xs mb-5">
+                  Ingresa el código de 6 dígitos que muestra Google Authenticator ahora.
+                </p>
+                <form onSubmit={handleSetupActivar} className="space-y-4">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]{6}"
+                    maxLength={6}
+                    value={setupTotp}
+                    onChange={e => { setSetupTotp(e.target.value.replace(/\D/g, '')); setError(null) }}
+                    className="w-full px-4 py-4 rounded-lg border border-slate-700 bg-slate-900
+                               text-white text-3xl text-center font-black tracking-[0.6em]
+                               focus:outline-none focus:ring-2 focus:ring-teal-500
+                               placeholder:text-slate-700"
+                    placeholder="000000"
+                    autoFocus
+                    required
+                  />
+                  {error && (
+                    <p className="text-rose-400 text-xs bg-rose-950 border border-rose-800
+                                  px-3 py-2 rounded-lg font-semibold">{error}</p>
+                  )}
+                  <button
+                    type="submit"
+                    disabled={loading || setupTotp.length !== 6}
+                    className={btnCls}
+                  >
+                    {loading ? 'Activando...' : 'Activar verificación en dos pasos'}
+                  </button>
+                </form>
+              </>
+
+            ) : (
+              // setupStep === 'recovery': mostrar los 10 códigos de respaldo
+              <>
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="w-6 h-6 rounded-full bg-teal-600 text-white text-xs font-black
+                                   flex items-center justify-center flex-shrink-0">3</span>
+                  <h2 className="text-base font-bold text-white">Guarda tus códigos de respaldo</h2>
+                </div>
+                <p className="text-slate-400 text-xs mb-4 leading-relaxed">
+                  Cada código funciona{' '}
+                  <strong className="text-slate-300">una sola vez</strong> si pierdes acceso
+                  a la app.{' '}
+                  <strong className="text-slate-300">No podrás verlos de nuevo.</strong>{' '}
+                  Guárdalos en un lugar seguro.
+                </p>
+                <div className="bg-slate-900 rounded-xl border border-slate-700 p-4 mb-3">
+                  <div className="grid grid-cols-2 gap-y-1.5 gap-x-3">
+                    {setupCodes.map((c, i) => (
+                      <code key={i} className="text-teal-400 font-mono text-xs tracking-wider">{c}</code>
+                    ))}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={copiarCodigos}
+                  className="w-full mb-3 border border-slate-600 hover:bg-slate-700/50
+                             text-slate-300 font-bold py-2 rounded-lg transition-colors text-sm"
+                >
+                  {copiado ? '¡Copiados! ✓' : '📋 Copiar todos los códigos'}
+                </button>
+                <button type="button" onClick={handleSetupFinalizar} className={btnCls}>
+                  He guardado mis códigos — Ingresar al panel
+                </button>
+              </>
+            )
+
+          /* ── Flujo: Login normal ── */
+          ) : !is2FA && !isForgot ? (
             <>
               <h2 className="text-base font-bold text-white mb-5">Iniciar sesión</h2>
               <form onSubmit={handleLogin} className="space-y-4">
@@ -405,12 +637,12 @@ export function Login() {
               </button>
             </>
 
+          /* ── Flujo: Recuperar contraseña ── */
           ) : !is2FA && isForgot ? (
             <>
               <button onClick={cerrarForgot}
-                className="text-slate-400 hover:text-slate-200 text-sm font-semibold mb-4 flex items-center gap-1">
-                ← Volver
-              </button>
+                className="text-slate-400 hover:text-slate-200 text-sm font-semibold
+                           mb-4 flex items-center gap-1">← Volver</button>
               {forgotOk ? (
                 <div className="text-center py-2">
                   <div className="w-12 h-12 rounded-full bg-teal-900 border border-teal-700
@@ -449,12 +681,12 @@ export function Login() {
               )}
             </>
 
+          /* ── Flujo: Verificación 2FA (TOTP) ── */
           ) : modo2FA === 'totp' ? (
             <>
               <button onClick={volverAlLogin}
-                className="text-slate-400 hover:text-slate-200 text-sm font-semibold mb-4 flex items-center gap-1">
-                ← Volver
-              </button>
+                className="text-slate-400 hover:text-slate-200 text-sm font-semibold
+                           mb-4 flex items-center gap-1">← Volver</button>
               <h2 className="text-base font-bold text-white mb-1">Verificación 2FA</h2>
               <p className="text-slate-400 text-xs mb-5">
                 Ingresa el código de 6 dígitos de Google Authenticator.
@@ -477,17 +709,18 @@ export function Login() {
                 </button>
               </form>
               <button onClick={() => { setModo2FA('recovery'); setError(null) }}
-                className="w-full mt-4 text-xs text-slate-500 hover:text-slate-300 font-semibold transition-colors">
+                className="w-full mt-4 text-xs text-slate-500 hover:text-slate-300
+                           font-semibold transition-colors">
                 Perdí acceso a mi app — usar código de recuperación
               </button>
             </>
 
+          /* ── Flujo: Código de recuperación ── */
           ) : (
             <>
               <button onClick={() => { setModo2FA('totp'); setError(null) }}
-                className="text-slate-400 hover:text-slate-200 text-sm font-semibold mb-4 flex items-center gap-1">
-                ← Volver
-              </button>
+                className="text-slate-400 hover:text-slate-200 text-sm font-semibold
+                           mb-4 flex items-center gap-1">← Volver</button>
               <h2 className="text-base font-bold text-white mb-1">Código de recuperación</h2>
               <p className="text-slate-400 text-xs mb-5">
                 Ingresa uno de tus códigos de un solo uso.
@@ -509,6 +742,9 @@ export function Login() {
                   {loading ? 'Verificando...' : 'Acceder con código de recuperación'}
                 </button>
               </form>
+              <p className="text-slate-600 text-xs text-center mt-4">
+                Al usar un código de recuperación deberás reconfigurar el 2FA.
+              </p>
             </>
           )}
         </div>
