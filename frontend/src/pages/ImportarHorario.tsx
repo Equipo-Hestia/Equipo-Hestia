@@ -24,7 +24,7 @@ const CAMPOS_HESTIA = [
 ]
 const CAMPOS_REQUERIDOS = ['email_docente', 'codigo_asignatura', 'seccion', 'semestre']
 
-// Alias para auto-detecci\u00f3n (normalizado, sin tildes)
+// Alias para auto-detección (normalizado, sin tildes)
 const ALIAS_COLS: Record<string, string> = {
   'email': 'email_docente', 'correo': 'email_docente', 'mail': 'email_docente',
   'email docente': 'email_docente', 'email_docente': 'email_docente',
@@ -204,8 +204,8 @@ export function ImportarHorario() {
     if (ext !== 'csv') {
       setErrorMsg(
         'Solo se aceptan archivos CSV. ' +
-        'Si tienes un Excel, \u00e1brelo y gu\u00e1rdalo como CSV primero ' +
-        '(Archivo \u2192 Guardar como \u2192 CSV UTF-8).'
+        'Si tienes un Excel, ábrelo y guardalo como CSV primero ' +
+        '(Archivo --> Guardar como --> CSV UTF-8).'
       )
       return
     }
@@ -226,7 +226,7 @@ export function ImportarHorario() {
     }
     const formateados = formatearFilas(filasRaw, columnas, mapeo)
     if (!formateados.length) {
-      setErrorMapeo('No se encontraron filas de datos v\u00e1lidos.')
+      setErrorMapeo('No se encontraron filas de datos válidos.')
       return
     }
     setErrorMapeo(null)
@@ -253,11 +253,11 @@ export function ImportarHorario() {
       if (status === 404) {
         msg =
           'Endpoint no encontrado (404). ' +
-          'Ejecuta \u201cdocker compose up --build\u201d para actualizar el contenedor API.'
+          'Ejecuta docker compose up --build para actualizar el contenedor API.'
       } else if (status === 401 || status === 400) {
-        msg = 'C\u00f3digo TOTP incorrecto. Intenta de nuevo con el c\u00f3digo actual.'
+        msg = 'Código TOTP incorrecto. Intenta de nuevo con el código actual.'
       } else {
-        msg = typeof detail === 'string' ? detail : 'Error al importar. Verifica la conexi\u00f3n.'
+        msg = typeof detail === 'string' ? detail : 'Error al importar. Verifica la conexión.'
       }
       setErrorMsg(msg)
       setPaso('totp')
@@ -272,7 +272,7 @@ export function ImportarHorario() {
         'plantilla_horario_hestia.csv'
       )
     } catch {
-      setErrorMsg('No se pudo descargar la plantilla. Verifica la conexi\u00f3n.')
+      setErrorMsg('No se pudo descargar la plantilla. Verifica la conexión.')
     }
   }
 
@@ -300,7 +300,7 @@ export function ImportarHorario() {
           <div>
             <h1 className="text-2xl font-black text-slate-900 flex items-center gap-2">
               <Calendar size={22} className="text-teal-600" />
-              Importar Horario Acad\u00e9mico
+              Importar Horario Académico
             </h1>
             <p className="text-slate-500 text-sm mt-0.5">
               Sube el CSV de DuocUC, mapea las columnas y carga el horario en Hestia.
@@ -322,11 +322,11 @@ export function ImportarHorario() {
                           flex items-start gap-2">
             <Info size={14} className="text-teal-600 flex-shrink-0 mt-0.5" />
             <p className="text-xs text-teal-700 leading-relaxed">
-              Sube un archivo CSV. Hestia detectar\u00e1 las columnas autom\u00e1ticamente.{' '}
+              Sube un archivo CSV. Hestia detectará las columnas automáticamente.{' '}
               <strong>
-                Si tienes un Excel, \u00e1brelo y gu\u00e1rdalo como CSV primero
+                Si tienes un Excel, ábrelo y guárdalo como CSV primero
               </strong>{' '}
-              (Archivo \u2192 Guardar como \u2192 CSV UTF-8).
+              (Archivo -- Guardar como -- CSV UTF-8).
             </p>
           </div>
           {errorMsg && (
@@ -354,7 +354,7 @@ export function ImportarHorario() {
               }} />
             <FileText size={40} className="mx-auto mb-3 text-slate-400" />
             <p className="font-semibold text-slate-700">
-              Arrastra el archivo CSV aqu\u00ed
+              Arrastra el archivo CSV aquí
             </p>
             <p className="text-slate-400 text-sm mt-1">o haz clic para buscarlo</p>
             <p className="text-xs text-slate-300 mt-3">Solo CSV (.csv)</p>
@@ -418,7 +418,7 @@ export function ImportarHorario() {
             <button onClick={reiniciar}
               className="w-full py-2 text-xs text-slate-400
                          hover:text-slate-600 font-semibold">
-              \u2190 Cargar otro archivo
+              Cargar otro archivo
             </button>
           </div>
 
@@ -524,9 +524,9 @@ export function ImportarHorario() {
                 <Shield size={20} className="text-teal-600" />
               </div>
               <div>
-                <p className="font-bold text-slate-900">Verificaci\u00f3n 2FA</p>
+                <p className="font-bold text-slate-900">Verificación 2FA</p>
                 <p className="text-slate-500 text-sm">
-                  Autoriza la importaci\u00f3n de {datos.length} clases.
+                  Autoriza la importación de {datos.length} clases.
                 </p>
               </div>
             </div>
@@ -582,12 +582,12 @@ export function ImportarHorario() {
                          bg-teal-600 hover:bg-teal-700 text-white font-bold
                          py-3 rounded-xl disabled:opacity-50
                          disabled:cursor-not-allowed mb-3">
-              <Upload size={16} /> Confirmar importaci\u00f3n
+              <Upload size={16} /> Confirmar importación
             </button>
             <button onClick={() => setPaso('mapeo')}
               className="w-full py-2 text-sm text-slate-400
                          hover:text-slate-600 font-semibold">
-              \u2190 Volver
+              Volver
             </button>
           </div>
         </div>
@@ -621,7 +621,7 @@ export function ImportarHorario() {
                 ? <CheckCircle size={24} className="text-teal-600" />
                 : <XCircle size={24} className="text-rose-600" />}
               <p className="font-black text-slate-900 text-lg">
-                Importaci\u00f3n completada
+                Importación completada
               </p>
             </div>
             <div className="grid grid-cols-3 gap-3">
