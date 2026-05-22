@@ -30,8 +30,9 @@ Hestia es una aplicación web para el control de stock de insumos e implementos 
 - **Retorno de implementos** — al completar una solicitud, los implementos generan un registro pendiente de retorno; el operador confirma cuáles volvieron al área común (restaurando stock) y cuáles no (registrados como merma)
 - **Asignaturas y clases docentes** — el admin asigna docentes a asignaturas y secciones por semestre; el docente selecciona su clase al solicitar, habilitando trazabilidad académica y futuros reportes de costo por estudiante
 - **Importación masiva** — carga de insumos desde CSV o XLSX con verificación TOTP
+- **Importación de horario académico** — carga de clases docentes desde CSV exportado de DuocUC, con mapeo de columnas interactivo y verificación TOTP
 - **Exportación CSV/XLSX** — descarga del inventario con los filtros activos
-- **Gestión de usuarios** — CRUD desde la UI con roles admin / operador / visor / docente
+- **Gestión de usuarios** — CRUD desde la UI con roles admin / operador coordinador / operador / visor / docente
 - **Foto de perfil** — upload con redimensionado automático a 256×256
 - **2FA** — setup wizard con códigos QR, códigos de recuperación y reset desde admin
 - **Soft-delete** — usuarios e insumos se desactivan sin perder trazabilidad histórica
@@ -45,6 +46,7 @@ Hestia es una aplicación web para el control de stock de insumos e implementos 
 | Rol | Acceso |
 |---|---|
 | `admin` | Acceso completo — gestión de usuarios, insumos, asignaturas, clases, importar, audit log |
+| `operador_coordinador` | Igual que Operador — gestión de insumos, movimientos, salas, solicitudes y retornos. Sus permisos adicionales se definirán próximamente |
 | `operador` | Insumos, movimientos, alertas, salas, categorías, bandeja de solicitudes, retornos |
 | `visor` | Solo lectura — dashboard, insumos, movimientos, alertas, salas, categorías |
 | `docente` | Exclusivo — carrito de retiro de insumos para su clase + historial propio |
@@ -188,7 +190,8 @@ hestia/
 │   │   ├── pages/         → Dashboard, Insumos, Alertas, Movimientos,
 │   │   │                    Usuarios, SolicitudDocente, SolicitudOperador,
 │   │   │                    RetornosOperador, Asignaturas, ClasesDocente,
-│   │   │                    Perfil, Configuracion2FA, AuditLog, Importar…
+│   │   │                    Perfil, Configuracion2FA, AuditLog,
+│   │   │                    ImportarInsumos, ImportarHorario…
 │   │   ├── components/    → Layout, Sidebar, ui/ (Badge, Card, Modal,
 │   │   │                    Skeleton, SearchSuggestions, BarcodeScanner,
 │   │   │                    Logo)
@@ -219,7 +222,7 @@ Ver [`.github/CONTRIBUTING.md`](.github/CONTRIBUTING.md) para más detalles.
 
 ## Equipo
 
-Desarrollado por estudiantes de Informática Biomédica — DuocUC San Bernardo  
+Desarrollado por estudiantes de Informática Biomédica — DuocUC San Bernardo
 Proyecto Ruta IE · Escuela de Salud · 2024–2025
 
 ---
