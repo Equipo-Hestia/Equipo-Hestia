@@ -112,7 +112,8 @@ backend/
 
 **`Usuario`** (`usuarios`)
 ```
-id · nombre · email (unique) · password_hash · rol (Enum: admin|operador|visor|docente)
+id · nombre · email (unique) · password_hash
+rol (Enum: admin|operador_coordinador|operador|visor|docente)
 totp_secret · totp_habilitado · recovery_codes (JSON Text)
 avatar_b64 (Text, base64 PNG 256×256, nullable)
 activo (Boolean, default True — soft-delete)
@@ -294,7 +295,14 @@ GET  /resumen/actividad-reciente
 GET  /resumen/top-insumos-retirados
 ```
 
-**`/importar`**: POST acepta CSV/XLSX con campos tipo, sku, codigo_barras, costo_unitario.
+**`/importar`** (admin + TOTP)
+```
+GET  /importar/plantilla                           CSV de ejemplo para insumos
+GET  /importar/plantilla-horario?formato=csv|xlsx  plantilla de horario académico
+POST /importar/insumos                             CSV/XLSX de insumos (form + TOTP)
+POST /importar/horario-academico                   JSON {filas:[]} con TOTP en header
+                                                   x-totp-code; crea/actualiza ClaseDocente
+```
 
 **`/audit-log`** (admin)
 
@@ -303,9 +311,11 @@ GET  /resumen/top-insumos-retirados
 ```python
 get_usuario_actual   # cualquier JWT válido
 require_docente      # solo docente
-require_operador     # admin u operador
+require_operador     # admin, operador u operador_coordinador
 require_admin        # solo admin
 ```
+
+**Rol `operador_coordinador`:** tiene exactamente los mismos accesos que `operador` a través de `require_operador`. Sus permisos adicionales se definirán tras reunión del 25/05/2026.
 
 ### 3.6 Seguridad
 
@@ -357,6 +367,7 @@ frontend/src/
 │   ├── RetornosOperador.tsx  # tabs Hoy/Pendientes, marcar retornado/merma
 │   ├── Asignaturas.tsx       # CRUD (admin)
 │   ├── ClasesDocente.tsx     # asignación docente→asignatura+sección (admin)
+│   ├── ImportarHorario.tsx   # mapeo de columnas + TOTP; llama /importar/horario-academico
 │   ├── Salas.tsx
 │   ├── Categorias.tsx
 │   ├── Configuracion2FA.tsx
@@ -389,6 +400,7 @@ frontend/src/
 /retornos          → <RetornosOperador />  (operador+)
 /asignaturas       → <Asignaturas />       (admin)
 /clases-docente    → <ClasesDocente />     (admin)
+/importar-horario  → <ImportarHorario />   (admin)
 /salas             → <Salas />
 /categorias        → <Categorias />
 /seguridad         → <Configuracion2FA />
@@ -524,10 +536,11 @@ VITE_API_URL=http://<IP_SERVIDOR>:8000
 | Retornos | Restaurar stock al retornar | ✅ Fase 2 |
 | Académico | Asignaturas CRUD | ✅ Fase 4 |
 | Académico | Clases docentes (asig+sección+semestre) | ✅ Fase 4 |
+| Académico | Importar horario CSV con mapeo de columnas | ✅ |
 | Auth | Login + JWT + TOTP 2FA + recovery codes | ✅ |
 | Auth | Rate limiting | ✅ |
 | Auth | Security headers + Permissions-Policy | ✅ |
-| Usuarios | RBAC admin/operador/visor/docente | ✅ |
+| Usuarios | RBAC admin/operador_coordinador/operador/visor/docente | ✅ |
 | Usuarios | CRUD + perfil + foto + cambiar clave | ✅ |
 | Dashboard | Métricas + gráfico + feed + top insumos | ✅ |
 | Audit log | Acciones de login y CRUD usuarios | ✅ parcial |
@@ -536,6 +549,9 @@ VITE_API_URL=http://<IP_SERVIDOR>:8000
 
 | Funcionalidad | Complejidad |
 |---|---|
+| Solicitud de compra en PDF (Operador Coordinador) | Media — pendiente reunión 25/05/2026 |
+| Acceso a Ficha FER desde cada sala | Media — pendiente reunión 25/05/2026 |
+| Ajuste permisos rol operador_coordinador | Baja — pendiente reunión 25/05/2026 |
 | Recomendación de insumos por asignatura (historial) | Media |
 | Reportes PDF: valorización, ABC, costo por estudiante | Media |
 | Predicción de desabastecimiento | Media |
@@ -570,3 +586,5 @@ VITE_API_URL=http://<IP_SERVIDOR>:8000
 11. **SKU auto-generado.** Al crear insumos, hacer `db.flush()` para obtener el ID, luego `sku = f"HST-{id:05d}"` si no se proveyó uno.
 
 12. **`datetime-local` usa hora local.** El helper `toDatetimeLocal(date)` del frontend formatea correctamente sin usar `toISOString()` (que daría UTC y desplazaría min/max por la zona horaria).
+
+13. **Nuevo rol `operador_coordinador`.** Al agregar valores a `RolUsuario`, actualizar también `MIGRACIONES_ROL` en `database.py` para que la migración PG idempotente lo agregue al enum de PostgreSQL en el arranque.
