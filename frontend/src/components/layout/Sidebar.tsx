@@ -13,30 +13,30 @@ const NAV_ITEMS = [
   // Inventario
   { to: '/dashboard',
     icon: LayoutDashboard, label: 'Dashboard',
-    roles: ['admin', 'operador', 'visor'] },
+    roles: ['admin', 'operador_coordinador', 'operador', 'visor'] },
   { to: '/alertas',
     icon: AlertTriangle, label: 'Alertas',
-    roles: ['admin', 'operador', 'visor'] },
+    roles: ['admin', 'operador_coordinador', 'operador', 'visor'] },
   { to: '/insumos',
     icon: Package, label: 'Insumos',
-    roles: ['admin', 'operador', 'visor'] },
+    roles: ['admin', 'operador_coordinador', 'operador', 'visor'] },
   { to: '/movimientos',
     icon: ArrowLeftRight, label: 'Movimientos',
-    roles: ['admin', 'operador', 'visor'] },
+    roles: ['admin', 'operador_coordinador', 'operador', 'visor'] },
   // Configuracion general
   { to: '/salas',
     icon: DoorOpen, label: 'Salas',
-    roles: ['admin', 'operador', 'visor'], divider: true },
+    roles: ['admin', 'operador_coordinador', 'operador', 'visor'], divider: true },
   { to: '/categorias',
     icon: Tag, label: 'Categorias',
-    roles: ['admin', 'operador', 'visor'] },
+    roles: ['admin', 'operador_coordinador', 'operador', 'visor'] },
   // Flujo operativo
   { to: '/solicitudes',
     icon: ClipboardList, label: 'Solicitudes',
-    roles: ['admin', 'operador'], divider: true },
+    roles: ['admin', 'operador_coordinador', 'operador'], divider: true },
   { to: '/retornos',
     icon: RotateCcw, label: 'Retornos',
-    roles: ['admin', 'operador'] },
+    roles: ['admin', 'operador_coordinador', 'operador'] },
   // Academico (admin)
   { to: '/asignaturas',
     icon: BookOpen, label: 'Asignaturas',
@@ -67,8 +67,11 @@ const NAV_ITEMS = [
 ]
 
 const ROL_LABELS: Record<string, string> = {
-  admin: 'Administrador', operador: 'Operador',
-  visor: 'Visor',         docente: 'Docente',
+  admin: 'Administrador',
+  operador_coordinador: 'Op. Coordinador',
+  operador: 'Operador',
+  visor: 'Visor',
+  docente: 'Docente',
 }
 
 export function Sidebar() {

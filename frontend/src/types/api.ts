@@ -231,3 +231,25 @@ export interface ClaseDocenteResponse {
   semestre: string
   activa: boolean
 }
+
+// ---------------------------------------------------------------------------
+// Importacion de horario academico
+// ---------------------------------------------------------------------------
+
+export interface HorarioFila {
+  email_docente: string
+  codigo_asignatura: string
+  seccion: string
+  semestre: string
+  sala?: string
+  dia_semana?: string
+  hora_inicio?: string
+  hora_fin?: string
+}
+
+export interface HorarioImportResponse {
+  importados: number
+  actualizados: number
+  omitidos: number
+  errores: { fila: number; razon: string }[]
+}

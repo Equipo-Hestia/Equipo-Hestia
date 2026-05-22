@@ -24,7 +24,11 @@ import { useAuthStore }      from './store/auth'
 function SolicitudesPage() {
   const { user } = useAuthStore()
   if (user?.rol === 'docente') return <SolicitudDocente />
-  if (user?.rol === 'operador' || user?.rol === 'admin') return <SolicitudOperador />
+  if (
+    user?.rol === 'operador' ||
+    user?.rol === 'operador_coordinador' ||
+    user?.rol === 'admin'
+  ) return <SolicitudOperador />
   return <Navigate to="/dashboard" replace />
 }
 
