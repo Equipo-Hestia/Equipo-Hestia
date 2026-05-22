@@ -40,14 +40,14 @@ def get_db():
 # ---------------------------------------------------------------------------
 
 MIGRACIONES_COLUMNAS = [
-    # Fase 0 — columnas de usuarios e insumos
+    # Fase 0 - columnas de usuarios e insumos
     "ALTER TABLE IF EXISTS usuarios "
     "ADD COLUMN IF NOT EXISTS activo BOOLEAN NOT NULL DEFAULT TRUE",
     "ALTER TABLE IF EXISTS insumos "
     "ADD COLUMN IF NOT EXISTS activo BOOLEAN NOT NULL DEFAULT TRUE",
     "ALTER TABLE IF EXISTS usuarios "
     "ADD COLUMN IF NOT EXISTS avatar_b64 TEXT",
-    # Fase 1 — identificadores, tipo y costo en insumos
+    # Fase 1 - identificadores, tipo y costo en insumos
     (
         "DO $$ BEGIN "
         "CREATE TYPE tipoinsumo AS ENUM ('insumo', 'implemento'); "
@@ -64,20 +64,20 @@ MIGRACIONES_COLUMNAS = [
     "ON insumos (sku) WHERE sku IS NOT NULL",
     "CREATE UNIQUE INDEX IF NOT EXISTS uix_insumos_codigo_barras "
     "ON insumos (codigo_barras) WHERE codigo_barras IS NOT NULL",
-    # Fase 4 — trazabilidad academica en solicitudes
-    # clases_docente se crea via create_all(); solo necesitamos la FK en solicitudes
+    # Fase 4 - trazabilidad academica en solicitudes
     "ALTER TABLE IF EXISTS solicitudes_retiro "
     "ADD COLUMN IF NOT EXISTS clase_docente_id INTEGER",
-    # Fase 5 — fecha de vencimiento en insumos
-    # Util para reactivos, insumos de enfermeria y banco de sangre.
-    # Nullable: los implementos retornables generalmente no vencen.
+    # Fase 5 - fecha de vencimiento en insumos
     "ALTER TABLE IF EXISTS insumos "
     "ADD COLUMN IF NOT EXISTS fecha_vencimiento DATE",
 ]
 
 # (tabla, tipo_enum_pg, columna, valores_requeridos)
 MIGRACIONES_ROL = [
-    ("usuarios", "rolusuario", "rol", ("admin", "operador", "visor", "docente")),
+    (
+        "usuarios", "rolusuario", "rol",
+        ("admin", "operador_coordinador", "operador", "visor", "docente"),
+    ),
 ]
 
 
@@ -91,7 +91,7 @@ def aplicar_migraciones_pendientes() -> None:
         log.critical(
             "[Hestia] FALLO EN MIGRACION DE ROL. "
             "Ejecuta manualmente en la BD:\n"
-            "  ALTER TYPE rolusuario ADD VALUE IF NOT EXISTS 'docente';\n"
+            "  ALTER TYPE rolusuario ADD VALUE IF NOT EXISTS 'operador_coordinador';\n"
             "Error original: %s",
             exc,
         )
@@ -99,7 +99,7 @@ def aplicar_migraciones_pendientes() -> None:
 
 
 def _aplicar_migracion_rol() -> None:
-    """Migra el campo 'rol' para aceptar el nuevo valor 'docente'."""
+    """Migra el campo 'rol' para aceptar los nuevos valores del enum."""
     import psycopg2
 
     dsn = (DATABASE_URL or "").replace("postgresql+psycopg2://", "postgresql://")
@@ -120,15 +120,23 @@ def _aplicar_migracion_rol() -> None:
                         (tipo_enum, valor),
                     )
                     if not cur.fetchone():
-                        log.info("[Hestia] Agregando '%s' al enum '%s'.", valor, tipo_enum)
+                        log.info(
+                            "[Hestia] Agregando '%s' al enum '%s'.",
+                            valor, tipo_enum
+                        )
                         cur.execute(
-                            f"ALTER TYPE {tipo_enum} ADD VALUE IF NOT EXISTS '{valor}'"
+                            f"ALTER TYPE {tipo_enum} "
+                            f"ADD VALUE IF NOT EXISTS '{valor}'"
                         )
                     else:
-                        log.info("[Hestia] '%s' ya existe en '%s'.", valor, tipo_enum)
+                        log.info(
+                            "[Hestia] '%s' ya existe en '%s'.",
+                            valor, tipo_enum
+                        )
                 continue
             log.info(
-                "[Hestia] Enum '%s' no encontrado, revisando CHECK constraints.", tipo_enum
+                "[Hestia] Enum '%s' no encontrado, revisando CHECK constraints.",
+                tipo_enum,
             )
             cur.execute(
                 "SELECT conname, pg_get_constraintdef(oid) "
@@ -142,7 +150,9 @@ def _aplicar_migracion_rol() -> None:
                 if all(v in (condef or "") for v in valores):
                     continue
                 log.info("[Hestia] Eliminando constraint '%s'.", conname)
-                cur.execute(f"ALTER TABLE {tabla} DROP CONSTRAINT IF EXISTS {conname}")
+                cur.execute(
+                    f"ALTER TABLE {tabla} DROP CONSTRAINT IF EXISTS {conname}"
+                )
         cur.close()
         log.info("[Hestia] Migracion de rol completada.")
     finally:

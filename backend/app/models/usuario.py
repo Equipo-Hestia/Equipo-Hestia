@@ -7,6 +7,7 @@ import enum
 
 class RolUsuario(str, enum.Enum):
     admin = "admin"
+    operador_coordinador = "operador_coordinador"
     operador = "operador"
     visor = "visor"
     docente = "docente"

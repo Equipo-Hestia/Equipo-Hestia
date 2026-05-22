@@ -68,8 +68,14 @@ def require_docente(usuario: Usuario = Depends(get_usuario_actual)) -> Usuario:
 
 
 def require_operador(usuario: Usuario = Depends(get_usuario_actual)) -> Usuario:
-    """Requiere rol admin u operador. Usado en endpoints de escritura general."""
-    if usuario.rol not in [RolUsuario.admin, RolUsuario.operador]:
+    """Requiere rol admin, operador u operador_coordinador.
+    Usado en endpoints de escritura general y bandeja operativa.
+    """
+    if usuario.rol not in [
+        RolUsuario.admin,
+        RolUsuario.operador,
+        RolUsuario.operador_coordinador,
+    ]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Se requiere rol operador o superior para esta accion"
