@@ -1,4 +1,7 @@
-from fastapi import APIRouter, Depends, File, Form, UploadFile, HTTPException, status
+from fastapi import (
+    APIRouter, Depends, File, Form, Header, UploadFile,
+    HTTPException, status,
+)
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
@@ -9,6 +12,8 @@ import io
 import pyotp
 
 from app.database import get_db
+from app.models.asignatura import Asignatura
+from app.models.clase_docente import ClaseDocente
 from app.models.insumo import Insumo, TipoInsumo
 from app.models.sala import Sala
 from app.models.categoria import Categoria
@@ -23,6 +28,22 @@ COLUMNAS_REQUERIDAS = {"nombre", "stock_actual", "stock_minimo"}
 # Caracteres que inician formulas en Excel/Calc (CSV Formula Injection).
 _FORMULA_PREFIXES = ('=', '+', '-', '@', '\t', '\r')
 
+COLUMNAS_HORARIO = [
+    "email_docente", "codigo_asignatura", "seccion", "semestre",
+    "sala", "dia_semana", "hora_inicio", "hora_fin",
+]
+
+EJEMPLO_HORARIO = [
+    [
+        "docente@duoc.cl", "ENF001", "001D", "2025-1",
+        "Sala de Simulacion 1", "lunes", "08:30", "12:00",
+    ],
+    [
+        "docente2@duoc.cl", "ENF002", "002J", "2025-1",
+        "Laboratorio Clinico", "martes", "14:00", "17:30",
+    ],
+]
+
 
 class ErrorFila(BaseModel):
     fila: int
@@ -31,6 +52,28 @@ class ErrorFila(BaseModel):
 
 class ImportarResponse(BaseModel):
     importados: int
+    omitidos: int
+    errores: list[ErrorFila]
+
+
+class HorarioFila(BaseModel):
+    email_docente: str
+    codigo_asignatura: str
+    seccion: str
+    semestre: str
+    sala: Optional[str] = None
+    dia_semana: Optional[str] = None
+    hora_inicio: Optional[str] = None
+    hora_fin: Optional[str] = None
+
+
+class HorarioPayload(BaseModel):
+    filas: list[HorarioFila]
+
+
+class HorarioImportResponse(BaseModel):
+    importados: int
+    actualizados: int
     omitidos: int
     errores: list[ErrorFila]
 
@@ -74,7 +117,6 @@ def _leer_filas(contenido: bytes, nombre_archivo: str) -> list[dict]:
     extension = nombre_archivo.rsplit(".", 1)[-1].lower()
 
     if extension == "csv":
-        # utf-8-sig elimina el BOM que genera Excel en Windows
         texto = contenido.decode("utf-8-sig")
         reader = csv.DictReader(io.StringIO(texto))
         return [dict(fila) for fila in reader]
@@ -149,7 +191,6 @@ def _procesar_filas(
     importados = 0
     errores: list[ErrorFila] = []
 
-    # start=2 porque la fila 1 es el encabezado del CSV
     for idx, fila in enumerate(filas, start=2):
         nombre = _sanitizar_texto(fila.get("nombre", "").strip())
         if not nombre:
@@ -183,7 +224,6 @@ def _procesar_filas(
             ))
             continue
 
-        # tipo: 'insumo' por defecto; valida contra TipoInsumo
         tipo_raw = _sanitizar_texto(
             (fila.get("tipo", "") or "").strip().lower()
         ) or "insumo"
@@ -195,13 +235,11 @@ def _procesar_filas(
             continue
         tipo = TipoInsumo(tipo_raw)
 
-        # sku y codigo_barras: opcionales
         sku_raw = _sanitizar_texto((fila.get("sku", "") or "").strip()) or None
         codigo_barras_raw = _sanitizar_texto(
             (fila.get("codigo_barras", "") or "").strip()
         ) or None
 
-        # costo_unitario: opcional, float no negativo
         costo_raw = (fila.get("costo_unitario", "") or "").strip()
         costo_unitario = None
         if costo_raw:
@@ -218,7 +256,9 @@ def _procesar_filas(
 
         sala_nombre = _sanitizar_texto(fila.get("sala", "").strip())
         categoria_nombre = _sanitizar_texto(fila.get("categoria", "").strip())
-        descripcion_raw = _sanitizar_texto((fila.get("descripcion", "") or "").strip())
+        descripcion_raw = _sanitizar_texto(
+            (fila.get("descripcion", "") or "").strip()
+        )
 
         sala_id = _buscar_o_crear_sala(sala_nombre, db)
         categoria_id = _buscar_o_crear_categoria(categoria_nombre, db)
@@ -236,7 +276,7 @@ def _procesar_filas(
             costo_unitario=costo_unitario,
         )
         db.add(insumo)
-        db.flush()  # asigna ID sin commit; necesario para auto-generar SKU
+        db.flush()
         if not insumo.sku:
             insumo.sku = f"HST-{insumo.id:05d}"
         importados += 1
@@ -296,6 +336,55 @@ def descargar_plantilla(
     )
 
 
+@router.get("/plantilla-horario")
+def descargar_plantilla_horario(
+    formato: str = "csv",
+    usuario: Usuario = Depends(require_admin),
+):
+    """Descarga la plantilla de horario academico en CSV o XLSX."""
+    filas = [COLUMNAS_HORARIO] + EJEMPLO_HORARIO
+
+    if formato == "xlsx":
+        try:
+            import openpyxl
+        except ImportError:
+            raise HTTPException(status_code=500, detail="openpyxl no instalado.")
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Plantilla Horario"
+        for fila in filas:
+            ws.append(fila)
+        salida = io.BytesIO()
+        wb.save(salida)
+        salida.seek(0)
+        return StreamingResponse(
+            salida,
+            media_type=(
+                "application/vnd.openxmlformats-officedocument"
+                ".spreadsheetml.sheet"
+            ),
+            headers={
+                "Content-Disposition": (
+                    "attachment; filename=plantilla_horario_hestia.xlsx"
+                )
+            },
+        )
+
+    salida = io.StringIO()
+    writer = csv.writer(salida)
+    writer.writerows(filas)
+    salida.seek(0)
+    return StreamingResponse(
+        io.BytesIO(salida.getvalue().encode("utf-8-sig")),
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": (
+                "attachment; filename=plantilla_horario_hestia.csv"
+            )
+        },
+    )
+
+
 @router.post("/insumos", response_model=ImportarResponse)
 def importar_insumos(
     archivo: UploadFile = File(...),
@@ -326,7 +415,10 @@ def importar_insumos(
         cols = ', '.join(sorted(faltantes))
         raise HTTPException(
             status_code=400,
-            detail=f"Columnas faltantes: {cols}. Descarga la plantilla para ver el formato."
+            detail=(
+                f"Columnas faltantes: {cols}. "
+                "Descarga la plantilla para ver el formato."
+            )
         )
 
     importados, errores = _procesar_filas(filas, db)
@@ -348,4 +440,75 @@ def importar_insumos(
         importados=importados,
         omitidos=len(errores),
         errores=errores
+    )
+
+
+@router.post("/horario-academico", response_model=HorarioImportResponse)
+def importar_horario_academico(
+    payload: HorarioPayload,
+    x_totp_code: str = Header(...),
+    usuario: Usuario = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Importa horario academico. Crea o actualiza ClaseDocente. Requiere TOTP."""
+    _verificar_totp(usuario, x_totp_code)
+
+    importados = 0
+    actualizados = 0
+    errores: list[ErrorFila] = []
+
+    for idx, fila in enumerate(payload.filas, start=1):
+        docente = db.query(Usuario).filter(
+            Usuario.email == fila.email_docente.strip(),
+            Usuario.activo.is_(True),
+        ).first()
+        if not docente:
+            errores.append(ErrorFila(
+                fila=idx,
+                razon=f"Docente no encontrado: '{fila.email_docente}'"
+            ))
+            continue
+
+        asignatura = db.query(Asignatura).filter(
+            Asignatura.codigo == fila.codigo_asignatura.strip()
+        ).first()
+        if not asignatura:
+            errores.append(ErrorFila(
+                fila=idx,
+                razon=(
+                    f"Asignatura '{fila.codigo_asignatura}' no encontrada. "
+                    "Crearla primero en el modulo de Asignaturas."
+                )
+            ))
+            continue
+
+        clase = db.query(ClaseDocente).filter(
+            ClaseDocente.docente_id == docente.id,
+            ClaseDocente.asignatura_id == asignatura.id,
+            ClaseDocente.seccion == fila.seccion.strip(),
+            ClaseDocente.semestre == fila.semestre.strip(),
+        ).first()
+
+        if clase:
+            clase.activa = True
+            actualizados += 1
+        else:
+            nueva_clase = ClaseDocente(
+                docente_id=docente.id,
+                asignatura_id=asignatura.id,
+                seccion=fila.seccion.strip(),
+                semestre=fila.semestre.strip(),
+                activa=True,
+            )
+            db.add(nueva_clase)
+            importados += 1
+
+    if importados > 0 or actualizados > 0:
+        db.commit()
+
+    return HorarioImportResponse(
+        importados=importados,
+        actualizados=actualizados,
+        omitidos=len(errores),
+        errores=errores,
     )
