@@ -12,13 +12,13 @@ import type { HorarioFila, HorarioImportResponse } from '../types/api'
 // Campos canonicos de Hestia para el mapeo de columnas
 // ---------------------------------------------------------------------------
 const CAMPOS_HESTIA = [
-  { value: '', label: '\u2014 Ignorar \u2014' },
+  { value: '', label: '— Ignorar —' },
   { value: 'email_docente', label: 'Email del docente *' },
-  { value: 'codigo_asignatura', label: 'C\u00f3digo asignatura *' },
-  { value: 'seccion', label: 'Secci\u00f3n *' },
+  { value: 'codigo_asignatura', label: 'Código asignatura *' },
+  { value: 'seccion', label: 'Sección *' },
   { value: 'semestre', label: 'Semestre *' },
   { value: 'sala', label: 'Sala' },
-  { value: 'dia_semana', label: 'D\u00eda de la semana' },
+  { value: 'dia_semana', label: 'Día de la semana' },
   { value: 'hora_inicio', label: 'Hora inicio' },
   { value: 'hora_fin', label: 'Hora fin' },
 ]
@@ -45,13 +45,13 @@ const ALIAS_COLS: Record<string, string> = {
 
 function quitarTildes(s: string): string {
   return s
-    .replace(/[\u00e1\u00e0\u00e4]/g, 'a').replace(/[\u00e9\u00e8\u00eb]/g, 'e')
-    .replace(/[\u00ed\u00ec\u00ef]/g, 'i').replace(/[\u00f3\u00f2\u00f6]/g, 'o')
-    .replace(/[\u00fa\u00f9\u00fc]/g, 'u')
+    .replace(/[áàä]/g, 'a').replace(/[éèë]/g, 'e')
+    .replace(/[íìï]/g, 'i').replace(/[óòö]/g, 'o')
+    .replace(/[úùü]/g, 'u')
 }
 
 /**
- * Parser CSV nativo \u2014 sin dependencias externas.
+ * Parser CSV nativo — sin dependencias externas.
  * Maneja BOM UTF-8, comillas dobles, CRLF/LF y delimitador
  * coma o punto y coma (auto-detectado por la primera linea).
  */
@@ -125,8 +125,8 @@ function formatearFilas(
 }
 
 // ---------------------------------------------------------------------------
-// Helper de descarga \u2014 appendChild necesario para que a.click() funcione
-// en Chrome cuando el elemento no est\u00e1 en el DOM.
+// Helper de descarga — appendChild necesario para que a.click() funcione
+// en Chrome cuando el elemento no está en el DOM.
 // ---------------------------------------------------------------------------
 function dispararDescarga(url: string, nombre: string) {
   const a = document.createElement('a')
@@ -187,7 +187,7 @@ export function ImportarHorario() {
     reader.onload = (e) => {
       const texto = e.target?.result as string
       const filas = parsearCSV(texto)
-      if (!filas.length) { setErrorMsg('El archivo est\u00e1 vac\u00edo.'); return }
+      if (!filas.length) { setErrorMsg('El archivo está vacío.'); return }
       const headers = filas[0].filter(Boolean)
       setFilasRaw(filas.slice(1))
       setCols(headers)
@@ -204,8 +204,8 @@ export function ImportarHorario() {
     if (ext !== 'csv') {
       setErrorMsg(
         'Solo se aceptan archivos CSV. ' +
-        'Si tienes un Excel, ábrelo y guardalo como CSV primero ' +
-        '(Archivo --> Guardar como --> CSV UTF-8).'
+        'Si tienes un Excel, ábrelo y guárdalo como CSV primero ' +
+        '(Archivo → Guardar como → CSV UTF-8).'
       )
       return
     }
@@ -246,30 +246,31 @@ export function ImportarHorario() {
       setPaso('resultado')
     } catch (err: unknown) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const status = (err as any)?.response?.status
+      const httpStatus = (err as any)?.response?.status
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const detail = (err as any)?.response?.data?.detail
       let msg: string
-      if (status === 404) {
-        msg =
-          'Endpoint no encontrado (404). ' +
-          'Ejecuta docker compose up --build para actualizar el contenedor API.'
-      } else if (status === 401 || status === 400) {
+      if (httpStatus === 401 || httpStatus === 400) {
         msg = 'Código TOTP incorrecto. Intenta de nuevo con el código actual.'
       } else {
-        msg = typeof detail === 'string' ? detail : 'Error al importar. Verifica la conexión.'
+        msg = typeof detail === 'string'
+          ? detail
+          : 'Error al importar. Verifica la conexión.'
       }
       setErrorMsg(msg)
       setPaso('totp')
     }
   }
 
-  async function descargarPlantilla() {
+  async function descargarPlantilla(formato: 'csv' | 'xlsx') {
     try {
-      const res = await api.get('/importar/plantilla-horario', { responseType: 'blob' })
+      const res = await api.get(
+        `/importar/plantilla-horario?formato=${formato}`,
+        { responseType: 'blob' }
+      )
       dispararDescarga(
         URL.createObjectURL(res.data),
-        'plantilla_horario_hestia.csv'
+        `plantilla_horario_hestia.${formato}`
       )
     } catch {
       setErrorMsg('No se pudo descargar la plantilla. Verifica la conexión.')
@@ -306,12 +307,24 @@ export function ImportarHorario() {
               Sube el CSV de DuocUC, mapea las columnas y carga el horario en Hestia.
             </p>
           </div>
-          <button onClick={descargarPlantilla}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg border
-                       border-slate-200 text-slate-600 hover:bg-slate-100
-                       text-sm font-semibold transition-colors">
-            <Download size={14} /> Descargar plantilla CSV
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => descargarPlantilla('csv')}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg border
+                         border-slate-200 text-slate-600 hover:bg-slate-100
+                         text-sm font-semibold transition-colors"
+            >
+              <Download size={14} /> Plantilla CSV
+            </button>
+            <button
+              onClick={() => descargarPlantilla('xlsx')}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg border
+                         border-slate-200 text-slate-600 hover:bg-slate-100
+                         text-sm font-semibold transition-colors"
+            >
+              <Download size={14} /> Plantilla XLSX
+            </button>
+          </div>
         </div>
       </div>
 
@@ -326,7 +339,7 @@ export function ImportarHorario() {
               <strong>
                 Si tienes un Excel, ábrelo y guárdalo como CSV primero
               </strong>{' '}
-              (Archivo -- Guardar como -- CSV UTF-8).
+              (Archivo → Guardar como → CSV UTF-8).
             </p>
           </div>
           {errorMsg && (
@@ -438,14 +451,14 @@ export function ImportarHorario() {
                                 shadow-sm overflow-hidden">
                   <div className="px-5 py-3 border-b border-slate-100 bg-slate-50">
                     <p className="text-xs font-bold text-slate-600 uppercase tracking-wide">
-                      Vista previa \u2014 {datos.length} filas
+                      Vista previa — {datos.length} filas
                     </p>
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs">
                       <thead>
                         <tr className="border-b border-slate-100 bg-slate-50">
-                          {['Email', 'C\u00f3d.', 'Secc.', 'Semestre', 'D\u00eda', 'Hora'].map(h => (
+                          {['Email', 'Cód.', 'Secc.', 'Semestre', 'Día', 'Hora'].map(h => (
                             <th key={h}
                               className="px-3 py-2 text-left font-bold text-slate-500">
                               {h}
@@ -468,12 +481,12 @@ export function ImportarHorario() {
                             </td>
                             <td className="px-3 py-2 text-slate-600">{f.semestre}</td>
                             <td className="px-3 py-2 capitalize text-slate-600">
-                              {f.dia_semana ?? '\u2014'}
+                              {f.dia_semana ?? '—'}
                             </td>
                             <td className="px-3 py-2 font-mono text-slate-600">
                               {f.hora_inicio && f.hora_fin
-                                ? `${f.hora_inicio}\u2013${f.hora_fin}`
-                                : (f.hora_inicio ?? '\u2014')}
+                                ? `${f.hora_inicio}–${f.hora_fin}`
+                                : (f.hora_inicio ?? '—')}
                             </td>
                           </tr>
                         ))}
@@ -481,7 +494,7 @@ export function ImportarHorario() {
                     </table>
                     {datos.length > 8 && (
                       <p className="text-center text-xs text-slate-400 py-2">
-                        ... y {datos.length - 8} filas m\u00e1s
+                        ... y {datos.length - 8} filas más
                       </p>
                     )}
                   </div>
@@ -509,15 +522,12 @@ export function ImportarHorario() {
         </div>
       )}
 
-      {/* Modal TOTP
-          max-w-md para que los 6 digitos quepan sin cortarse.
-          El timer SVG va separado encima del input, no en absolute interior. */}
+      {/* Modal TOTP */}
       {paso === 'totp' && (
         <div className="fixed inset-0 z-50 flex items-center justify-center
                         p-4 bg-black/60">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8">
 
-            {/* Header */}
             <div className="flex items-center gap-3 mb-6">
               <div className="w-10 h-10 rounded-xl bg-teal-100
                               flex items-center justify-center flex-shrink-0">
@@ -531,7 +541,6 @@ export function ImportarHorario() {
               </div>
             </div>
 
-            {/* Timer SVG centrado encima del input \u2014 fuera del input para no solaparse */}
             <div className="flex justify-center mb-3">
               <div className="relative flex items-center justify-center w-12 h-12">
                 <svg width="48" height="48" className="-rotate-90 absolute inset-0">
@@ -551,7 +560,6 @@ export function ImportarHorario() {
               </div>
             </div>
 
-            {/* Input TOTP sin elementos absolutos interiores */}
             <input
               type="text"
               inputMode="numeric"
