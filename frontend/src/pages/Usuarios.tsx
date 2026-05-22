@@ -10,11 +10,14 @@ import { Modal } from '../components/ui/Modal'
 import { Badge } from '../components/ui/Badge'
 
 const PAGE_SIZE = 20
-const ROLES = ['admin', 'operador', 'visor', 'docente'] as const
+const ROLES = [
+  'admin', 'operador_coordinador', 'operador', 'visor', 'docente',
+] as const
 type Rol = typeof ROLES[number]
 
 const ROL_LABEL: Record<Rol, string> = {
   admin: 'Administrador',
+  operador_coordinador: 'Op. Coordinador',
   operador: 'Operador',
   visor: 'Visor',
   docente: 'Docente',
@@ -22,6 +25,7 @@ const ROL_LABEL: Record<Rol, string> = {
 
 const ROL_VARIANT: Record<Rol, 'danger' | 'warning' | 'info' | 'success'> = {
   admin: 'danger',
+  operador_coordinador: 'warning',
   operador: 'warning',
   visor: 'info',
   docente: 'success',
@@ -386,6 +390,12 @@ export function Usuarios() {
                   <option key={r} value={r}>{ROL_LABEL[r]}</option>
                 ))}
               </select>
+              {form.rol === 'operador_coordinador' && (
+                <p className="text-xs text-teal-600 mt-1.5 font-semibold">
+                  El Operador Coordinador tiene los mismos accesos que el Operador.
+                  Sus permisos adicionales se configurarán próximamente.
+                </p>
+              )}
               {form.rol === 'docente' && (
                 <p className="text-xs text-teal-600 mt-1.5 font-semibold">
                   Los docentes solo pueden crear solicitudes de retiro de insumos.
