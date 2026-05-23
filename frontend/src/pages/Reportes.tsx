@@ -109,7 +109,9 @@ function TabValorizacion() {
       {data.por_categoria.length > 0 && (
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
           <div className="px-5 py-4 border-b border-slate-200">
-            <h3 className="font-bold text-slate-800">Por Categoría</h3>
+            <h3 className="font-bold text-slate-800 dark:text-slate-100">
+              Por Categoría
+            </h3>
           </div>
           <div className="divide-y divide-slate-100">
             {data.por_categoria.map(g => (
@@ -117,8 +119,12 @@ function TabValorizacion() {
                 className="flex items-center justify-between px-5 py-3
                            hover:bg-slate-50 transition-colors">
                 <div>
-                  <p className="font-semibold text-slate-800 text-sm">{g.nombre}</p>
-                  <p className="text-xs text-slate-400">{g.cantidad_insumos} insumos</p>
+                  <p className="font-semibold text-sm text-slate-800 dark:text-slate-100">
+                    {g.nombre}
+                  </p>
+                  <p className="text-xs text-slate-400">
+                    {g.cantidad_insumos} insumos
+                  </p>
                 </div>
                 <p className="font-bold text-sm text-teal-600 dark:text-teal-400">
                   {fmt(g.valor_total)}
@@ -133,7 +139,9 @@ function TabValorizacion() {
       {data.por_sala.length > 0 && (
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
           <div className="px-5 py-4 border-b border-slate-200">
-            <h3 className="font-bold text-slate-800">Por Sala</h3>
+            <h3 className="font-bold text-slate-800 dark:text-slate-100">
+              Por Sala
+            </h3>
           </div>
           <div className="divide-y divide-slate-100">
             {data.por_sala.map(g => (
@@ -141,8 +149,12 @@ function TabValorizacion() {
                 className="flex items-center justify-between px-5 py-3
                            hover:bg-slate-50 transition-colors">
                 <div>
-                  <p className="font-semibold text-slate-800 text-sm">{g.nombre}</p>
-                  <p className="text-xs text-slate-400">{g.cantidad_insumos} insumos</p>
+                  <p className="font-semibold text-sm text-slate-800 dark:text-slate-100">
+                    {g.nombre}
+                  </p>
+                  <p className="text-xs text-slate-400">
+                    {g.cantidad_insumos} insumos
+                  </p>
                 </div>
                 <p className="font-bold text-sm text-teal-600 dark:text-teal-400">
                   {fmt(g.valor_total)}
@@ -156,7 +168,7 @@ function TabValorizacion() {
       {/* Detalle de insumos */}
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-200">
-          <h3 className="font-bold text-slate-800">
+          <h3 className="font-bold text-slate-800 dark:text-slate-100">
             Detalle ({data.total_insumos_valorados} insumos valorizados)
           </h3>
         </div>
@@ -177,11 +189,16 @@ function TabValorizacion() {
             <tbody className="divide-y divide-slate-100">
               {data.insumos.map(i => (
                 <tr key={i.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-4 py-3 font-medium text-slate-800">{i.nombre}</td>
+                  <td className="px-4 py-3 font-medium
+                                 text-slate-800 dark:text-slate-100">
+                    {i.nombre}
+                  </td>
                   <td className="px-4 py-3 font-mono text-xs text-slate-500">
                     {i.sku ?? '—'}
                   </td>
-                  <td className="px-4 py-3 text-slate-600 text-right">{i.stock_actual}</td>
+                  <td className="px-4 py-3 text-slate-600 text-right">
+                    {i.stock_actual}
+                  </td>
                   <td className="px-4 py-3 text-slate-600 text-right">
                     ${fmtDec(i.costo_unitario)}
                   </td>
@@ -189,8 +206,12 @@ function TabValorizacion() {
                                  text-teal-600 dark:text-teal-400">
                     {fmt(i.valor_total)}
                   </td>
-                  <td className="px-4 py-3 text-slate-500 text-xs">{i.categoria ?? '—'}</td>
-                  <td className="px-4 py-3 text-slate-500 text-xs">{i.sala ?? '—'}</td>
+                  <td className="px-4 py-3 text-xs text-slate-500">
+                    {i.categoria ?? '—'}
+                  </td>
+                  <td className="px-4 py-3 text-xs text-slate-500">
+                    {i.sala ?? '—'}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -255,14 +276,12 @@ function TabCarreras() {
 
       {data && (
         <>
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-semibold text-slate-700">
-              Semestre {buscando} — Costo total:
-              <span className="ml-2 font-black text-teal-600 dark:text-teal-400">
-                {fmt(data.costo_total_semestre)}
-              </span>
-            </p>
-          </div>
+          <p className="text-sm font-semibold text-slate-700">
+            Semestre {buscando} — Costo total:
+            <span className="ml-2 font-black text-teal-600 dark:text-teal-400">
+              {fmt(data.costo_total_semestre)}
+            </span>
+          </p>
 
           {data.carreras.length === 0 ? (
             <div className="text-center py-12 text-slate-400">
@@ -271,7 +290,8 @@ function TabCarreras() {
                 Sin datos de consumo para este semestre.
               </p>
               <p className="text-xs mt-1">
-                Verifica que las solicitudes tengan clase y asignatura con carrera asociadas.
+                Verifica que las solicitudes tengan clase y asignatura
+                con carrera asociadas.
               </p>
             </div>
           ) : (
@@ -279,11 +299,12 @@ function TabCarreras() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-slate-50">
-                    {['Carrera', 'Solicitudes', 'Estudiantes', 'Costo Total',
-                      'Costo/Estudiante'].map(h => (
+                    {['Carrera', 'Solicitudes', 'Estudiantes',
+                      'Costo Total', 'Costo/Estudiante'].map(h => (
                       <th key={h}
-                        className="text-left px-4 py-3 text-xs font-bold text-slate-500
-                                   uppercase tracking-wide whitespace-nowrap">
+                        className="text-left px-4 py-3 text-xs font-bold
+                                   text-slate-500 uppercase tracking-wide
+                                   whitespace-nowrap">
                         {h}
                       </th>
                     ))}
@@ -291,8 +312,10 @@ function TabCarreras() {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {data.carreras.map(c => (
-                    <tr key={c.carrera} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-4 py-3 font-semibold text-slate-800">
+                    <tr key={c.carrera}
+                      className="hover:bg-slate-50 transition-colors">
+                      <td className="px-4 py-3 font-semibold
+                                     text-slate-800 dark:text-slate-100">
                         {c.carrera}
                       </td>
                       <td className="px-4 py-3 text-slate-600 text-right">
@@ -342,7 +365,9 @@ function TabExportar() {
       const resp = await api.get(`/reportes/valorizacion/pdf${params}`, {
         responseType: 'blob',
       })
-      const url = URL.createObjectURL(new Blob([resp.data], { type: 'application/pdf' }))
+      const url = URL.createObjectURL(
+        new Blob([resp.data], { type: 'application/pdf' })
+      )
       const a = document.createElement('a')
       a.href = url
       a.download = `valorizacion_hestia${semestre ? `_${semestre}` : ''}.pdf`
@@ -364,10 +389,12 @@ function TabExportar() {
     <div className="mt-4 max-w-lg">
       <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-5">
         <div>
-          <h3 className="font-bold text-slate-800 mb-1">Reporte de Valorización PDF</h3>
+          <h3 className="font-bold text-slate-800 dark:text-slate-100 mb-1">
+            Reporte de Valorización PDF
+          </h3>
           <p className="text-sm text-slate-500">
-            Genera un PDF con el valor del inventario activo agrupado por categoría y sala,
-            con el detalle de cada insumo valorizado.
+            Genera un PDF con el valor del inventario activo agrupado
+            por categoría y sala, con el detalle de cada insumo valorizado.
           </p>
         </div>
         <div>
@@ -437,8 +464,9 @@ export function Reportes() {
         </div>
         {tab === 'valorizacion' && (
           <button onClick={() => setRefreshKey(k => k + 1)}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-200
-                       text-slate-600 hover:bg-slate-100 text-sm font-semibold
+            className="flex items-center gap-2 px-4 py-2 rounded-lg
+                       border border-slate-200 text-slate-600
+                       hover:bg-slate-100 text-sm font-semibold
                        transition-colors">
             <RefreshCw size={14} />
             Actualizar
@@ -450,7 +478,8 @@ export function Reportes() {
       <div className="flex gap-1 bg-slate-100 p-1 rounded-xl mb-6 w-fit">
         {tabs.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
-            className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors ${
+            className={`px-4 py-2 text-sm font-semibold rounded-lg
+              transition-colors ${
               tab === t.id
                 ? 'bg-white text-slate-900 shadow-sm'
                 : 'text-slate-500 hover:text-slate-700'
