@@ -27,7 +27,7 @@ def listar_audit_log(
 
     Filtros opcionales:
     - accion: texto parcial (ej: 'LOGIN' devuelve LOGIN_EXITOSO y LOGIN_FALLIDO)
-    - entidad: valor exacto (ej: 'insumo', 'usuario', 'movimiento')
+    - entidad: texto exacto (ej: 'insumo', 'movimiento', 'usuario')
     - usuario_id: restringe a las acciones de un usuario especifico
     """
     q = db.query(AuditLog)
