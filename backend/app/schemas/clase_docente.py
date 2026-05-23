@@ -1,4 +1,5 @@
 from pydantic import BaseModel, Field
+from typing import Optional
 
 
 class ClaseDocenteCreate(BaseModel):
@@ -6,12 +7,14 @@ class ClaseDocenteCreate(BaseModel):
     asignatura_id: int
     seccion: str = Field(..., min_length=1, max_length=10)
     semestre: str = Field(..., min_length=4, max_length=10)  # Ej: "2025-1"
+    num_estudiantes: Optional[int] = None
 
 
 class ClaseDocenteUpdate(BaseModel):
     seccion: str | None = None
     semestre: str | None = None
     activa: bool | None = None
+    num_estudiantes: Optional[int] = None
 
 
 class ClaseDocenteResponse(BaseModel):
@@ -27,6 +30,7 @@ class ClaseDocenteResponse(BaseModel):
     seccion: str
     semestre: str
     activa: bool
+    num_estudiantes: Optional[int] = None
 
     class Config:
         from_attributes = True

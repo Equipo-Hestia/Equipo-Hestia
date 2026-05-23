@@ -213,11 +213,14 @@ export interface RetornoResponse {
 // Asignaturas y Clases Docente (Fase 4)
 // ---------------------------------------------------------------------------
 
+export type CarreraAsignatura = 'TENS' | 'TQF' | 'TLCBS' | 'preparador_fisico'
+
 export interface AsignaturaResponse {
   id: number
   nombre: string
   codigo: string
   activa: boolean
+  carrera: CarreraAsignatura | null
 }
 
 export interface ClaseDocenteResponse {
@@ -230,6 +233,61 @@ export interface ClaseDocenteResponse {
   seccion: string
   semestre: string
   activa: boolean
+  num_estudiantes: number | null
+}
+
+// ---------------------------------------------------------------------------
+// Reportes de valorizacion e inventario
+// ---------------------------------------------------------------------------
+
+export interface InsumoValorizado {
+  id: number
+  nombre: string
+  sku: string | null
+  stock_actual: number
+  costo_unitario: number
+  valor_total: number
+  sala: string | null
+  categoria: string | null
+}
+
+export interface InsumoSinCosto {
+  id: number
+  nombre: string
+  sku: string | null
+  stock_actual: number
+  sala: string | null
+  categoria: string | null
+}
+
+export interface GrupoValor {
+  nombre: string
+  valor_total: number
+  cantidad_insumos: number
+}
+
+export interface ValorizacionResponse {
+  valor_total_inventario: number
+  total_insumos_valorados: number
+  total_insumos_sin_costo: number
+  por_categoria: GrupoValor[]
+  por_sala: GrupoValor[]
+  insumos: InsumoValorizado[]
+  insumos_sin_costo: InsumoSinCosto[]
+}
+
+export interface CarreraConsumo {
+  carrera: string
+  costo_total: number
+  num_solicitudes: number
+  num_estudiantes_total: number
+  costo_por_estudiante: number | null
+}
+
+export interface ConsumoCarrerasResponse {
+  semestre: string
+  costo_total_semestre: number
+  carreras: CarreraConsumo[]
 }
 
 // ---------------------------------------------------------------------------

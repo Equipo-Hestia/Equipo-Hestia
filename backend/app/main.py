@@ -22,6 +22,7 @@ from app.routes import solicitudes
 from app.routes import retornos
 from app.routes import asignaturas
 from app.routes import clases_docente
+from app.routes import reportes
 
 # 1) crea tablas nuevas. 2) aplica ALTER TABLE / ALTER TYPE idempotentes.
 Base.metadata.create_all(bind=engine)
@@ -90,6 +91,7 @@ app.include_router(solicitudes.router)
 app.include_router(retornos.router)
 app.include_router(asignaturas.router)
 app.include_router(clases_docente.router)
+app.include_router(reportes.router)
 
 
 @app.get("/")

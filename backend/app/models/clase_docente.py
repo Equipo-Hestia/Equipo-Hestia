@@ -25,6 +25,7 @@ class ClaseDocente(Base):
     activa = Column(
         Boolean, default=True, nullable=False, server_default="true"
     )
+    num_estudiantes = Column(Integer, nullable=True)
 
     docente = relationship(
         "Usuario", foreign_keys=[docente_id], back_populates="clases_docente"

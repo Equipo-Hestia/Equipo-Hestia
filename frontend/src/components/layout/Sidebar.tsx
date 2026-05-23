@@ -4,7 +4,7 @@ import {
   ArrowLeftRight, DoorOpen, Tag,
   LogOut, ShieldCheck, Upload,
   UserCircle, Users, ScrollText,
-  ClipboardList, RotateCcw, BookOpen, GraduationCap, Calendar,
+  ClipboardList, RotateCcw, BookOpen, GraduationCap, Calendar, BarChart2,
   ChevronLeft, ChevronRight, Sun, Moon,
 } from 'lucide-react'
 import { useAuthStore } from '../../store/auth'
@@ -33,6 +33,10 @@ const NAV_ITEMS = [
   { to: '/categorias',
     icon: Tag, label: 'Categorías',
     roles: ['admin', 'operador_coordinador', 'operador', 'visor'] },
+  // Reportes
+  { to: '/reportes',
+    icon: BarChart2, label: 'Reportes',
+    roles: ['admin', 'operador_coordinador', 'operador', 'visor'], divider: true },
   // Flujo operativo
   { to: '/solicitudes',
     icon: ClipboardList, label: 'Solicitudes',

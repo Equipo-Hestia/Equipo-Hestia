@@ -1,6 +1,15 @@
 from sqlalchemy import Column, Integer, String, Boolean
+from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import relationship
 from app.database import Base
+import enum
+
+
+class CarreraAsignatura(str, enum.Enum):
+    TENS = "TENS"
+    TQF = "TQF"
+    TLCBS = "TLCBS"
+    preparador_fisico = "preparador_fisico"
 
 
 class Asignatura(Base):
@@ -16,6 +25,10 @@ class Asignatura(Base):
     codigo = Column(String(20), unique=True, nullable=False, index=True)
     activa = Column(
         Boolean, default=True, nullable=False, server_default="true"
+    )
+    carrera = Column(
+        SAEnum(CarreraAsignatura, name="carreraasignatura", create_type=False),
+        nullable=True,
     )
 
     clases = relationship("ClaseDocente", back_populates="asignatura")

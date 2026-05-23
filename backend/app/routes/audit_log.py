@@ -17,6 +17,7 @@ def listar_audit_log(
     skip: int = 0,
     limit: int = 50,
     accion: Optional[str] = None,
+    entidad: Optional[str] = None,
     usuario_id: Optional[int] = None,
     db: Session = Depends(get_db),
     admin: Usuario = Depends(require_admin),
@@ -26,11 +27,14 @@ def listar_audit_log(
 
     Filtros opcionales:
     - accion: texto parcial (ej: 'LOGIN' devuelve LOGIN_EXITOSO y LOGIN_FALLIDO)
+    - entidad: valor exacto (ej: 'insumo', 'usuario', 'movimiento')
     - usuario_id: restringe a las acciones de un usuario especifico
     """
     q = db.query(AuditLog)
     if accion:
         q = q.filter(AuditLog.accion.ilike(f"%{accion}%"))
+    if entidad:
+        q = q.filter(AuditLog.entidad == entidad)
     if usuario_id is not None:
         q = q.filter(AuditLog.usuario_id == usuario_id)
 
