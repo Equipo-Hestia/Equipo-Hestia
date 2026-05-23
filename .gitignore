@@ -16,3 +16,11 @@ Thumbs.db
 
 # VSCode
 .vscode/
+
+# Node modules no van al repositorio
+node_modules/
+.vite/
+
+# Certificados SSL (generados localmente por generate-cert.sh)
+docker/nginx/certs/*.crt
+docker/nginx/certs/*.key

@@ -1,48 +1,127 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # Hestia — Docker Compose
-# Levanta dos servicios: la API (FastAPI) y la base de datos (PostgreSQL 16).
+# Levanta cinco servicios: PostgreSQL, FastAPI, frontend Vite (React), nginx y backup.
 #
 # Uso:
-#   docker compose up          → levanta todo
-#   docker compose up --build  → reconstruye la imagen de la API y levanta
+#   docker compose up --build  → construye imágenes y levanta todo
+#   ./generate-cert.sh         → (opcional) regenera cert con tu IP LAN como SAN
+#   docker compose up          → levanta sin reconstruir
 #   docker compose down        → apaga los contenedores
 #   docker compose down -v     → apaga Y borra la base de datos (cuidado)
+#
+# Acceso:
+#   https://<IP-LAN>   → nginx (HTTPS, recomendado)
+#   http://<IP-LAN>    → redirige a HTTPS automáticamente
+#
+# Backups:
+#   Los respaldos cifrados se almacenan en el volumen 'backup_data'.
+#   Para acceder: docker compose exec backup ls /backups/diarios
+#   Para descifrar un backup:
+#     docker compose exec backup bash
+#     openssl enc -d -aes-256-cbc -pbkdf2 -iter 100000 \
+#       -pass pass:"<BACKUP_ENCRYPTION_KEY>" \
+#       -in /backups/diarios/<archivo>.enc | gunzip > dump.sql
 # ─────────────────────────────────────────────────────────────────────────────
 
 services:
 
-  # ── Base de datos PostgreSQL ──────────────────────────────────────────────
+  # ── Base de datos PostgreSQL ──────────────────────────────────────────
   db:
     image: postgres:16
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: hestia_pass
       POSTGRES_DB: hestia_db
-    ports:
-      - "5432:5432"   # Expone postgres para conectarte desde pgAdmin si quieres
+    # Sin 'ports' aqui: la BD solo es alcanzable desde dentro de la red
+    # interna de Docker (nombre de servicio 'db', puerto 5432).
+    # Ningun dispositivo de la LAN puede conectarse directamente a PostgreSQL.
     volumes:
-      - postgres_data:/var/lib/postgresql/data   # Los datos persisten entre reinicios
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
       timeout: 5s
       retries: 5
 
-  # ── API FastAPI ───────────────────────────────────────────────────────────
+  # ── API FastAPI ─────────────────────────────────────────────────────────
   api:
     build:
-      context: ./backend      # Carpeta raiz del build (donde esta requirements.txt)
-      dockerfile: Dockerfile  # Nombre explícito del Dockerfile dentro de ese contexto
+      context: ./backend
+      dockerfile: Dockerfile
     ports:
-      - "8000:8000"           # La API queda en http://localhost:8000
+      - "8000:8000"
     env_file:
-      - ./backend/.env        # Lee las variables de entorno desde tu .env real
+      - ./backend/.env
     depends_on:
       db:
-        condition: service_healthy   # Espera a que postgres este listo antes de arrancar
+        condition: service_healthy
+    restart: unless-stopped
     volumes:
-      - ./backend:/app        # Monta el codigo local → hot reload funciona
+      - ./backend:/app
 
-# ── Volúmenes persistentes ────────────────────────────────────────────────────
+  # ── Frontend Vite (React) ──────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      # El proxy de Vite reenvia llamadas /api/* a este destino.
+      # Dentro de Docker usamos el nombre del servicio 'api', no localhost.
+      - API_URL=http://api:8000
+    depends_on:
+      - api
+    restart: unless-stopped
+    volumes:
+      - ./frontend:/app
+      # Volumen anonimo para node_modules: evita que la carpeta local
+      # (compilada para el OS del host) sobreescriba los binarios del contenedor.
+      - /app/node_modules
+
+  # ── Nginx Reverse Proxy (HTTPS/TLS) ──────────────────────────────────
+  # Genera un certificado auto-firmado automaticamente en el primer arranque
+  # si no existe en docker/nginx/certs/. Para incluir la IP LAN real como SAN,
+  # ejecuta ./generate-cert.sh antes de levantar (o tras el primer arranque).
+  nginx:
+    build:
+      context: ./docker/nginx
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/nginx/certs:/etc/nginx/certs
+    depends_on:
+      - api
+      - frontend
+    restart: unless-stopped
+
+  # ── Backup automático de PostgreSQL ───────────────────────────────────
+  # Ejecuta pg_dump diariamente a las 02:00 AM UTC.
+  # Cifra con AES-256-CBC (BACKUP_ENCRYPTION_KEY del .env).
+  # Retención: 7 diarios + 4 semanales (copia extra cada lunes).
+  # Los backups se almacenan en el volumen 'backup_data' (/backups).
+  # Ver logs: docker compose logs -f backup
+  backup:
+    build:
+      context: ./docker/backup
+      dockerfile: Dockerfile
+    environment:
+      - POSTGRES_DB=hestia_db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=hestia_pass
+      - DB_HOST=db
+      - BACKUP_ENCRYPTION_KEY=${BACKUP_ENCRYPTION_KEY:-cambia-esta-clave-en-produccion}
+    volumes:
+      - backup_data:/backups
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+# ── Volúmenes persistentes ──────────────────────────────────────────────────
 volumes:
   postgres_data:
+  backup_data:    # respaldos cifrados (diarios + semanales)

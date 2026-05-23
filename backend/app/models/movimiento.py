@@ -21,4 +21,4 @@ class Movimiento(Base):
     usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
 
     insumo = relationship("Insumo", back_populates="movimientos")
-    usuario = relationship("Usuario", back_populates="movimientos")
+    usuario = relationship("Usuario", backref="movimientos")

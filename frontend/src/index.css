@@ -1,0 +1,176 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Tipografía global ────────────────────────────────────────── */
+* {
+  font-family: 'Nunito', sans-serif;
+}
+
+/* ─── Skeleton loading ──────────────────────────────────── */
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    #e2e8f0 25%,
+    #f1f5f9 50%,
+    #e2e8f0 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite linear;
+  border-radius: 0.5rem;
+}
+
+.dark .skeleton {
+  background: linear-gradient(
+    90deg,
+    #334155 25%,
+    #475569 50%,
+    #334155 75%
+  );
+  background-size: 200% 100%;
+}
+
+/* ─── Scrollbar sutil ────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+.dark ::-webkit-scrollbar-thumb { background: #475569; }
+.dark ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+
+/* ═══════════════════════════════════════════════════════════
+   DARK MODE — Overrides globales de color
+   ─────────────────────────────────────────────────────────
+   Se activan cuando la clase .dark está en <html>.
+   Especificidad (0,2,0) supera la de Tailwind (0,1,0) sin
+   necesidad de !important. Cubre automáticamente todas las
+   páginas sin tocar cada componente individualmente.
+   ═══════════════════════════════════════════════════════════ */
+
+/* Indica al navegador que el modo de color es oscuro;
+   mejora la apariencia de controles nativos (select, date, etc.) */
+.dark {
+  color-scheme: dark;
+}
+
+
+/* ══ Fondos principales ══════════════════════════════════════ */
+
+/* Tarjetas, paneles y modales */
+.dark .bg-white     { background-color: #1e293b; }
+/* Página, campos de formulario */
+.dark .bg-slate-50  { background-color: #0f172a; }
+/* Fondos secundarios (thead, chips) */
+.dark .bg-slate-100 { background-color: #1e293b; }
+.dark .bg-slate-200 { background-color: #334155; }
+
+
+/* ══ Hover e interacciones ═══════───────────────────────────────── */
+
+.dark .hover\:bg-slate-50:hover  { background-color: #1e293b; }
+.dark .hover\:bg-slate-100:hover { background-color: #334155; }
+/* Para inputs con focus:bg-white (ej. Insumos form) */
+.dark .focus\:bg-white:focus     { background-color: #1e293b; }
+
+
+/* ══ Texto ════════════════════════════════════════════════─ */
+
+/* text-slate-900 (#0f172a) sobre fondo #0f172a = invisible → near-white */
+.dark .text-slate-900 { color: #f1f5f9; }
+/* text-slate-700 (#334155) sobre fondo oscuro = casi invisible → slate-300 */
+.dark .text-slate-700 { color: #cbd5e1; }
+/* text-slate-600 (#475569) contraste 2.1:1 → slate-400 (6.3:1) */
+.dark .text-slate-600 { color: #94a3b8; }
+/* text-slate-500 (#64748b) contraste 3.4:1 → slate-400 (6.3:1) */
+.dark .text-slate-500 { color: #94a3b8; }
+
+
+/* ══ Bordes ═══════════════════════════════════════════════ */
+
+.dark .border-slate-200 { border-color: #334155; }
+.dark .border-slate-100 { border-color: #1e293b; }
+
+
+/* ══ Divisores (divide-y / divide-x) ══════════════════════════ */
+
+.dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]) { border-color: #334155; }
+.dark .divide-slate-200 > :not([hidden]) ~ :not([hidden]) { border-color: #334155; }
+
+
+/* ══ Fondos semánticos (teal, amber, rose, etc.) ═══════════════ */
+
+/* Nivel -50 (muy sutil, u00fasado en indicadores y alertas) */
+.dark .bg-teal-50    { background-color: rgba(19, 78, 74, 0.35);  }
+.dark .bg-amber-50   { background-color: rgba(120, 53, 15, 0.35); }
+.dark .bg-rose-50    { background-color: rgba(136, 19, 55, 0.35); }
+.dark .bg-emerald-50 { background-color: rgba(6, 78, 59, 0.35);   }
+.dark .bg-blue-50    { background-color: rgba(30, 58, 138, 0.35); }
+
+/* Nivel -100 (u00fasado en íconos de modal e highlights) */
+.dark .bg-teal-100    { background-color: rgba(19, 78, 74, 0.4);  }
+.dark .bg-amber-100   { background-color: rgba(120, 53, 15, 0.4); }
+.dark .bg-rose-100    { background-color: rgba(136, 19, 55, 0.4); }
+.dark .bg-emerald-100 { background-color: rgba(6, 78, 59, 0.4);   }
+.dark .bg-blue-100    { background-color: rgba(30, 58, 138, 0.4); }
+
+
+/* ══ Bordes semánticos ═══════════════════════════════════════ */
+
+.dark .border-teal-200    { border-color: rgba(15, 118, 110, 0.5); }
+.dark .border-amber-200   { border-color: rgba(180, 83, 9, 0.5);   }
+.dark .border-rose-200    { border-color: rgba(190, 18, 60, 0.5);  }
+.dark .border-emerald-200 { border-color: rgba(4, 120, 87, 0.5);   }
+.dark .border-blue-200    { border-color: rgba(37, 99, 235, 0.5);  }
+
+/* Hover en fondos semánticos */
+.dark .hover\:bg-rose-100:hover    { background-color: rgba(136, 19, 55, 0.5);  }
+.dark .hover\:bg-amber-100:hover   { background-color: rgba(120, 53, 15, 0.5);  }
+.dark .hover\:bg-teal-100:hover    { background-color: rgba(19, 78, 74, 0.5);   }
+.dark .hover\:bg-emerald-100:hover { background-color: rgba(6, 78, 59, 0.5);    }
+
+
+/* ══ Texto semántico en cajas de color ────────────────────────── */
+/* Los colores -700 y -800 son demasiado oscuros en fondos dark.
+   Se cambian a versiones más claras (-300/-400) para mantener contraste. */
+
+.dark .text-teal-700    { color: #5eead4; }  /* teal-300    */
+.dark .text-teal-800    { color: #5eead4; }  /* teal-300    */
+.dark .text-amber-700   { color: #fcd34d; }  /* amber-300   */
+.dark .text-amber-800   { color: #fbbf24; }  /* amber-400   */
+.dark .text-rose-700    { color: #fca5a5; }  /* rose-300    */
+.dark .text-rose-800    { color: #f87171; }  /* rose-400    */
+.dark .text-emerald-700 { color: #6ee7b7; }  /* emerald-300 */
+.dark .text-emerald-800 { color: #6ee7b7; }  /* emerald-300 */
+.dark .text-blue-700    { color: #93c5fd; }  /* blue-300    */
+.dark .text-blue-800    { color: #93c5fd; }  /* blue-300    */
+
+
+/* ══ Controles de formulario (input, select, textarea) ───────── */
+/* Excluye checkbox, radio y range para no alterar su apariencia nativa. */
+
+.dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+.dark select,
+.dark textarea {
+  background-color: #0f172a;  /* slate-900 */
+  color: #f1f5f9;             /* slate-100 */
+  border-color: #334155;      /* slate-700 */
+}
+
+.dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus,
+.dark select:focus,
+.dark textarea:focus {
+  background-color: #1e293b;  /* slate-800 */
+}
+
+/* Texto placeholder en oscuro */
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #475569;  /* slate-600 */
+}
