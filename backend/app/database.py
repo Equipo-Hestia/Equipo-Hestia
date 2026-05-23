@@ -70,6 +70,17 @@ MIGRACIONES_COLUMNAS = [
     # Fase 5 - fecha de vencimiento en insumos
     "ALTER TABLE IF EXISTS insumos "
     "ADD COLUMN IF NOT EXISTS fecha_vencimiento DATE",
+    # Reportes - carrera en asignaturas y num_estudiantes en clases
+    (
+        "DO $$ BEGIN "
+        "CREATE TYPE carreraasignatura AS ENUM "
+        "('TENS', 'TQF', 'TLCBS', 'preparador_fisico'); "
+        "EXCEPTION WHEN duplicate_object THEN NULL; END $$"
+    ),
+    "ALTER TABLE IF EXISTS asignaturas "
+    "ADD COLUMN IF NOT EXISTS carrera carreraasignatura",
+    "ALTER TABLE IF EXISTS clases_docente "
+    "ADD COLUMN IF NOT EXISTS num_estudiantes INTEGER",
 ]
 
 # (tabla, tipo_enum_pg, columna, valores_requeridos)

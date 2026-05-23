@@ -18,6 +18,7 @@ import { SolicitudOperador } from './pages/SolicitudOperador'
 import { RetornosOperador }  from './pages/RetornosOperador'
 import { Asignaturas }       from './pages/Asignaturas'
 import { ClasesDocente }     from './pages/ClasesDocente'
+import { Reportes }          from './pages/Reportes'
 import { Layout }            from './components/layout/Layout'
 import { useAuthStore }      from './store/auth'
 
@@ -57,6 +58,7 @@ export function App() {
           <Route path="retornos"          element={<RetornosOperador />} />
           <Route path="asignaturas"       element={<Asignaturas />} />
           <Route path="clases-docente"    element={<ClasesDocente />} />
+          <Route path="reportes"          element={<Reportes />} />
         </Route>
       </Routes>
     </BrowserRouter>
