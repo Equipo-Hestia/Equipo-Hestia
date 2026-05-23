@@ -21,7 +21,7 @@ function fmtDec(n: number) {
 }
 
 // ---------------------------------------------------------------------------
-// Tab: Valorizacion del Stock
+// Tab: Valorización del Stock
 // ---------------------------------------------------------------------------
 function TabValorizacion() {
   const [data, setData] = useState<ValorizacionResponse | null>(null)
@@ -34,7 +34,7 @@ function TabValorizacion() {
       const { data: res } = await api.get<ValorizacionResponse>('/reportes/valorizacion')
       setData(res)
     } catch {
-      setError('No se pudo cargar la valorizacion del inventario.')
+      setError('No se pudo cargar la valorización del inventario.')
     } finally {
       setLoading(false)
     }
@@ -62,6 +62,7 @@ function TabValorizacion() {
 
   return (
     <div className="mt-4 space-y-6">
+
       {/* KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white rounded-xl border border-slate-200 p-5">
@@ -104,21 +105,24 @@ function TabValorizacion() {
         </div>
       </div>
 
-      {/* Por Categoria */}
+      {/* Por Categoría */}
       {data.por_categoria.length > 0 && (
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
           <div className="px-5 py-4 border-b border-slate-200">
-            <h3 className="font-bold text-slate-800">Por Categoria</h3>
+            <h3 className="font-bold text-slate-800">Por Categoría</h3>
           </div>
           <div className="divide-y divide-slate-100">
             {data.por_categoria.map(g => (
               <div key={g.nombre}
-                className="flex items-center justify-between px-5 py-3">
+                className="flex items-center justify-between px-5 py-3
+                           hover:bg-slate-50 transition-colors">
                 <div>
                   <p className="font-semibold text-slate-800 text-sm">{g.nombre}</p>
                   <p className="text-xs text-slate-400">{g.cantidad_insumos} insumos</p>
                 </div>
-                <p className="font-bold text-teal-700 text-sm">{fmt(g.valor_total)}</p>
+                <p className="font-bold text-sm text-teal-600 dark:text-teal-400">
+                  {fmt(g.valor_total)}
+                </p>
               </div>
             ))}
           </div>
@@ -134,12 +138,15 @@ function TabValorizacion() {
           <div className="divide-y divide-slate-100">
             {data.por_sala.map(g => (
               <div key={g.nombre}
-                className="flex items-center justify-between px-5 py-3">
+                className="flex items-center justify-between px-5 py-3
+                           hover:bg-slate-50 transition-colors">
                 <div>
                   <p className="font-semibold text-slate-800 text-sm">{g.nombre}</p>
                   <p className="text-xs text-slate-400">{g.cantidad_insumos} insumos</p>
                 </div>
-                <p className="font-bold text-teal-700 text-sm">{fmt(g.valor_total)}</p>
+                <p className="font-bold text-sm text-teal-600 dark:text-teal-400">
+                  {fmt(g.valor_total)}
+                </p>
               </div>
             ))}
           </div>
@@ -158,7 +165,7 @@ function TabValorizacion() {
             <thead>
               <tr className="bg-slate-50">
                 {['Nombre', 'SKU', 'Stock', 'Costo Unit.', 'Valor Total',
-                  'Categoria', 'Sala'].map(h => (
+                  'Categoría', 'Sala'].map(h => (
                   <th key={h}
                     className="text-left px-4 py-3 text-xs font-bold text-slate-500
                                uppercase tracking-wide whitespace-nowrap">
@@ -178,7 +185,8 @@ function TabValorizacion() {
                   <td className="px-4 py-3 text-slate-600 text-right">
                     ${fmtDec(i.costo_unitario)}
                   </td>
-                  <td className="px-4 py-3 font-semibold text-teal-700 text-right">
+                  <td className="px-4 py-3 font-semibold text-right
+                                 text-teal-600 dark:text-teal-400">
                     {fmt(i.valor_total)}
                   </td>
                   <td className="px-4 py-3 text-slate-500 text-xs">{i.categoria ?? '—'}</td>
@@ -250,7 +258,7 @@ function TabCarreras() {
           <div className="flex items-center justify-between">
             <p className="text-sm font-semibold text-slate-700">
               Semestre {buscando} — Costo total:
-              <span className="ml-2 text-teal-700 font-black">
+              <span className="ml-2 font-black text-teal-600 dark:text-teal-400">
                 {fmt(data.costo_total_semestre)}
               </span>
             </p>
@@ -295,7 +303,8 @@ function TabCarreras() {
                           ? c.num_estudiantes_total
                           : <span className="text-slate-300">—</span>}
                       </td>
-                      <td className="px-4 py-3 font-bold text-teal-700 text-right">
+                      <td className="px-4 py-3 font-bold text-right
+                                     text-teal-600 dark:text-teal-400">
                         {fmt(c.costo_total)}
                       </td>
                       <td className="px-4 py-3 text-slate-600 text-right">
@@ -327,7 +336,9 @@ function TabExportar() {
   async function descargar() {
     setDescargando(true); setError(null); setOk(false)
     try {
-      const params = semestre.trim() ? `?semestre=${encodeURIComponent(semestre.trim())}` : ''
+      const params = semestre.trim()
+        ? `?semestre=${encodeURIComponent(semestre.trim())}`
+        : ''
       const resp = await api.get(`/reportes/valorizacion/pdf${params}`, {
         responseType: 'blob',
       })
@@ -342,7 +353,7 @@ function TabExportar() {
     } catch {
       setError(
         'No se pudo generar el PDF. '
-        + 'Verifica que WeasyPrint este instalado en el servidor.'
+        + 'Ejecuta: docker compose up --build para reconstruir el servidor.'
       )
     } finally {
       setDescargando(false)
@@ -353,9 +364,9 @@ function TabExportar() {
     <div className="mt-4 max-w-lg">
       <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-5">
         <div>
-          <h3 className="font-bold text-slate-800 mb-1">Reporte de Valorizacion PDF</h3>
+          <h3 className="font-bold text-slate-800 mb-1">Reporte de Valorización PDF</h3>
           <p className="text-sm text-slate-500">
-            Genera un PDF con el valor del inventario activo agrupado por categoria y sala,
+            Genera un PDF con el valor del inventario activo agrupado por categoría y sala,
             con el detalle de cada insumo valorizado.
           </p>
         </div>
@@ -370,7 +381,9 @@ function TabExportar() {
             className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200
                        focus:outline-none focus:ring-2 focus:ring-teal-500"
           />
-          <p className="text-xs text-slate-400 mt-1">Se mostrara en el encabezado del reporte.</p>
+          <p className="text-xs text-slate-400 mt-1">
+            Se mostrará en el encabezado del reporte.
+          </p>
         </div>
         {error && (
           <div className="flex items-center gap-3 bg-rose-50 border border-rose-200
@@ -398,14 +411,14 @@ function TabExportar() {
 }
 
 // ---------------------------------------------------------------------------
-// Pagina principal
+// Página principal
 // ---------------------------------------------------------------------------
 export function Reportes() {
   const [tab, setTab] = useState<Tab>('valorizacion')
   const [refreshKey, setRefreshKey] = useState(0)
 
   const tabs: { id: Tab; label: string }[] = [
-    { id: 'valorizacion', label: 'Valorizacion del stock' },
+    { id: 'valorizacion', label: 'Valorización del stock' },
     { id: 'carreras', label: 'Costo por carrera' },
     { id: 'exportar', label: 'Exportar PDF' },
   ]
@@ -419,13 +432,14 @@ export function Reportes() {
             Reportes
           </h1>
           <p className="text-slate-500 text-sm mt-0.5">
-            Valorizacion del inventario y costo de consumo por carrera.
+            Valorización del inventario y costo de consumo por carrera.
           </p>
         </div>
         {tab === 'valorizacion' && (
           <button onClick={() => setRefreshKey(k => k + 1)}
             className="flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-200
-                       text-slate-600 hover:bg-slate-100 text-sm font-semibold transition-colors">
+                       text-slate-600 hover:bg-slate-100 text-sm font-semibold
+                       transition-colors">
             <RefreshCw size={14} />
             Actualizar
           </button>
