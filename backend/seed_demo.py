@@ -9,8 +9,8 @@ Elimina todos los datos existentes y genera:
     - 8 salas clinicas realistas
     - 10 categorias de insumos medicos
     - 10 usuarios (1 admin, 2 operadores, 2 visores, 5 docentes)
-    - 8 asignaturas de la Escuela de Salud
-    - 10 clases docente (2 secciones por docente, semestre 2025-1)
+    - 8 asignaturas con carrera asignada (TENS / TQF / TLCBS / Preparador Fisico)
+    - 10 clases docente con num_estudiantes (semestre 2026-1)
     - 88 insumos con nombres, tipos (insumo/implemento) y costos reales
     - ~560 movimientos distribuidos en los ultimos 60 dias
     - 18 solicitudes de retiro en distintos estados con trazabilidad academica
@@ -42,7 +42,7 @@ from app.models.movimiento import Movimiento, TipoMovimiento
 from app.models.usuario import Usuario, RolUsuario
 from app.models.audit_log import AuditLog
 from app.models.solicitud import SolicitudRetiro, SolicitudItem, EstadoSolicitud
-from app.models.asignatura import Asignatura
+from app.models.asignatura import Asignatura, CarreraAsignatura
 from app.models.clase_docente import ClaseDocente
 from app.models.retorno_implemento import RetornoImplemento
 from app.utils.security import hashear_password
@@ -59,6 +59,11 @@ random.seed(42)
 # ---------------------------------------------------------------------------
 IN = "insumo"      # desechable, no retorna
 IM = "implemento"  # reutilizable, debe retornar al area comun
+
+TENS = CarreraAsignatura.TENS
+TQF = CarreraAsignatura.TQF
+TLCBS = CarreraAsignatura.TLCBS
+PF = CarreraAsignatura.preparador_fisico
 
 # ---------------------------------------------------------------------------
 # Datos maestros
@@ -109,33 +114,33 @@ USUARIOS = [
     ("Miguel Tapia", "m.tapia@hestia.duoc.cl", "Doc2024!", RolUsuario.docente),
 ]
 
-# Asignaturas de la Escuela de Salud
-# (nombre, codigo)
+# Asignaturas con carrera asignada.
+# (nombre, codigo, carrera)
 ASIGNATURAS = [
-    ("Primeros Auxilios", "PAU-101"),
-    ("Enfermeria Basica", "ENF-101"),
-    ("Anatomia y Fisiologia", "ANF-201"),
-    ("Procedimientos Clinicos", "PRC-301"),
-    ("Simulacion Clinica", "SIM-201"),
-    ("Atencion Primaria de Salud", "APS-301"),
-    ("Urgencias y Emergencias", "URG-401"),
-    ("Obstetricia y Ginecologia", "OBG-401"),
+    ("Primeros Auxilios",          "PAU-101", TENS),
+    ("Enfermeria Basica",          "ENF-101", TENS),
+    ("Anatomia y Fisiologia",      "ANF-201", TQF),
+    ("Procedimientos Clinicos",    "PRC-301", TENS),
+    ("Simulacion Clinica",         "SIM-201", TLCBS),
+    ("Atencion Primaria de Salud", "APS-301", TENS),
+    ("Urgencias y Emergencias",    "URG-401", PF),
+    ("Obstetricia y Ginecologia",  "OBG-401", TENS),
 ]
 
-# Asignacion docente a asignatura para semestre 2025-1.
-# (docente_idx, asignatura_idx, seccion, semestre)
+# Asignacion docente a asignatura para semestre 2026-1.
+# (docente_idx, asig_idx, seccion, semestre, num_estudiantes)
 # docente 5=Moreno 6=Vasquez 7=Ibanez 8=Reyes 9=Tapia
 CLASES_DOCENTE = [
-    (5, 4, "001D", "2025-1"),  # Moreno   - Simulacion Clinica 001D
-    (5, 6, "001D", "2025-1"),  # Moreno   - Urgencias y Emergencias 001D
-    (6, 1, "001D", "2025-1"),  # Vasquez  - Enfermeria Basica 001D
-    (6, 3, "002D", "2025-1"),  # Vasquez  - Procedimientos Clinicos 002D
-    (7, 2, "001D", "2025-1"),  # Ibanez   - Anatomia y Fisiologia 001D
-    (7, 0, "001D", "2025-1"),  # Ibanez   - Primeros Auxilios 001D
-    (8, 5, "001D", "2025-1"),  # Reyes    - Atencion Primaria 001D
-    (8, 1, "002D", "2025-1"),  # Reyes    - Enfermeria Basica 002D
-    (9, 6, "002D", "2025-1"),  # Tapia    - Urgencias y Emergencias 002D
-    (9, 7, "001D", "2025-1"),  # Tapia    - Obstetricia y Ginecologia 001D
+    (5, 4, "001D", "2026-1", 28),  # Moreno   - Simulacion Clinica (TLCBS)
+    (5, 6, "001D", "2026-1", 32),  # Moreno   - Urgencias y Emergencias (PF)
+    (6, 1, "001D", "2026-1", 35),  # Vasquez  - Enfermeria Basica (TENS)
+    (6, 3, "002D", "2026-1", 30),  # Vasquez  - Procedimientos Clinicos (TENS)
+    (7, 2, "001D", "2026-1", 22),  # Ibanez   - Anatomia y Fisiologia (TQF)
+    (7, 0, "001D", "2026-1", 34),  # Ibanez   - Primeros Auxilios (TENS)
+    (8, 5, "001D", "2026-1", 36),  # Reyes    - Atencion Primaria (TENS)
+    (8, 1, "002D", "2026-1", 33),  # Reyes    - Enfermeria Basica (TENS)
+    (9, 6, "002D", "2026-1", 29),  # Tapia    - Urgencias y Emergencias (PF)
+    (9, 7, "001D", "2026-1", 24),  # Tapia    - Obstetricia y Ginecologia (TENS)
 ]
 
 # Insumos e implementos medicos.
@@ -349,17 +354,6 @@ MOTIVOS_ENTRADA = [
     "Recepcion pedido proveedor",
 ]
 
-# ---------------------------------------------------------------------------
-# Solicitudes de retiro de demo.
-# Cada entrada:
-# (docente_idx, sala_idx, estado, horas_desde_ahora, notas, notas_op,
-#  items, clase_idx)
-#
-# horas_desde_ahora: negativo = clase ya paso (historial)
-#                    positivo = clase en el futuro (solicitud activa)
-# items: lista de (insumo_idx, cantidad)
-# clase_idx: indice en CLASES_DOCENTE o None
-# ---------------------------------------------------------------------------
 SOLICITUDES_DEMO = [
     # --- PENDIENTES ---
     (
@@ -531,30 +525,31 @@ def main():
         docentes_count = sum(1 for u in usuarios if u.rol == RolUsuario.docente)
         print(f"  {len(usuarios)} usuarios ({docentes_count} docentes)")
 
-        # --- Asignaturas ---
+        # --- Asignaturas (con carrera) ---
         print("Insertando asignaturas...")
         asignaturas = []
-        for nombre, codigo in ASIGNATURAS:
-            a = Asignatura(nombre=nombre, codigo=codigo)
+        for nombre, codigo, carrera in ASIGNATURAS:
+            a = Asignatura(nombre=nombre, codigo=codigo, carrera=carrera)
             db.add(a)
             asignaturas.append(a)
         db.flush()
         print(f"  {len(asignaturas)} asignaturas")
 
-        # --- Clases Docente ---
+        # --- Clases Docente (con num_estudiantes) ---
         print("Insertando clases docentes...")
         clases = []
-        for doc_idx, asig_idx, seccion, semestre in CLASES_DOCENTE:
+        for doc_idx, asig_idx, seccion, semestre, num_est in CLASES_DOCENTE:
             c = ClaseDocente(
                 docente_id=usuarios[doc_idx].id,
                 asignatura_id=asignaturas[asig_idx].id,
                 seccion=seccion,
                 semestre=semestre,
+                num_estudiantes=num_est,
             )
             db.add(c)
             clases.append(c)
         db.flush()
-        print(f"  {len(clases)} clases")
+        print(f"  {len(clases)} clases (semestre 2026-1)")
 
         # --- Insumos ---
         print("Insertando insumos...")
@@ -572,12 +567,14 @@ def main():
             )
             db.add(i)
             insumos_db.append(i)
-        db.flush()  # asigna IDs a todos antes de generar SKUs
+        db.flush()
         for ins in insumos_db:
             if not ins.sku:
                 ins.sku = f"HST-{ins.id:05d}"
         db.commit()
-        implementos = sum(1 for i in insumos_db if i.tipo == TipoInsumo.implemento)
+        implementos = sum(
+            1 for i in insumos_db if i.tipo == TipoInsumo.implemento
+        )
         print(f"  {len(insumos_db)} insumos ({implementos} implementos)")
 
         # --- Movimientos ---
@@ -586,10 +583,12 @@ def main():
         for insumo in insumos_db:
             en_alerta = insumo.stock_actual <= insumo.stock_minimo
             if en_alerta:
-                num_entradas, num_salidas = random.randint(1, 2), random.randint(5, 9)
+                num_entradas = random.randint(1, 2)
+                num_salidas = random.randint(5, 9)
                 rango_entrada, rango_salida = (40, 60), (0, 25)
             else:
-                num_entradas, num_salidas = random.randint(2, 4), random.randint(3, 7)
+                num_entradas = random.randint(2, 4)
+                num_salidas = random.randint(3, 7)
                 rango_entrada, rango_salida = (3, 50), (0, 50)
             for _ in range(num_entradas):
                 db.add(Movimiento(
@@ -661,12 +660,16 @@ def main():
             total_sols += 1
 
         db.commit()
-        pend = sum(1 for s in SOLICITUDES_DEMO
-                   if s[2] == EstadoSolicitud.pendiente)
-        enpr = sum(1 for s in SOLICITUDES_DEMO
-                   if s[2] == EstadoSolicitud.en_preparacion)
-        comp = sum(1 for s in SOLICITUDES_DEMO
-                   if s[2] == EstadoSolicitud.completada)
+        pend = sum(
+            1 for s in SOLICITUDES_DEMO if s[2] == EstadoSolicitud.pendiente
+        )
+        enpr = sum(
+            1 for s in SOLICITUDES_DEMO
+            if s[2] == EstadoSolicitud.en_preparacion
+        )
+        comp = sum(
+            1 for s in SOLICITUDES_DEMO if s[2] == EstadoSolicitud.completada
+        )
         print(
             f"  {total_sols} solicitudes "
             f"({pend} pendientes, {enpr} en preparacion, {comp} completadas)"
@@ -682,9 +685,11 @@ def main():
         print(f"  Salas:        {len(salas)}")
         print(f"  Categorias:   {len(cats)}")
         print(f"  Usuarios:     {len(usuarios)}")
-        print(f"  Asignaturas:  {len(asignaturas)}")
-        print(f"  Clases:       {len(clases)}")
-        print(f"  Insumos:      {len(insumos_db)} ({alertas} en alerta de stock)")
+        print(f"  Asignaturas:  {len(asignaturas)} (con carrera asignada)")
+        print(f"  Clases:       {len(clases)} (semestre 2026-1)")
+        print(
+            f"  Insumos:      {len(insumos_db)} ({alertas} en alerta de stock)"
+        )
         print(f"  Movimientos:  {total_movs}")
         print(f"  Solicitudes:  {total_sols}")
         print("\nCredenciales:")

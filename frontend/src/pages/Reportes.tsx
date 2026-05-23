@@ -8,6 +8,21 @@ import type { ValorizacionResponse, ConsumoCarrerasResponse } from '../types/api
 
 type Tab = 'valorizacion' | 'carreras' | 'exportar'
 
+/**
+ * Calcula el semestre académico actual según la fecha del sistema.
+ * Semestre 1: marzo - julio  (meses 3-7)
+ * Semestre 2: agosto - febrero (meses 8-12 y 1-2 del año siguiente)
+ */
+function getSemestreActual(): string {
+  const hoy = new Date()
+  const mes = hoy.getMonth() + 1  // 1-12
+  const anio = hoy.getFullYear()
+  if (mes >= 3 && mes <= 7) return `${anio}-1`
+  if (mes >= 8) return `${anio}-2`
+  // Enero-Febrero: pertenecen al semestre 2 del año anterior
+  return `${anio - 1}-2`
+}
+
 function fmt(n: number) {
   return new Intl.NumberFormat('es-CL', {
     style: 'currency', currency: 'CLP', maximumFractionDigits: 0,
@@ -87,7 +102,9 @@ function TabValorizacion() {
               Con Costo
             </p>
           </div>
-          <p className="text-2xl font-black text-slate-900">{data.total_insumos_valorados}</p>
+          <p className="text-2xl font-black text-slate-900">
+            {data.total_insumos_valorados}
+          </p>
         </div>
         <div className="bg-white rounded-xl border border-slate-200 p-5">
           <div className="flex items-center gap-3 mb-2">
@@ -98,7 +115,9 @@ function TabValorizacion() {
               Sin Costo
             </p>
           </div>
-          <p className="text-2xl font-black text-slate-900">{data.total_insumos_sin_costo}</p>
+          <p className="text-2xl font-black text-slate-900">
+            {data.total_insumos_sin_costo}
+          </p>
           {data.total_insumos_sin_costo > 0 && (
             <p className="text-xs text-amber-600 mt-1">No incluidos en el total</p>
           )}
@@ -119,7 +138,8 @@ function TabValorizacion() {
                 className="flex items-center justify-between px-5 py-3
                            hover:bg-slate-50 transition-colors">
                 <div>
-                  <p className="font-semibold text-sm text-slate-800 dark:text-slate-100">
+                  <p className="font-semibold text-sm
+                               text-slate-800 dark:text-slate-100">
                     {g.nombre}
                   </p>
                   <p className="text-xs text-slate-400">
@@ -149,7 +169,8 @@ function TabValorizacion() {
                 className="flex items-center justify-between px-5 py-3
                            hover:bg-slate-50 transition-colors">
                 <div>
-                  <p className="font-semibold text-sm text-slate-800 dark:text-slate-100">
+                  <p className="font-semibold text-sm
+                               text-slate-800 dark:text-slate-100">
                     {g.nombre}
                   </p>
                   <p className="text-xs text-slate-400">
@@ -179,8 +200,9 @@ function TabValorizacion() {
                 {['Nombre', 'SKU', 'Stock', 'Costo Unit.', 'Valor Total',
                   'Categoría', 'Sala'].map(h => (
                   <th key={h}
-                    className="text-left px-4 py-3 text-xs font-bold text-slate-500
-                               uppercase tracking-wide whitespace-nowrap">
+                    className="text-left px-4 py-3 text-xs font-bold
+                               text-slate-500 uppercase tracking-wide
+                               whitespace-nowrap">
                     {h}
                   </th>
                 ))}
@@ -226,7 +248,8 @@ function TabValorizacion() {
 // Tab: Consumo por Carrera
 // ---------------------------------------------------------------------------
 function TabCarreras() {
-  const [semestre, setSemestre] = useState('')
+  const semestreActual = getSemestreActual()
+  const [semestre, setSemestre] = useState(semestreActual)
   const [buscando, setBuscando] = useState('')
   const [data, setData] = useState<ConsumoCarrerasResponse | null>(null)
   const [loading, setLoading] = useState(false)
@@ -250,18 +273,27 @@ function TabCarreras() {
 
   return (
     <div className="mt-4 space-y-5">
-      <div className="flex gap-3">
-        <input
-          value={semestre}
-          onChange={e => setSemestre(e.target.value)}
-          placeholder="Semestre (ej: 2025-1)"
-          className="px-3 py-2 text-sm rounded-lg border border-slate-200
-                     focus:outline-none focus:ring-2 focus:ring-teal-500 w-52"
-          onKeyDown={e => e.key === 'Enter' && buscar()}
-        />
+      <div className="flex gap-3 items-end">
+        <div>
+          <label className="block text-xs font-bold text-slate-500 mb-1">
+            SEMESTRE
+          </label>
+          <input
+            value={semestre}
+            onChange={e => setSemestre(e.target.value)}
+            placeholder="Ej: 2026-1"
+            className="px-3 py-2 text-sm rounded-lg border border-slate-200
+                       focus:outline-none focus:ring-2 focus:ring-teal-500 w-40"
+            onKeyDown={e => e.key === 'Enter' && buscar()}
+          />
+          <p className="text-xs text-slate-400 mt-1">
+            Semestre actual detectado: <strong>{semestreActual}</strong>
+          </p>
+        </div>
         <button onClick={buscar} disabled={!semestre.trim() || loading}
-          className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-sm
-                     font-bold rounded-lg disabled:opacity-50 transition-colors">
+          className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white
+                     text-sm font-bold rounded-lg disabled:opacity-50
+                     transition-colors mb-5">
           {loading ? 'Cargando...' : 'Consultar'}
         </button>
       </div>
@@ -295,7 +327,8 @@ function TabCarreras() {
               </p>
             </div>
           ) : (
-            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+            <div className="bg-white rounded-xl border border-slate-200
+                            overflow-hidden">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-slate-50">
@@ -332,7 +365,7 @@ function TabCarreras() {
                       </td>
                       <td className="px-4 py-3 text-slate-600 text-right">
                         {c.costo_por_estudiante != null
-                          ? `$${fmtDec(c.costo_por_estudiante)}`
+                          ? fmt(c.costo_por_estudiante)
                           : <span className="text-slate-300">—</span>}
                       </td>
                     </tr>
@@ -351,7 +384,7 @@ function TabCarreras() {
 // Tab: Exportar PDF
 // ---------------------------------------------------------------------------
 function TabExportar() {
-  const [semestre, setSemestre] = useState('')
+  const [semestre, setSemestre] = useState(getSemestreActual)
   const [descargando, setDescargando] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [ok, setOk] = useState(false)
@@ -375,11 +408,10 @@ function TabExportar() {
       URL.revokeObjectURL(url)
       setOk(true)
       setTimeout(() => setOk(false), 3000)
-    } catch {
-      setError(
-        'No se pudo generar el PDF. '
-        + 'Ejecuta: docker compose up --build para reconstruir el servidor.'
-      )
+    } catch (err: unknown) {
+      const detail = (err as { response?: { data?: { detail?: string } } })
+        ?.response?.data?.detail
+      setError(detail ?? 'No se pudo generar el PDF. Ejecuta: docker compose build --no-cache api')
     } finally {
       setDescargando(false)
     }
@@ -404,19 +436,20 @@ function TabExportar() {
           <input
             value={semestre}
             onChange={e => setSemestre(e.target.value)}
-            placeholder="Ej: 2025-1"
+            placeholder="Ej: 2026-1"
             className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200
                        focus:outline-none focus:ring-2 focus:ring-teal-500"
           />
           <p className="text-xs text-slate-400 mt-1">
             Se mostrará en el encabezado del reporte.
+            Semestre actual: <strong>{getSemestreActual()}</strong>
           </p>
         </div>
         {error && (
-          <div className="flex items-center gap-3 bg-rose-50 border border-rose-200
+          <div className="flex items-start gap-3 bg-rose-50 border border-rose-200
                           rounded-lg px-3 py-2 text-rose-700 text-sm">
-            <AlertCircle size={14} className="flex-shrink-0" />
-            {error}
+            <AlertCircle size={14} className="flex-shrink-0 mt-0.5" />
+            <span>{error}</span>
           </div>
         )}
         {ok && (
@@ -460,6 +493,7 @@ export function Reportes() {
           </h1>
           <p className="text-slate-500 text-sm mt-0.5">
             Valorización del inventario y costo de consumo por carrera.
+            Semestre actual: <strong>{getSemestreActual()}</strong>
           </p>
         </div>
         {tab === 'valorizacion' && (
