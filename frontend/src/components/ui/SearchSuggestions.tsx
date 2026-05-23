@@ -11,11 +11,11 @@ interface Props {
 }
 
 /**
- * Campo de busqueda con dropdown de sugerencias.
+ * Campo de búsqueda con dropdown de sugerencias.
  *
  * - Debounce de 250 ms para no saturar el backend.
- * - Minimo 2 caracteres para activar las sugerencias.
- * - Navegacion con teclado: ArrowUp/Down selecciona, Enter confirma, Escape cierra.
+ * - Mínimo 2 caracteres para activar las sugerencias.
+ * - Navegación con teclado: ArrowUp/Down selecciona, Enter confirma, Escape cierra.
  * - onMouseDown en cada sugerencia usa preventDefault() para que el blur del
  *   input no cierre el dropdown antes de que el click se procese.
  * - Limpia las sugerencias y cierra el dropdown al seleccionar o al hacer
@@ -114,30 +114,36 @@ export function SearchWithSuggestions({
             onFocus={() => { if (sugerencias.length > 0) setOpen(true) }}
             placeholder={placeholder}
             autoComplete="off"
-            className="w-full pl-9 pr-4 py-2 rounded-lg border border-slate-200 text-sm
-                       focus:outline-none focus:ring-2 focus:ring-teal-500
-                       placeholder:text-slate-400"
+            className="
+              w-full pl-9 pr-4 py-2 rounded-lg border border-slate-200 text-sm
+              focus:outline-none focus:ring-2 focus:ring-teal-500
+              placeholder:text-slate-400
+            "
           />
 
           {/* Dropdown de sugerencias */}
           {open && sugerencias.length > 0 && (
             <ul
-              className="absolute left-0 right-0 top-full mt-1.5 bg-white border
-                         border-slate-200 rounded-xl shadow-lg z-40 overflow-hidden"
+              className="
+                absolute left-0 right-0 top-full mt-1.5
+                bg-white border border-slate-200 rounded-xl shadow-lg z-40 overflow-hidden
+              "
             >
               {sugerencias.map((s, idx) => (
                 <li key={s}>
                   <button
                     type="button"
-                    // preventDefault evita que el blur cierre el dropdown
-                    // antes de que se procese el click
+                    /* preventDefault evita que el blur cierre el dropdown
+                       antes de que se procese el click */
                     onMouseDown={e => { e.preventDefault(); seleccionar(s) }}
-                    className={`w-full text-left px-4 py-2.5 text-sm flex items-center
-                                gap-2.5 transition-colors ${
-                      idx === activo
+                    className={`
+                      w-full text-left px-4 py-2.5 text-sm flex items-center
+                      gap-2.5 transition-colors
+                      ${ idx === activo
                         ? 'bg-teal-50 text-teal-700 font-semibold'
                         : 'text-slate-700 hover:bg-slate-50'
-                    }`}
+                      }
+                    `}
                   >
                     <Search size={11} className="text-slate-300 flex-shrink-0" />
                     {/* Resaltar la parte que coincide con el valor buscado */}
@@ -149,10 +155,14 @@ export function SearchWithSuggestions({
           )}
         </div>
 
+        {/* bg-slate-900 en light mode, slate-700 en dark (evita invisible sobre fondo oscuro) */}
         <button
           type="submit"
-          className="px-4 py-2 bg-slate-900 hover:bg-slate-700 text-white
-                     text-sm font-bold rounded-lg transition-colors"
+          className="
+            px-4 py-2 text-white text-sm font-bold rounded-lg transition-colors
+            bg-slate-900 hover:bg-slate-700
+            dark:bg-slate-700 dark:hover:bg-slate-600
+          "
         >
           Buscar
         </button>
@@ -162,7 +172,7 @@ export function SearchWithSuggestions({
 }
 
 // ---------------------------------------------------------------------------
-// Subcomponente: resalta la parte del texto que coincide con la busqueda
+// Subcomponente: resalta la parte del texto que coincide con la búsqueda
 // ---------------------------------------------------------------------------
 function HighlightMatch({ text, query }: { text: string; query: string }) {
   if (!query.trim()) return <span>{text}</span>
