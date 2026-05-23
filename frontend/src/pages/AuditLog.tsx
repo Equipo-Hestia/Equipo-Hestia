@@ -23,7 +23,7 @@ function BadgeAccion({ accion }: { accion: string }) {
   if (
     accion.includes('EXITOSO') ||
     accion.includes('CREAR') ||
-    accion.includes('REACTIVAR')
+    accion.includes('REACTIVAR'))
   if (
     accion.includes('FALLIDO') || accion.includes('ALERTA') ||
     accion.includes('DESACTIVAR') || accion.includes('ELIMINAR')
