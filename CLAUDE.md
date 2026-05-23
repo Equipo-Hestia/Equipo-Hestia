@@ -11,6 +11,7 @@ Sistema web de gestión de stock de insumos médicos para la Escuela de Salud de
 **Stack completo:**
 - Backend: Python 3.11 · FastAPI · PostgreSQL 16 · SQLAlchemy 2.0 · Pydantic v2
 - Frontend: React 19 · Vite · TypeScript · Tailwind CSS · Zustand · Axios · lucide-react ^0.396 · @zxing/browser ^0.1.4
+- Tipografía: Nunito (Google Fonts) — cambiada desde Nunito Sans en mayo 2025
 - Infra: Docker Compose (3 servicios: `db`, `api`, `frontend`)
 - Auth: JWT (python-jose) · bcrypt · TOTP 2FA (pyotp + QR)
 - CI: GitHub Actions con flake8 en push/PR a `main` y `develop`
@@ -354,7 +355,9 @@ Nota: los espacios de alineación DENTRO de tuplas o listas (ej: en `INSUMOS` de
 frontend/src/
 ├── App.tsx
 ├── api/client.ts
-├── store/auth.ts
+├── store/
+│   ├── auth.ts        → Zustand (autenticación, persiste token+user en localStorage)
+│   └── theme.ts       → Zustand (modo oscuro, persiste isDark; clave: 'hestia-theme')
 ├── types/api.ts          # sincronizado con schemas Pydantic
 ├── pages/
 │   ├── Login.tsx
@@ -451,6 +454,24 @@ Usa `@zxing/browser` con importación dinámica (code-splitting). Requiere HTTPS
 
 Zustand persiste `token` y `user: {nombre, email, rol}` en localStorage. El interceptor Axios inyecta el JWT. 401 → limpia storage + redirect `/login`.
 
+### 4.7 Tema (modo oscuro / claro)
+
+- **Estrategia Tailwind:** `darkMode: 'class'` en `tailwind.config.js`. El modo se activa añadiendo la clase `dark` al elemento `<html>`.
+- **Store:** `store/theme.ts` — Zustand con `persist`. Clave localStorage: `hestia-theme`. Estructura: `{state: {isDark: boolean}, version: 0}`. Light Mode es el valor por defecto (`isDark: false`).
+- **Aplicación:** `Layout.tsx` tiene un `useEffect` que sincroniza `document.documentElement.classList` con `isDark` cada vez que cambia.
+- **Anti-FOUC:** `index.html` incluye un script inline (antes de que React cargue) que lee `hestia-theme` del localStorage y aplica la clase `dark` inmediatamente para evitar el destello de modo claro en usuarios con dark mode activo.
+- **Toggle:** botón Sol/Luna en la parte inferior del Sidebar, visible en ambos estados (colapsado y expandido).
+- **Nuevos componentes:** deben incluir variantes `dark:` de Tailwind para los colores de fondo, texto y bordes. Ejemplo: `bg-white dark:bg-slate-800`, `text-slate-900 dark:text-slate-50`.
+- **Páginas existentes:** las páginas individuales (Dashboard, Insumos, etc.) aún no tienen variantes `dark:` aplicadas; el fondo general sí cambia via Layout. Cada página deberá recibir su propio tratamiento de dark mode en iteraciones futuras.
+
+### 4.8 Sidebar colapsable
+
+- **Estado:** `useState` inicializado desde `localStorage.getItem('hestia-sidebar-collapsed')`. Se persiste en `localStorage` con clave `hestia-sidebar-collapsed` en cada cambio via `useEffect`.
+- **Expandido:** ancho `w-60` (240px). Muestra Logo + nombre del sistema + íconos con etiquetas de texto.
+- **Colapsado:** ancho `w-16` (64px). Muestra Logo solo + íconos centrados sin texto. Tooltips CSS (`opacity-0 group-hover:opacity-100`) muestran el nombre de cada ítem al hacer hover.
+- **Transición:** `transition-all duration-300 ease-in-out` en el elemento `<aside>`.
+- **Botón de toggle:** arriba del sidebar, ícono `ChevronLeft` (para colapsar) / `ChevronRight` (para expandir).
+
 ---
 
 ## 5. Flujo de autenticación
@@ -544,11 +565,15 @@ VITE_API_URL=http://<IP_SERVIDOR>:8000
 | Usuarios | CRUD + perfil + foto + cambiar clave | ✅ |
 | Dashboard | Métricas + gráfico + feed + top insumos | ✅ |
 | Audit log | Acciones de login y CRUD usuarios | ✅ parcial |
+| UI | Sidebar colapsable con estado persistente | ✅ |
+| UI | Modo oscuro/claro con preferencia persistente | ✅ (layout; páginas internas pendiente) |
+| UI | Tipografía Nunito (Google Fonts) | ✅ |
 
 ### Pendiente / ideas para versiones futuras
 
 | Funcionalidad | Complejidad |
 |---|---|
+| Dark mode en páginas internas (Dashboard, Insumos, etc.) | Media — requiere añadir dark: variants por página |
 | Solicitud de compra en PDF (Operador Coordinador) | Media — pendiente reunión 25/05/2026 |
 | Acceso a Ficha FER desde cada sala | Media — pendiente reunión 25/05/2026 |
 | Ajuste permisos rol operador_coordinador | Baja — pendiente reunión 25/05/2026 |
@@ -588,3 +613,7 @@ VITE_API_URL=http://<IP_SERVIDOR>:8000
 12. **`datetime-local` usa hora local.** El helper `toDatetimeLocal(date)` del frontend formatea correctamente sin usar `toISOString()` (que daría UTC y desplazaría min/max por la zona horaria).
 
 13. **Nuevo rol `operador_coordinador`.** Al agregar valores a `RolUsuario`, actualizar también `MIGRACIONES_ROL` en `database.py` para que la migración PG idempotente lo agregue al enum de PostgreSQL en el arranque.
+
+14. **Dark mode.** Al crear nuevos componentes o páginas, incluir variantes `dark:` de Tailwind para todos los colores de fondo, texto y bordes. La clase `dark` se gestiona en `document.documentElement` desde `Layout.tsx`. El store está en `store/theme.ts`.
+
+15. **Sidebar colapsado.** El estado de colapso se persiste en `localStorage` con clave `hestia-sidebar-collapsed`. En modo colapsado el sidebar tiene `w-16`; en expandido `w-60`.

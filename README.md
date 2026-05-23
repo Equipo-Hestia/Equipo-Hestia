@@ -12,7 +12,8 @@ Hestia es una aplicación web para el control de stock de insumos e implementos 
 |---|---|
 | Backend | Python 3.11 · FastAPI · SQLAlchemy · Pydantic v2 |
 | Base de datos | PostgreSQL 16 |
-| Frontend | React 19 · Vite · TypeScript · Tailwind CSS |
+| Frontend | React 19 · Vite · TypeScript · Tailwind CSS · Zustand |
+| Tipografía | Nunito (Google Fonts) |
 | Autenticación | JWT · bcrypt · TOTP 2FA (Google Authenticator) |
 | Contenedores | Docker · Docker Compose |
 | CI | GitHub Actions (flake8) |
@@ -37,6 +38,8 @@ Hestia es una aplicación web para el control de stock de insumos e implementos 
 - **2FA** — setup wizard con códigos QR, códigos de recuperación y reset desde admin
 - **Soft-delete** — usuarios e insumos se desactivan sin perder trazabilidad histórica
 - **Audit log** — historial completo de acciones con filtros
+- **Sidebar colapsable** — menú lateral con colapso a banda de íconos y tooltips; estado persistente entre sesiones (localStorage)
+- **Modo oscuro / claro** — alternancia con botón en el sidebar; preferencia recordada entre sesiones (localStorage); Light Mode por defecto para usuarios nuevos
 - **Seguridad** — rate limiting en login, security headers HTTP, BD no expuesta a la LAN
 
 ---
@@ -196,7 +199,7 @@ hestia/
 │   │   │                    Skeleton, SearchSuggestions, BarcodeScanner,
 │   │   │                    Logo)
 │   │   ├── api/           → Axios client con interceptor JWT
-│   │   ├── store/         → Zustand (auth)
+│   │   ├── store/         → Zustand (auth, theme)
 │   │   └── types/         → interfaces TypeScript sincronizadas con el backend
 │   └── public/
 │       └── logo.png
