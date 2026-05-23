@@ -9,33 +9,26 @@ const PAGE_SIZE = 50
 const ENTIDADES = ['insumo', 'usuario', 'movimiento', 'solicitud', 'categoria', 'sala']
 
 function BadgeAccion({ accion }: { accion: string }) {
-  if (accion.includes('FALLIDO')) {
+  if (
+    accion.includes('FALLIDO') ||
+    accion.includes('ELIMINAR')
+  ) {
     return <Badge variant="danger">{accion}</Badge>
   }
   if (
     accion.includes('ALERTA') ||
     accion.includes('DESACTIVAR') ||
     accion.includes('EDITAR') ||
-    accion.includes('RESET')
+    accion.includes('RESET') ||
+    accion.includes('UPDATE')
   ) {
     return <Badge variant="warning">{accion}</Badge>
   }
   if (
     accion.includes('EXITOSO') ||
     accion.includes('CREAR') ||
-    accion.includes('REACTIVAR'))
-  if (
-    accion.includes('FALLIDO') || accion.includes('ALERTA') ||
-    accion.includes('DESACTIVAR') || accion.includes('ELIMINAR')
-  ) {
-    return <Badge variant="danger">{accion}</Badge>
-  }
-  if (accion.includes('EDITAR') || accion.includes('RESET') || accion.includes('UPDATE')) {
-    return <Badge variant="warning">{accion}</Badge>
-  }
-  if (
-    accion.includes('EXITOSO') || accion.includes('CREAR') ||
-    accion.includes('REACTIVAR') || accion.includes('COMPLETAR')
+    accion.includes('REACTIVAR') ||
+    accion.includes('COMPLETAR')
   ) {
     return <Badge variant="success">{accion}</Badge>
   }
@@ -74,7 +67,7 @@ export function AuditLog() {
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { detail?: string } } })
         .response?.data?.detail
-      setApiError(msg ?? 'No se pudo conectar con el servidor. Revisa que la API este activa.')
+      setApiError(msg ?? 'No se pudo conectar con el servidor. Revisa que la API esté activa.')
     } finally {
       setLoading(false); setRefreshing(false)
     }
@@ -118,13 +111,12 @@ export function AuditLog() {
       </div>
 
       <form onSubmit={handleBuscar} className="flex flex-wrap gap-3 mb-5">
-        <div className="relative flex-1 min-w-[180px] max-w-xs">
         <div className="relative flex-1 min-w-48 max-w-xs">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text" value={inputAccion}
             onChange={e => setInputAccion(e.target.value)}
-            placeholder="Filtrar por accion (ej: LOGIN)"
+            placeholder="Filtrar por acción (ej: LOGIN)"
             className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-slate-200
                        focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
           />
@@ -136,13 +128,6 @@ export function AuditLog() {
                      focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white text-slate-700"
         >
           <option value="">Todas las entidades</option>
-          <option value="insumo">Insumo</option>
-          <option value="movimiento">Movimiento</option>
-          <option value="usuario">Usuario</option>
-          className="px-3 py-2 text-sm rounded-lg border border-slate-200
-                     focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
-        >
-          <option value="">Todas las entidades</option>
           {ENTIDADES.map(e => (
             <option key={e} value={e}>{e}</option>
           ))}
@@ -152,11 +137,6 @@ export function AuditLog() {
                      font-bold rounded-lg transition-colors">
           Buscar
         </button>
-        {(filtroAccion || filtroEntidad) && (
-          <button type="button"
-            onClick={() => {
-              setInputAccion(''); setFiltroAccion(''); setFiltroEntidad(''); setPage(0)
-            }}
         {hayFiltros && (
           <button type="button" onClick={handleLimpiar}
             className="px-4 py-2 border border-slate-200 text-slate-600 text-sm
@@ -187,7 +167,7 @@ export function AuditLog() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50">
-                {['Fecha', 'Accion', 'Usuario', 'Entidad', 'Detalle', 'IP'].map(h => (
+                {['Fecha', 'Acción', 'Usuario', 'Entidad', 'Detalle', 'IP'].map(h => (
                   <th key={h}
                     className="text-left px-4 py-3 text-xs font-bold
                                text-slate-500 uppercase tracking-wide whitespace-nowrap">
@@ -245,7 +225,7 @@ export function AuditLog() {
 
         {!loading && totalPages > 1 && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200">
-            <p className="text-xs text-slate-500">Pagina {page + 1} de {totalPages}</p>
+            <p className="text-xs text-slate-500">Página {page + 1} de {totalPages}</p>
             <div className="flex gap-1">
               <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}
                 className="px-3 py-1 text-xs rounded-lg border border-slate-200
