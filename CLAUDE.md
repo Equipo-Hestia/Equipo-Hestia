@@ -564,7 +564,7 @@ VITE_API_URL=http://<IP_SERVIDOR>:8000
 | Usuarios | RBAC admin/operador_coordinador/operador/visor/docente | ✅ |
 | Usuarios | CRUD + perfil + foto + cambiar clave | ✅ |
 | Dashboard | Métricas + gráfico + feed + top insumos | ✅ |
-| Audit log | Acciones de login y CRUD usuarios | ✅ parcial |
+| Audit log | Login, CRUD usuarios, insumos y movimientos | ✅ |
 | UI | Sidebar colapsable con estado persistente | ✅ |
 | UI | Modo oscuro/claro con preferencia persistente | ✅ (layout; páginas internas pendiente) |
 | UI | Tipografía Nunito (Google Fonts) | ✅ |
@@ -580,7 +580,6 @@ VITE_API_URL=http://<IP_SERVIDOR>:8000
 | Recomendación de insumos por asignatura (historial) | Media |
 | Reportes PDF: valorización, ABC, costo por estudiante | Media |
 | Predicción de desabastecimiento | Media |
-| Audit log en insumos y movimientos | Baja |
 | Campo `fecha_vencimiento` en insumos | Media |
 | Gestión de lotes | Muy alta |
 
