@@ -8,6 +8,18 @@ import type { ValorizacionResponse, ConsumoCarrerasResponse } from '../types/api
 
 type Tab = 'valorizacion' | 'carreras' | 'exportar'
 
+/** Nombres completos de las carreras registradas en el sistema. */
+const CARRERA_NOMBRES: Record<string, string> = {
+  TENS: 'Técnico en Enfermería de Nivel Superior',
+  TQF: 'Técnico en Química y Farmacia',
+  TLCBS: 'Técnico de Laboratorio Clínico y Banco de Sangre',
+  preparador_fisico: 'Preparador Físico',
+}
+
+function nombreCarrera(carrera: string): string {
+  return CARRERA_NOMBRES[carrera] ?? carrera
+}
+
 /**
  * Calcula el semestre académico actual según la fecha del sistema.
  * Semestre 1: marzo - julio  (meses 3-7)
@@ -197,13 +209,20 @@ function TabValorizacion() {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-slate-50">
-                {['Nombre', 'SKU', 'Stock', 'Costo Unit.', 'Valor Total',
-                  'Categoría', 'Sala'].map(h => (
-                  <th key={h}
-                    className="text-left px-4 py-3 text-xs font-bold
-                               text-slate-500 uppercase tracking-wide
-                               whitespace-nowrap">
-                    {h}
+                {[
+                  { label: 'Nombre',     align: 'left'  },
+                  { label: 'SKU',        align: 'left'  },
+                  { label: 'Stock',      align: 'right' },
+                  { label: 'Costo Unit.', align: 'right' },
+                  { label: 'Valor Total', align: 'right' },
+                  { label: 'Categoría', align: 'left'  },
+                  { label: 'Sala',      align: 'left'  },
+                ].map(h => (
+                  <th key={h.label}
+                    className={`px-4 py-3 text-xs font-bold text-slate-500
+                                uppercase tracking-wide whitespace-nowrap
+                                text-${h.align}`}>
+                    {h.label}
                   </th>
                 ))}
               </tr>
@@ -271,6 +290,15 @@ function TabCarreras() {
     }
   }
 
+  // Cabeceras con alineación explícita
+  const COLS: { label: string; align: 'left' | 'right' }[] = [
+    { label: 'Carrera',          align: 'left'  },
+    { label: 'Solicitudes',      align: 'right' },
+    { label: 'Estudiantes',      align: 'right' },
+    { label: 'Costo Total',      align: 'right' },
+    { label: 'Costo/Estudiante', align: 'right' },
+  ]
+
   return (
     <div className="mt-4 space-y-5">
       <div className="flex gap-3 items-end">
@@ -332,13 +360,12 @@ function TabCarreras() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-slate-50">
-                    {['Carrera', 'Solicitudes', 'Estudiantes',
-                      'Costo Total', 'Costo/Estudiante'].map(h => (
-                      <th key={h}
-                        className="text-left px-4 py-3 text-xs font-bold
-                                   text-slate-500 uppercase tracking-wide
-                                   whitespace-nowrap">
-                        {h}
+                    {COLS.map(col => (
+                      <th key={col.label}
+                        className={`px-4 py-3 text-xs font-bold text-slate-500
+                                    uppercase tracking-wide whitespace-nowrap
+                                    text-${col.align}`}>
+                        {col.label}
                       </th>
                     ))}
                   </tr>
@@ -349,7 +376,7 @@ function TabCarreras() {
                       className="hover:bg-slate-50 transition-colors">
                       <td className="px-4 py-3 font-semibold
                                      text-slate-800 dark:text-slate-100">
-                        {c.carrera}
+                        {nombreCarrera(c.carrera)}
                       </td>
                       <td className="px-4 py-3 text-slate-600 text-right">
                         {c.num_solicitudes}
@@ -409,9 +436,24 @@ function TabExportar() {
       setOk(true)
       setTimeout(() => setOk(false), 3000)
     } catch (err: unknown) {
-      const detail = (err as { response?: { data?: { detail?: string } } })
-        ?.response?.data?.detail
-      setError(detail ?? 'No se pudo generar el PDF. Ejecuta: docker compose build --no-cache api')
+      // Cuando responseType='blob', los errores HTTP también llegan como Blob.
+      // Hay que leerlo como texto y parsearlo para obtener el detail real.
+      const response = (err as { response?: { data?: unknown } })?.response
+      let detail: string | undefined
+      if (response?.data instanceof Blob) {
+        try {
+          const texto = await (response.data as Blob).text()
+          detail = JSON.parse(texto)?.detail
+        } catch {
+          // No se pudo parsear la respuesta de error
+        }
+      } else {
+        detail = (response?.data as { detail?: string } | undefined)?.detail
+      }
+      setError(
+        detail ??
+        'No se pudo generar el PDF. Revisa los logs del contenedor API.'
+      )
     } finally {
       setDescargando(false)
     }

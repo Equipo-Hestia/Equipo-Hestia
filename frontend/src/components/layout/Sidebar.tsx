@@ -33,10 +33,10 @@ const NAV_ITEMS = [
   { to: '/categorias',
     icon: Tag, label: 'Categorías',
     roles: ['admin', 'operador_coordinador', 'operador', 'visor'] },
-  // Reportes
+  // Reportes — solo admin, operador_coordinador y visor (no operador)
   { to: '/reportes',
     icon: BarChart2, label: 'Reportes',
-    roles: ['admin', 'operador_coordinador', 'operador', 'visor'], divider: true },
+    roles: ['admin', 'operador_coordinador', 'visor'], divider: true },
   // Flujo operativo
   { to: '/solicitudes',
     icon: ClipboardList, label: 'Solicitudes',

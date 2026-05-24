@@ -91,3 +91,19 @@ def require_admin(usuario: Usuario = Depends(get_usuario_actual)) -> Usuario:
             detail="Se requiere rol administrador para esta accion"
         )
     return usuario
+
+
+def require_reportes(usuario: Usuario = Depends(get_usuario_actual)) -> Usuario:
+    """Requiere admin, operador_coordinador o visor para acceder a reportes.
+    El rol operador no tiene acceso a montos ni datos financieros del sistema.
+    """
+    if usuario.rol not in [
+        RolUsuario.admin,
+        RolUsuario.operador_coordinador,
+        RolUsuario.visor,
+    ]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No tienes permiso para acceder a los reportes financieros"
+        )
+    return usuario

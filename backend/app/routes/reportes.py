@@ -16,7 +16,7 @@ from app.schemas.reportes import (
     ValorizacionResponse, InsumoValorizado, InsumoSinCosto,
     GrupoValor, ConsumoCarrerasResponse, CarreraConsumo,
 )
-from app.utils.deps import get_usuario_actual
+from app.utils.deps import require_reportes
 
 router = APIRouter(prefix="/reportes", tags=["Reportes"])
 
@@ -237,16 +237,21 @@ def _generar_html_pdf(val: ValorizacionResponse, semestre: Optional[str]) -> str
 def exportar_valorizacion_pdf(
     semestre: Optional[str] = Query(None),
     db: Session = Depends(get_db),
-    usuario: Usuario = Depends(get_usuario_actual),
+    usuario: Usuario = Depends(require_reportes),
 ):
-    """Exporta el reporte de valorizacion como PDF (WeasyPrint)."""
+    """Exporta el reporte de valorizacion como PDF (WeasyPrint).
+    Requiere rol admin, operador_coordinador o visor.
+    """
     try:
         import weasyprint
     except ImportError:
         from fastapi import HTTPException
         raise HTTPException(
             status_code=501,
-            detail="WeasyPrint no esta instalado. Ejecuta: docker compose build --no-cache api",
+            detail=(
+                "WeasyPrint no esta instalado en el contenedor. "
+                "Ejecuta: docker compose build --no-cache api"
+            ),
         )
 
     val = _obtener_valorizacion(db)
@@ -257,7 +262,7 @@ def exportar_valorizacion_pdf(
         from fastapi import HTTPException
         raise HTTPException(
             status_code=500,
-            detail=f"Error al generar PDF con WeasyPrint: {exc}",
+            detail=f"Error al generar PDF: {exc}",
         )
     return Response(
         content=pdf_bytes,
@@ -271,9 +276,11 @@ def exportar_valorizacion_pdf(
 @router.get("/valorizacion", response_model=ValorizacionResponse)
 def obtener_valorizacion(
     db: Session = Depends(get_db),
-    usuario: Usuario = Depends(get_usuario_actual),
+    usuario: Usuario = Depends(require_reportes),
 ):
-    """Valor del inventario activo agrupado por categoria y sala."""
+    """Valor del inventario activo agrupado por categoria y sala.
+    Requiere rol admin, operador_coordinador o visor.
+    """
     return _obtener_valorizacion(db)
 
 
@@ -281,7 +288,9 @@ def obtener_valorizacion(
 def obtener_consumo_carreras(
     semestre: str = Query(..., description="Ej: 2026-1"),
     db: Session = Depends(get_db),
-    usuario: Usuario = Depends(get_usuario_actual),
+    usuario: Usuario = Depends(require_reportes),
 ):
-    """Costo de insumos consumidos por carrera en un semestre dado."""
+    """Costo de insumos consumidos por carrera en un semestre dado.
+    Requiere rol admin, operador_coordinador o visor.
+    """
     return _obtener_consumo_carreras(db, semestre)

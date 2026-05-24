@@ -22,6 +22,8 @@ import { Reportes }          from './pages/Reportes'
 import { Layout }            from './components/layout/Layout'
 import { useAuthStore }      from './store/auth'
 
+const ROLES_REPORTES = ['admin', 'operador_coordinador', 'visor']
+
 function SolicitudesPage() {
   const { user } = useAuthStore()
   if (user?.rol === 'docente') return <SolicitudDocente />
@@ -30,6 +32,12 @@ function SolicitudesPage() {
     user?.rol === 'operador_coordinador' ||
     user?.rol === 'admin'
   ) return <SolicitudOperador />
+  return <Navigate to="/dashboard" replace />
+}
+
+function ReportesPage() {
+  const { user } = useAuthStore()
+  if (user?.rol && ROLES_REPORTES.includes(user.rol)) return <Reportes />
   return <Navigate to="/dashboard" replace />
 }
 
@@ -42,23 +50,23 @@ export function App() {
 
         <Route path="/" element={<Layout />}>
           <Route index element={<Navigate to="/dashboard" replace />} />
-          <Route path="dashboard"         element={<Dashboard />} />
-          <Route path="alertas"           element={<Alertas />} />
-          <Route path="insumos"           element={<Insumos />} />
-          <Route path="movimientos"       element={<Movimientos />} />
-          <Route path="salas"             element={<Salas />} />
-          <Route path="categorias"        element={<Categorias />} />
-          <Route path="seguridad"         element={<Configuracion2FA />} />
-          <Route path="importar"          element={<ImportarInsumos />} />
+          <Route path="dashboard"        element={<Dashboard />} />
+          <Route path="alertas"          element={<Alertas />} />
+          <Route path="insumos"          element={<Insumos />} />
+          <Route path="movimientos"      element={<Movimientos />} />
+          <Route path="salas"            element={<Salas />} />
+          <Route path="categorias"       element={<Categorias />} />
+          <Route path="seguridad"        element={<Configuracion2FA />} />
+          <Route path="importar"         element={<ImportarInsumos />} />
           <Route path="importar-horario" element={<ImportarHorario />} />
-          <Route path="perfil"            element={<Perfil />} />
-          <Route path="usuarios"          element={<Usuarios />} />
-          <Route path="audit-log"         element={<AuditLog />} />
-          <Route path="solicitudes"       element={<SolicitudesPage />} />
-          <Route path="retornos"          element={<RetornosOperador />} />
-          <Route path="asignaturas"       element={<Asignaturas />} />
-          <Route path="clases-docente"    element={<ClasesDocente />} />
-          <Route path="reportes"          element={<Reportes />} />
+          <Route path="perfil"           element={<Perfil />} />
+          <Route path="usuarios"         element={<Usuarios />} />
+          <Route path="audit-log"        element={<AuditLog />} />
+          <Route path="solicitudes"      element={<SolicitudesPage />} />
+          <Route path="retornos"         element={<RetornosOperador />} />
+          <Route path="asignaturas"      element={<Asignaturas />} />
+          <Route path="clases-docente"   element={<ClasesDocente />} />
+          <Route path="reportes"         element={<ReportesPage />} />
         </Route>
       </Routes>
     </BrowserRouter>
