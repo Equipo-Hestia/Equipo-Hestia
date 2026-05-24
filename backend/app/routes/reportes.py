@@ -20,6 +20,9 @@ from app.utils.deps import require_reportes
 
 router = APIRouter(prefix="/reportes", tags=["Reportes"])
 
+# Ancho util: A4 landscape (297mm) - margenes (15+15) = 267mm
+PDF_USABLE_W = 267
+
 
 def _obtener_valorizacion(db: Session) -> ValorizacionResponse:
     insumos = (
@@ -149,7 +152,13 @@ def _generar_pdf_bytes(
     val: ValorizacionResponse,
     semestre: Optional[str],
 ) -> bytes:
-    """Genera el PDF de valorizacion usando fpdf2 (puro Python, sin dependencias de sistema)."""
+    """Genera el PDF de valorizacion usando fpdf2.
+
+    Usa A4 landscape con margenes de 15mm (267mm utiles) para evitar el
+    error 'Not enough horizontal space' de fpdf2 2.8.x que ocurre cuando
+    las celdas llegan exactamente al limite de la pagina A4 portrait.
+    Todos los anchos son numericos explicitos; no se usa width=0.
+    """
     try:
         from fpdf import FPDF
     except ImportError:
@@ -169,47 +178,50 @@ def _generar_pdf_bytes(
     SLATE_MID = (71, 85, 105)
     SLATE_LIGHT = (241, 245, 249)
 
-    pdf = FPDF()
+    # A4 landscape: 297x210mm. Margenes 15mm => 267mm utiles.
+    pdf = FPDF(orientation="L", format="A4")
+    pdf.set_margins(15, 15, 15)
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.add_page()
 
-    # Titulo
+    # --- Titulo ---
     pdf.set_font("Helvetica", "B", 18)
     pdf.set_text_color(*TEAL)
-    pdf.multi_cell(0, 10, "Reporte de Valorizacion de Inventario")
+    pdf.cell(PDF_USABLE_W, 10, "Reporte de Valorizacion de Inventario")
+    pdf.ln()
     pdf.set_font("Helvetica", "", 9)
     pdf.set_text_color(*SLATE_MID)
-    pdf.multi_cell(0, 6, f"Generado el {fecha}{semestre_str}")
-    pdf.ln(4)
+    pdf.cell(PDF_USABLE_W, 6, f"Generado el {fecha}{semestre_str}")
+    pdf.ln(10)
 
-    # KPIs
+    # --- KPIs: 3 cajas de 89mm = 267mm ---
     valor_fmt = f"${val.valor_total_inventario:,.0f}"
     kpis = [
         ("Valor Total Inventario", valor_fmt),
         ("Insumos con Costo", str(val.total_insumos_valorados)),
         ("Insumos sin Costo", str(val.total_insumos_sin_costo)),
     ]
-    col_w = 62
+    col_w = 89
     for _, value in kpis:
         pdf.set_fill_color(240, 253, 250)
         pdf.set_draw_color(153, 246, 228)
-        pdf.set_font("Helvetica", "B", 13)
+        pdf.set_font("Helvetica", "B", 14)
         pdf.set_text_color(*TEAL)
-        pdf.cell(col_w, 8, value, border=1, align="C", fill=True)
+        pdf.cell(col_w, 10, value, border=1, align="C", fill=True)
     pdf.ln()
     x_inicio = pdf.l_margin
     for idx, (label, _) in enumerate(kpis):
         pdf.set_xy(x_inicio + idx * col_w, pdf.get_y())
-        pdf.set_font("Helvetica", "", 7)
+        pdf.set_font("Helvetica", "", 8)
         pdf.set_text_color(*SLATE_MID)
         pdf.cell(col_w, 5, label, align="C")
-    pdf.ln(8)
+    pdf.ln(10)
 
     def _seccion(titulo):
         pdf.set_font("Helvetica", "B", 11)
         pdf.set_text_color(*SLATE_DARK)
         pdf.set_fill_color(*SLATE_LIGHT)
-        pdf.cell(0, 7, f"  {titulo}", fill=True)
+        pdf.cell(PDF_USABLE_W, 7, f"  {titulo}", fill=True)
         pdf.ln()
         pdf.ln(1)
 
@@ -230,65 +242,64 @@ def _generar_pdf_bytes(
         pdf.set_font("Helvetica", "", 8)
         pdf.set_text_color(*SLATE_DARK)
         for texto, ancho, alin in celdas:
-            pdf.cell(ancho, 6, str(texto)[:50], border="B", align=alin, fill=True)
+            pdf.cell(ancho, 6, str(texto)[:55], border="B", align=alin, fill=True)
         pdf.ln()
 
-    # Por Categoria
+    # Columnas grupo (categoria/sala): 180+57+30 = 267mm
+    COLS_GRUPO = [
+        ("Nombre", 180, "L"),
+        ("Valor Total", 57, "R"),
+        ("Insumos", 30, "C"),
+    ]
+
+    # --- Por Categoria ---
     if val.por_categoria:
         _seccion("Por Categoria")
-        _encabezado([
-            ("Categoria", 110, "L"),
-            ("Valor Total", 50, "R"),
-            ("Insumos", 30, "C"),
-        ])
+        _encabezado(COLS_GRUPO)
         for idx, g in enumerate(val.por_categoria):
             _fila([
-                (g.nombre, 110, "L"),
-                (f"${g.valor_total:,.0f}", 50, "R"),
+                (g.nombre, 180, "L"),
+                (f"${g.valor_total:,.0f}", 57, "R"),
                 (str(g.cantidad_insumos), 30, "C"),
             ], idx % 2 == 0)
-        pdf.ln(3)
+        pdf.ln(4)
 
-    # Por Sala
+    # --- Por Sala ---
     if val.por_sala:
         _seccion("Por Sala")
-        _encabezado([
-            ("Sala", 110, "L"),
-            ("Valor Total", 50, "R"),
-            ("Insumos", 30, "C"),
-        ])
+        _encabezado(COLS_GRUPO)
         for idx, g in enumerate(val.por_sala):
             _fila([
-                (g.nombre, 110, "L"),
-                (f"${g.valor_total:,.0f}", 50, "R"),
+                (g.nombre, 180, "L"),
+                (f"${g.valor_total:,.0f}", 57, "R"),
                 (str(g.cantidad_insumos), 30, "C"),
             ], idx % 2 == 0)
-        pdf.ln(3)
+        pdf.ln(4)
 
-    # Detalle de insumos
+    # --- Detalle: 85+28+18+30+32+42+32 = 267mm ---
     if val.insumos:
         _seccion(
             f"Detalle de Insumos Valorizados ({val.total_insumos_valorados})"
         )
         cols_det = [
-            ("Nombre", 55, "L"),
-            ("SKU", 22, "L"),
-            ("Stock", 15, "C"),
-            ("Costo Unit.", 22, "R"),
-            ("Valor Total", 25, "R"),
-            ("Categoria", 28, "L"),
-            ("Sala", 23, "L"),
+            ("Nombre", 85, "L"),
+            ("SKU", 28, "L"),
+            ("Stock", 18, "C"),
+            ("Costo Unit.", 30, "R"),
+            ("Valor Total", 32, "R"),
+            ("Categoria", 42, "L"),
+            ("Sala", 32, "L"),
         ]
         _encabezado(cols_det)
         for idx, i in enumerate(val.insumos):
             _fila([
-                (i.nombre[:30], 55, "L"),
-                (i.sku or "-", 22, "L"),
-                (str(i.stock_actual), 15, "C"),
-                (f"${i.costo_unitario:,.0f}", 22, "R"),
-                (f"${i.valor_total:,.0f}", 25, "R"),
-                ((i.categoria or "-")[:18], 28, "L"),
-                ((i.sala or "-")[:15], 23, "L"),
+                (i.nombre[:40], 85, "L"),
+                (i.sku or "-", 28, "L"),
+                (str(i.stock_actual), 18, "C"),
+                (f"${i.costo_unitario:,.0f}", 30, "R"),
+                (f"${i.valor_total:,.0f}", 32, "R"),
+                ((i.categoria or "-")[:22], 42, "L"),
+                ((i.sala or "-")[:18], 32, "L"),
             ], idx % 2 == 0)
 
     return bytes(pdf.output())
