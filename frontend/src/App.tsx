@@ -11,6 +11,7 @@ import { Categorias }        from './pages/Categorias'
 import { Configuracion2FA }  from './pages/Configuracion2FA'
 import { ImportarInsumos }   from './pages/ImportarInsumos'
 import { ImportarHorario }   from './pages/ImportarHorario'
+import { VerHorario }        from './pages/VerHorario'
 import { Perfil }            from './pages/Perfil'
 import { Usuarios }          from './pages/Usuarios'
 import { AuditLog }          from './pages/AuditLog'
@@ -23,12 +24,10 @@ import { Reportes }          from './pages/Reportes'
 import { Layout }            from './components/layout/Layout'
 import { useAuthStore }      from './store/auth'
 
-// Ruta de inicio segun rol: docente va a /solicitudes, el resto a /dashboard.
 function getHomeByRol(rol?: string): string {
   return rol === 'docente' ? '/solicitudes' : '/dashboard'
 }
 
-// Grupos de roles reutilizables
 const TODOS             = ['admin', 'operador_coordinador', 'operador', 'visor', 'docente']
 const NO_DOCENTE        = ['admin', 'operador_coordinador', 'operador', 'visor']
 const OPERADOR_PLUS     = ['admin', 'operador_coordinador', 'operador']
@@ -36,30 +35,17 @@ const SOLO_ADMIN        = ['admin']
 const ROLES_REPORTES    = ['admin', 'operador_coordinador', 'visor']
 const ROLES_SOLICITUDES = ['admin', 'operador_coordinador', 'operador', 'docente']
 
-/**
- * Guarda de ruta por rol.
- * Si el usuario no tiene permiso, lo redirige al inicio de su propio rol.
- * Docente sin acceso a /dashboard es enviado a /solicitudes.
- */
-function ProtectedRoute({
-  roles,
-  children,
-}: {
-  roles: string[]
-  children: ReactNode
-}) {
+function ProtectedRoute({ roles, children }: { roles: string[]; children: ReactNode }) {
   const { user } = useAuthStore()
   if (user?.rol && roles.includes(user.rol)) return <>{children}</>
   return <Navigate to={getHomeByRol(user?.rol)} replace />
 }
 
-/** Redirige al home apropiado segun el rol activo al entrar a "/". */
 function IndexRedirect() {
   const { user } = useAuthStore()
   return <Navigate to={getHomeByRol(user?.rol)} replace />
 }
 
-/** Despacha entre SolicitudDocente y SolicitudOperador segun rol. */
 function SolicitudesPage() {
   const { user } = useAuthStore()
   if (user?.rol === 'docente') return <SolicitudDocente />
@@ -81,7 +67,6 @@ export function App() {
         <Route path="/" element={<Layout />}>
           <Route index element={<IndexRedirect />} />
 
-          {/* Todos los roles autenticados */}
           <Route path="perfil"
             element={<ProtectedRoute roles={TODOS}><Perfil /></ProtectedRoute>} />
           <Route path="seguridad"
@@ -89,7 +74,6 @@ export function App() {
           <Route path="insumos"
             element={<ProtectedRoute roles={TODOS}><Insumos /></ProtectedRoute>} />
 
-          {/* Todos excepto docente */}
           <Route path="dashboard"
             element={<ProtectedRoute roles={NO_DOCENTE}><Dashboard /></ProtectedRoute>} />
           <Route path="alertas"
@@ -101,11 +85,9 @@ export function App() {
           <Route path="categorias"
             element={<ProtectedRoute roles={NO_DOCENTE}><Categorias /></ProtectedRoute>} />
 
-          {/* Reportes: admin, operador_coordinador, visor */}
           <Route path="reportes"
             element={<ProtectedRoute roles={ROLES_REPORTES}><Reportes /></ProtectedRoute>} />
 
-          {/* Flujo operativo */}
           <Route path="solicitudes"
             element={
               <ProtectedRoute roles={ROLES_SOLICITUDES}>
@@ -115,11 +97,12 @@ export function App() {
           <Route path="retornos"
             element={<ProtectedRoute roles={OPERADOR_PLUS}><RetornosOperador /></ProtectedRoute>} />
 
-          {/* Solo admin */}
           <Route path="asignaturas"
             element={<ProtectedRoute roles={SOLO_ADMIN}><Asignaturas /></ProtectedRoute>} />
           <Route path="clases-docente"
             element={<ProtectedRoute roles={SOLO_ADMIN}><ClasesDocente /></ProtectedRoute>} />
+          <Route path="horario"
+            element={<ProtectedRoute roles={SOLO_ADMIN}><VerHorario /></ProtectedRoute>} />
           <Route path="importar-horario"
             element={<ProtectedRoute roles={SOLO_ADMIN}><ImportarHorario /></ProtectedRoute>} />
           <Route path="importar"
