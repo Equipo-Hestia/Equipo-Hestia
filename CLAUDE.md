@@ -97,6 +97,7 @@ backend/
 │   │   ├── categorias.py       # /categorias
 │   │   ├── resumen.py          # /resumen
 │   │   ├── importar.py         # /importar
+│   │   ├── reportes.py         # /reportes (require_reportes)
 │   │   └── audit_log.py        # /audit-log
 │   └── utils/
 │       ├── security.py         # hashing, JWT
@@ -147,6 +148,7 @@ insumo_id (FK) · usuario_id (FK)
 **`Asignatura`** (`asignaturas`) ← Fase 4
 ```
 id · nombre · codigo (VARCHAR 20, unique) · activa (Boolean)
+carrera (Enum PG: TENS|TQF|TLCBS|preparador_fisico, nullable)
 Relaciones: clases →
 ```
 
@@ -296,6 +298,13 @@ GET  /resumen/actividad-reciente
 GET  /resumen/top-insumos-retirados
 ```
 
+**`/reportes`** — protegido con `require_reportes` (admin, operador_coordinador, visor)
+```
+GET  /reportes/valorizacion/pdf    ?semestre=   ← ruta estática ANTES de /valorizacion
+GET  /reportes/valorizacion        valorización del inventario activo
+GET  /reportes/consumo-carreras    ?semestre=   costo por carrera
+```
+
 **`/importar`** (admin + TOTP)
 ```
 GET  /importar/plantilla                           CSV de ejemplo para insumos
@@ -314,9 +323,11 @@ get_usuario_actual   # cualquier JWT válido
 require_docente      # solo docente
 require_operador     # admin, operador u operador_coordinador
 require_admin        # solo admin
+require_reportes     # admin, operador_coordinador o visor
+                     # (operador NO tiene acceso a datos financieros)
 ```
 
-**Rol `operador_coordinador`:** tiene exactamente los mismos accesos que `operador` a través de `require_operador`. Sus permisos adicionales se definirán tras reunión del 25/05/2026.
+**Rol `operador_coordinador`:** tiene los mismos accesos que `operador` via `require_operador`, MÁS acceso a `/reportes` via `require_reportes`. Permisos diferenciados adicionales pendientes de reunión del 26/05/2026.
 
 ### 3.6 Seguridad
 
@@ -371,6 +382,7 @@ frontend/src/
 │   ├── Asignaturas.tsx       # CRUD (admin)
 │   ├── ClasesDocente.tsx     # asignación docente→asignatura+sección (admin)
 │   ├── ImportarHorario.tsx   # mapeo de columnas + TOTP; llama /importar/horario-academico
+│   ├── Reportes.tsx          # valorización, costo por carrera, exportar PDF
 │   ├── Salas.tsx
 │   ├── Categorias.tsx
 │   ├── Configuracion2FA.tsx
@@ -411,6 +423,8 @@ frontend/src/
 /perfil            → <Perfil />
 /usuarios          → <Usuarios />          (admin)
 /audit-log         → <AuditLog />          (admin)
+/reportes          → <Reportes />  (admin, operador_coordinador, visor)
+                                   operador → redirect /dashboard
 ```
 
 ### 4.3 Proxy de Vite — regla crítica
@@ -430,6 +444,7 @@ proxy: {
   '/retornos':       API,
   '/asignaturas':    API,
   '/clases-docente': API,
+  '/reportes':       API,
 }
 ```
 **Regla:** al agregar un router en FastAPI, agregar su prefix aquí o el frontend devolverá HTML en lugar de JSON.
@@ -471,6 +486,23 @@ Zustand persiste `token` y `user: {nombre, email, rol}` en localStorage. El inte
 - **Colapsado:** ancho `w-16` (64px). Muestra Logo solo + íconos centrados sin texto. Tooltips CSS (`opacity-0 group-hover:opacity-100`) muestran el nombre de cada ítem al hacer hover.
 - **Transición:** `transition-all duration-300 ease-in-out` en el elemento `<aside>`.
 - **Botón de toggle:** arriba del sidebar, ícono `ChevronLeft` (para colapsar) / `ChevronRight` (para expandir).
+
+### 4.9 Errores en peticiones con responseType blob
+
+Cuando axios hace una petición con `responseType: 'blob'` y el servidor responde con error (4xx/5xx), el cuerpo del error también llega como `Blob`, no como JSON. Para leer el `detail` real:
+
+```typescript
+const response = (err as { response?: { data?: unknown } })?.response
+let detail: string | undefined
+if (response?.data instanceof Blob) {
+  try {
+    const texto = await (response.data as Blob).text()
+    detail = JSON.parse(texto)?.detail
+  } catch { /* ignorar */ }
+} else {
+  detail = (response?.data as { detail?: string } | undefined)?.detail
+}
+```
 
 ---
 
@@ -568,17 +600,21 @@ VITE_API_URL=http://<IP_SERVIDOR>:8000
 | UI | Sidebar colapsable con estado persistente | ✅ |
 | UI | Modo oscuro/claro con preferencia persistente | ✅ (layout; páginas internas pendiente) |
 | UI | Tipografía Nunito (Google Fonts) | ✅ |
+| Reportes | Valorización del stock (por categoría y sala) | ✅ |
+| Reportes | Costo por carrera (nombres completos, columnas alineadas) | ✅ |
+| Reportes | Exportar PDF de valorización (WeasyPrint) | ⚠️ Instalado; verificar runtime |
+| Reportes | Acceso restringido — sin operador básico | ✅ require_reportes |
 
 ### Pendiente / ideas para versiones futuras
 
 | Funcionalidad | Complejidad |
 |---|---|
 | Dark mode en páginas internas (Dashboard, Insumos, etc.) | Media — requiere añadir dark: variants por página |
-| Solicitud de compra en PDF (Operador Coordinador) | Media — pendiente reunión 25/05/2026 |
-| Acceso a Ficha FER desde cada sala | Media — pendiente reunión 25/05/2026 |
-| Ajuste permisos rol operador_coordinador | Baja — pendiente reunión 25/05/2026 |
+| Solicitud de compra en PDF (Operador Coordinador) | Media — pendiente reunión 26/05/2026 |
+| Acceso a Ficha FER desde cada sala | Media — pendiente reunión 26/05/2026 |
+| Permisos diferenciados del operador_coordinador | Baja — pendiente reunión 26/05/2026 |
 | Recomendación de insumos por asignatura (historial) | Media |
-| Reportes PDF: valorización, ABC, costo por estudiante | Media |
+| Reportes PDF: ABC, costo por estudiante | Media |
 | Predicción de desabastecimiento | Media |
 | Campo `fecha_vencimiento` en insumos | Media |
 | Gestión de lotes | Muy alta |
@@ -595,7 +631,7 @@ VITE_API_URL=http://<IP_SERVIDOR>:8000
 
 4. **Importar modelos en `main.py` en orden de FK.** `asignatura` antes de `clase_docente`, `clase_docente` antes de `solicitud`.
 
-5. **Rutas estáticas antes que dinámicas.** `/alertas`, `/exportar`, `/mis-clases` van ANTES de `/{id}`.
+5. **Rutas estáticas antes que dinámicas.** `/alertas`, `/exportar`, `/mis-clases`, `/valorizacion/pdf` van ANTES de `/{id}`.
 
 6. **Try/catch en fetches del frontend.** Siempre incluir `catch` en funciones `load()` asíncronas.
 
@@ -616,3 +652,7 @@ VITE_API_URL=http://<IP_SERVIDOR>:8000
 14. **Dark mode.** Al crear nuevos componentes o páginas, incluir variantes `dark:` de Tailwind para todos los colores de fondo, texto y bordes. La clase `dark` se gestiona en `document.documentElement` desde `Layout.tsx`. El store está en `store/theme.ts`.
 
 15. **Sidebar colapsado.** El estado de colapso se persiste en `localStorage` con clave `hestia-sidebar-collapsed`. En modo colapsado el sidebar tiene `w-16`; en expandido `w-60`.
+
+16. **Blob error parsing.** Peticiones con `responseType: 'blob'` que fallan entregan el error también como Blob. Convertir con `.text()` y parsear JSON para obtener el `detail` real. Ver sección 4.9.
+
+17. **require_reportes.** Los endpoints `/reportes/*` usan esta dependencia exclusivamente. El rol `operador` no tiene acceso a datos financieros.
