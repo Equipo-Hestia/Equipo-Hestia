@@ -3,7 +3,7 @@ annotated-doc==0.0.4
 annotated-types==0.7.0
 anyio==4.13.0
 bcrypt==4.0.1
-cffi==1.17.1
+cffi==2.0.0
 click==8.3.2
 colorama==0.4.6
 cryptography==46.0.7
@@ -12,6 +12,7 @@ ecdsa==0.19.2
 email-validator==2.3.0
 fastapi==0.136.0
 flake8==7.3.0
+fpdf2==2.8.2
 greenlet==3.4.0
 h11==0.16.0
 idna==3.11
@@ -24,7 +25,7 @@ pillow==10.4.0
 psycopg2-binary==2.9.11
 pyasn1==0.6.3
 pycodestyle==2.14.0
-pycparser==2.22
+pycparser==3.0
 pydantic==2.13.2
 pydantic_core==2.46.2
 pyflakes==3.4.0
@@ -40,4 +41,3 @@ starlette==1.0.0
 typing-inspection==0.4.2
 typing_extensions==4.15.0
 uvicorn==0.44.0
-weasyprint==62.3

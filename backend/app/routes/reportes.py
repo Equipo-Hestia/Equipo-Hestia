@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -145,91 +145,153 @@ def _obtener_consumo_carreras(db: Session, semestre: str) -> ConsumoCarrerasResp
     )
 
 
-def _generar_html_pdf(val: ValorizacionResponse, semestre: Optional[str]) -> str:
-    """Genera el HTML que WeasyPrint convertira a PDF."""
+def _generar_pdf_bytes(
+    val: ValorizacionResponse,
+    semestre: Optional[str],
+) -> bytes:
+    """Genera el PDF de valorizacion usando fpdf2 (puro Python, sin dependencias de sistema)."""
+    try:
+        from fpdf import FPDF
+    except ImportError:
+        raise HTTPException(
+            status_code=501,
+            detail=(
+                "fpdf2 no esta instalado en el contenedor. "
+                "Ejecuta: docker compose build --no-cache api"
+            ),
+        )
+
     fecha = datetime.now(timezone.utc).strftime("%d/%m/%Y %H:%M UTC")
-    rows_cat = "".join(
-        f"<tr><td>{g.nombre}</td><td>${g.valor_total:,.0f}</td>"
-        f"<td>{g.cantidad_insumos}</td></tr>"
-        for g in val.por_categoria
-    )
-    rows_sala = "".join(
-        f"<tr><td>{g.nombre}</td><td>${g.valor_total:,.0f}</td>"
-        f"<td>{g.cantidad_insumos}</td></tr>"
-        for g in val.por_sala
-    )
-    rows_insumos = "".join(
-        f"<tr><td>{i.nombre}</td><td>{i.sku or '-'}</td>"
-        f"<td>{i.stock_actual}</td><td>${i.costo_unitario:,.0f}</td>"
-        f"<td>${i.valor_total:,.0f}</td>"
-        f"<td>{i.categoria or '-'}</td><td>{i.sala or '-'}</td></tr>"
-        for i in val.insumos
-    )
-    semestre_str = f" &mdash; Semestre {semestre}" if semestre else ""
+    semestre_str = f" - Semestre {semestre}" if semestre else ""
+
+    TEAL = (13, 115, 119)
+    SLATE_DARK = (30, 41, 59)
+    SLATE_MID = (71, 85, 105)
+    SLATE_LIGHT = (241, 245, 249)
+
+    pdf = FPDF()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.add_page()
+
+    # Titulo
+    pdf.set_font("Helvetica", "B", 18)
+    pdf.set_text_color(*TEAL)
+    pdf.multi_cell(0, 10, "Reporte de Valorizacion de Inventario")
+    pdf.set_font("Helvetica", "", 9)
+    pdf.set_text_color(*SLATE_MID)
+    pdf.multi_cell(0, 6, f"Generado el {fecha}{semestre_str}")
+    pdf.ln(4)
+
+    # KPIs
     valor_fmt = f"${val.valor_total_inventario:,.0f}"
-    # Nota: en el template HTML usamos variables ya formateadas (valor_fmt,
-    # rows_*) para evitar conflictos entre llaves de CSS y llaves de f-string.
-    css = """
-      body { font-family: Arial, sans-serif; font-size: 11px;
-             margin: 30px; color: #1a1a1a; }
-      h1 { font-size: 18px; color: #0d7377; margin-bottom: 4px; }
-      h2 { font-size: 13px; color: #334155; margin-top: 20px;
-           margin-bottom: 6px; border-bottom: 1px solid #e2e8f0;
-           padding-bottom: 4px; }
-      .meta { color: #64748b; font-size: 10px; margin-bottom: 16px; }
-      .kpi { display: flex; gap: 20px; margin-bottom: 16px; }
-      .kpi-box { background: #f0fdfa; border: 1px solid #99f6e4;
-                 border-radius: 6px; padding: 8px 14px; }
-      .kpi-val { font-size: 20px; font-weight: bold; color: #0d7377; }
-      .kpi-lbl { font-size: 9px; color: #475569; }
-      table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
-      th { background: #f1f5f9; padding: 5px 8px; text-align: left;
-           font-size: 10px; color: #475569;
-           border-bottom: 2px solid #e2e8f0; }
-      td { padding: 4px 8px; border-bottom: 1px solid #f1f5f9; }
-      tr:nth-child(even) td { background: #f8fafc; }
-    """
-    return (
-        "<!DOCTYPE html>\n"
-        '<html lang="es">\n'
-        "<head>\n"
-        '<meta charset="UTF-8"/>\n'
-        f"<style>{css}</style>\n"
-        "</head>\n"
-        "<body>\n"
-        "<h1>Reporte de Valorizacion de Inventario</h1>\n"
-        f'<p class="meta">Generado el {fecha}{semestre_str}</p>\n'
-        '<div class="kpi">\n'
-        '  <div class="kpi-box">\n'
-        f'    <div class="kpi-val">{valor_fmt}</div>\n'
-        '    <div class="kpi-lbl">Valor total inventario</div>\n'
-        "  </div>\n"
-        '  <div class="kpi-box">\n'
-        f'    <div class="kpi-val">{val.total_insumos_valorados}</div>\n'
-        '    <div class="kpi-lbl">Insumos con costo</div>\n'
-        "  </div>\n"
-        '  <div class="kpi-box">\n'
-        f'    <div class="kpi-val">{val.total_insumos_sin_costo}</div>\n'
-        '    <div class="kpi-lbl">Insumos sin costo</div>\n'
-        "  </div>\n"
-        "</div>\n"
-        "<h2>Por Categoria</h2>\n"
-        "<table>"
-        "<tr><th>Categoria</th><th>Valor Total</th><th>Insumos</th></tr>\n"
-        f"{rows_cat}</table>\n"
-        "<h2>Por Sala</h2>\n"
-        "<table>"
-        "<tr><th>Sala</th><th>Valor Total</th><th>Insumos</th></tr>\n"
-        f"{rows_sala}</table>\n"
-        "<h2>Detalle de Insumos Valorizados</h2>\n"
-        "<table>\n"
-        "<tr><th>Nombre</th><th>SKU</th><th>Stock</th>"
-        "<th>Costo Unit.</th><th>Valor Total</th>"
-        "<th>Categoria</th><th>Sala</th></tr>\n"
-        f"{rows_insumos}\n"
-        "</table>\n"
-        "</body></html>"
-    )
+    kpis = [
+        ("Valor Total Inventario", valor_fmt),
+        ("Insumos con Costo", str(val.total_insumos_valorados)),
+        ("Insumos sin Costo", str(val.total_insumos_sin_costo)),
+    ]
+    col_w = 62
+    for _, value in kpis:
+        pdf.set_fill_color(240, 253, 250)
+        pdf.set_draw_color(153, 246, 228)
+        pdf.set_font("Helvetica", "B", 13)
+        pdf.set_text_color(*TEAL)
+        pdf.cell(col_w, 8, value, border=1, align="C", fill=True)
+    pdf.ln()
+    x_inicio = pdf.l_margin
+    for idx, (label, _) in enumerate(kpis):
+        pdf.set_xy(x_inicio + idx * col_w, pdf.get_y())
+        pdf.set_font("Helvetica", "", 7)
+        pdf.set_text_color(*SLATE_MID)
+        pdf.cell(col_w, 5, label, align="C")
+    pdf.ln(8)
+
+    def _seccion(titulo):
+        pdf.set_font("Helvetica", "B", 11)
+        pdf.set_text_color(*SLATE_DARK)
+        pdf.set_fill_color(*SLATE_LIGHT)
+        pdf.cell(0, 7, f"  {titulo}", fill=True)
+        pdf.ln()
+        pdf.ln(1)
+
+    def _encabezado(cols):
+        pdf.set_font("Helvetica", "B", 8)
+        pdf.set_text_color(*SLATE_MID)
+        pdf.set_fill_color(*SLATE_LIGHT)
+        for texto, ancho, alin in cols:
+            pdf.cell(ancho, 6, texto, border="B", align=alin, fill=True)
+        pdf.ln()
+
+    def _fila(celdas, par):
+        if par:
+            pdf.set_fill_color(248, 250, 252)
+        else:
+            pdf.set_fill_color(255, 255, 255)
+        pdf.set_draw_color(226, 232, 240)
+        pdf.set_font("Helvetica", "", 8)
+        pdf.set_text_color(*SLATE_DARK)
+        for texto, ancho, alin in celdas:
+            pdf.cell(ancho, 6, str(texto)[:50], border="B", align=alin, fill=True)
+        pdf.ln()
+
+    # Por Categoria
+    if val.por_categoria:
+        _seccion("Por Categoria")
+        _encabezado([
+            ("Categoria", 110, "L"),
+            ("Valor Total", 50, "R"),
+            ("Insumos", 30, "C"),
+        ])
+        for idx, g in enumerate(val.por_categoria):
+            _fila([
+                (g.nombre, 110, "L"),
+                (f"${g.valor_total:,.0f}", 50, "R"),
+                (str(g.cantidad_insumos), 30, "C"),
+            ], idx % 2 == 0)
+        pdf.ln(3)
+
+    # Por Sala
+    if val.por_sala:
+        _seccion("Por Sala")
+        _encabezado([
+            ("Sala", 110, "L"),
+            ("Valor Total", 50, "R"),
+            ("Insumos", 30, "C"),
+        ])
+        for idx, g in enumerate(val.por_sala):
+            _fila([
+                (g.nombre, 110, "L"),
+                (f"${g.valor_total:,.0f}", 50, "R"),
+                (str(g.cantidad_insumos), 30, "C"),
+            ], idx % 2 == 0)
+        pdf.ln(3)
+
+    # Detalle de insumos
+    if val.insumos:
+        _seccion(
+            f"Detalle de Insumos Valorizados ({val.total_insumos_valorados})"
+        )
+        cols_det = [
+            ("Nombre", 55, "L"),
+            ("SKU", 22, "L"),
+            ("Stock", 15, "C"),
+            ("Costo Unit.", 22, "R"),
+            ("Valor Total", 25, "R"),
+            ("Categoria", 28, "L"),
+            ("Sala", 23, "L"),
+        ]
+        _encabezado(cols_det)
+        for idx, i in enumerate(val.insumos):
+            _fila([
+                (i.nombre[:30], 55, "L"),
+                (i.sku or "-", 22, "L"),
+                (str(i.stock_actual), 15, "C"),
+                (f"${i.costo_unitario:,.0f}", 22, "R"),
+                (f"${i.valor_total:,.0f}", 25, "R"),
+                ((i.categoria or "-")[:18], 28, "L"),
+                ((i.sala or "-")[:15], 23, "L"),
+            ], idx % 2 == 0)
+
+    return bytes(pdf.output())
 
 
 # IMPORTANTE: /valorizacion/pdf (ruta estatica) ANTES de /valorizacion
@@ -239,27 +301,15 @@ def exportar_valorizacion_pdf(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(require_reportes),
 ):
-    """Exporta el reporte de valorizacion como PDF (WeasyPrint).
+    """Exporta el reporte de valorizacion como PDF (fpdf2).
     Requiere rol admin, operador_coordinador o visor.
     """
-    try:
-        import weasyprint
-    except ImportError:
-        from fastapi import HTTPException
-        raise HTTPException(
-            status_code=501,
-            detail=(
-                "WeasyPrint no esta instalado en el contenedor. "
-                "Ejecuta: docker compose build --no-cache api"
-            ),
-        )
-
     val = _obtener_valorizacion(db)
-    html = _generar_html_pdf(val, semestre)
     try:
-        pdf_bytes = weasyprint.HTML(string=html).write_pdf()
+        pdf_bytes = _generar_pdf_bytes(val, semestre)
+    except HTTPException:
+        raise
     except Exception as exc:
-        from fastapi import HTTPException
         raise HTTPException(
             status_code=500,
             detail=f"Error al generar PDF: {exc}",
