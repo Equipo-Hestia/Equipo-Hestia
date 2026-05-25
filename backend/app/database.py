@@ -81,6 +81,13 @@ MIGRACIONES_COLUMNAS = [
     "ADD COLUMN IF NOT EXISTS carrera carreraasignatura",
     "ALTER TABLE IF EXISTS clases_docente "
     "ADD COLUMN IF NOT EXISTS num_estudiantes INTEGER",
+    # Horario en clases_docente (Fase 5)
+    "ALTER TABLE IF EXISTS clases_docente "
+    "ADD COLUMN IF NOT EXISTS dia_semana VARCHAR(15)",
+    "ALTER TABLE IF EXISTS clases_docente "
+    "ADD COLUMN IF NOT EXISTS hora_inicio VARCHAR(5)",
+    "ALTER TABLE IF EXISTS clases_docente "
+    "ADD COLUMN IF NOT EXISTS hora_fin VARCHAR(5)",
 ]
 
 # (tabla, tipo_enum_pg, columna, valores_requeridos)

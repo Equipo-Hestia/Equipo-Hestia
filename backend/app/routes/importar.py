@@ -44,6 +44,17 @@ EJEMPLO_HORARIO = [
     ],
 ]
 
+# Mapa de normalizacion de nombres de dia a forma canonica sin tildes.
+_DIAS_MAP = {
+    'lunes': 'lunes', 'lun': 'lunes', 'monday': 'lunes', 'mon': 'lunes',
+    'martes': 'martes', 'mar': 'martes', 'tuesday': 'martes', 'tue': 'martes',
+    'miercoles': 'miercoles', 'mie': 'miercoles',
+    'miércoles': 'miercoles', 'mié': 'miercoles',
+    'wednesday': 'miercoles', 'wed': 'miercoles',
+    'jueves': 'jueves', 'jue': 'jueves', 'thursday': 'jueves', 'thu': 'jueves',
+    'viernes': 'viernes', 'vie': 'viernes', 'friday': 'viernes', 'fri': 'viernes',
+}
+
 
 class ErrorFila(BaseModel):
     fila: int
@@ -89,8 +100,23 @@ def _sanitizar_texto(valor: str) -> str:
     return valor
 
 
+def _normalizar_dia(dia: Optional[str]) -> Optional[str]:
+    """Convierte el nombre del dia a su forma canonica en minusculas.
+
+    Acepta variantes con/sin tilde, abreviaturas de 3 letras e ingles.
+    Devuelve None si dia es None o vacio.
+    """
+    if not dia or not dia.strip():
+        return None
+    return _DIAS_MAP.get(dia.strip().lower(), dia.strip().lower())
+
+
 def _verificar_totp(usuario: Usuario, codigo: str) -> None:
-    """Lanza error si el codigo TOTP no es valido o 2FA no esta habilitado."""
+    """Lanza 403 si el codigo TOTP no es valido o 2FA no esta habilitado.
+
+    Se usa 403 Forbidden (no 401 Unauthorized) para que el interceptor
+    de axios no interprete el error como sesion expirada y cierre la sesion.
+    """
     if not usuario.totp_habilitado or not usuario.totp_secret:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -99,8 +125,8 @@ def _verificar_totp(usuario: Usuario, codigo: str) -> None:
     totp = pyotp.TOTP(usuario.totp_secret)
     if not totp.verify(codigo, valid_window=TOTP_VALID_WINDOW):
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Codigo 2FA incorrecto. La importacion fue cancelada."
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Codigo 2FA incorrecto. Verifica el codigo e intenta nuevamente."
         )
 
 
@@ -482,6 +508,10 @@ def importar_horario_academico(
             ))
             continue
 
+        dia_norm = _normalizar_dia(fila.dia_semana)
+        hora_ini = fila.hora_inicio.strip() if fila.hora_inicio else None
+        hora_fin = fila.hora_fin.strip() if fila.hora_fin else None
+
         clase = db.query(ClaseDocente).filter(
             ClaseDocente.docente_id == docente.id,
             ClaseDocente.asignatura_id == asignatura.id,
@@ -491,6 +521,12 @@ def importar_horario_academico(
 
         if clase:
             clase.activa = True
+            if dia_norm:
+                clase.dia_semana = dia_norm
+            if hora_ini:
+                clase.hora_inicio = hora_ini
+            if hora_fin:
+                clase.hora_fin = hora_fin
             actualizados += 1
         else:
             nueva_clase = ClaseDocente(
@@ -499,6 +535,9 @@ def importar_horario_academico(
                 seccion=fila.seccion.strip(),
                 semestre=fila.semestre.strip(),
                 activa=True,
+                dia_semana=dia_norm,
+                hora_inicio=hora_ini,
+                hora_fin=hora_fin,
             )
             db.add(nueva_clase)
             importados += 1

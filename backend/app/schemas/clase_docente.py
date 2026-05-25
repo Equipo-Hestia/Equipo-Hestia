@@ -31,6 +31,9 @@ class ClaseDocenteResponse(BaseModel):
     semestre: str
     activa: bool
     num_estudiantes: Optional[int] = None
+    dia_semana: Optional[str] = None
+    hora_inicio: Optional[str] = None
+    hora_fin: Optional[str] = None
 
     class Config:
         from_attributes = True

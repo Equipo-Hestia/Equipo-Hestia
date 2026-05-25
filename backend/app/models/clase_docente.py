@@ -11,21 +11,27 @@ class ClaseDocente(Base):
     representa una seccion independiente con su propio grupo de alumnos.
 
     Campos:
-    - seccion:  codigo de seccion, ej '001D'. Se almacena en mayusculas.
-    - semestre: periodo academico, ej '2025-1' o '2025-2'.
-    - activa:   false si la clase ya termino o fue reasignada.
+    - seccion:     codigo de seccion, ej '001D'. Se almacena en mayusculas.
+    - semestre:    periodo academico, ej '2025-1' o '2025-2'.
+    - activa:      false si la clase ya termino o fue reasignada.
+    - dia_semana:  dia de la semana en minusculas, ej 'lunes', 'miercoles'.
+    - hora_inicio: hora de inicio, ej '08:30'.
+    - hora_fin:    hora de termino, ej '12:00'.
     """
     __tablename__ = "clases_docente"
 
     id = Column(Integer, primary_key=True, index=True)
     docente_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
     asignatura_id = Column(Integer, ForeignKey("asignaturas.id"), nullable=False)
-    seccion = Column(String(10), nullable=False)   # Ej: "001D"
-    semestre = Column(String(10), nullable=False)  # Ej: "2025-1"
+    seccion = Column(String(10), nullable=False)
+    semestre = Column(String(10), nullable=False)
     activa = Column(
         Boolean, default=True, nullable=False, server_default="true"
     )
     num_estudiantes = Column(Integer, nullable=True)
+    dia_semana = Column(String(15), nullable=True)  # ej: 'lunes'
+    hora_inicio = Column(String(5), nullable=True)  # ej: '08:30'
+    hora_fin = Column(String(5), nullable=True)     # ej: '12:00'
 
     docente = relationship(
         "Usuario", foreign_keys=[docente_id], back_populates="clases_docente"
