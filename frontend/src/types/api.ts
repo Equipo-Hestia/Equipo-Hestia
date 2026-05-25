@@ -234,6 +234,10 @@ export interface ClaseDocenteResponse {
   semestre: string
   activa: boolean
   num_estudiantes: number | null
+  // Horario (Fase 5)
+  dia_semana: string | null
+  hora_inicio: string | null
+  hora_fin: string | null
 }
 
 // ---------------------------------------------------------------------------
