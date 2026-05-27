@@ -315,3 +315,48 @@ export interface HorarioImportResponse {
   omitidos: number
   errores: { fila: number; razon: string }[]
 }
+
+// ---------------------------------------------------------------------------
+// Activos Fijos: muebles clinicos y phantomas (Fase 5)
+// ---------------------------------------------------------------------------
+
+export type TipoActivo = 'mueble' | 'phantoma'
+export type EstadoActivo = 'disponible' | 'en_uso' | 'en_mantenimiento' | 'dado_de_baja'
+export type FidelidadPhantoma = 'baja' | 'media' | 'alta'
+
+export interface ActivoFijoResponse {
+  id: number
+  nombre: string
+  descripcion: string | null
+  tipo: TipoActivo
+  codigo_interno: string | null
+  codigo_barras: string | null
+  estado: EstadoActivo
+  fidelidad: FidelidadPhantoma | null
+  sala_id: number | null
+  sala_nombre: string | null
+  notas: string | null
+  activo: boolean
+}
+
+export interface ActivoFijoCreate {
+  nombre: string
+  descripcion?: string | null
+  tipo: TipoActivo
+  codigo_barras?: string | null
+  estado?: EstadoActivo
+  fidelidad?: FidelidadPhantoma | null
+  sala_id?: number | null
+  notas?: string | null
+}
+
+export interface ActivoFijoUpdate {
+  nombre?: string
+  descripcion?: string | null
+  codigo_barras?: string | null
+  estado?: EstadoActivo
+  fidelidad?: FidelidadPhantoma | null
+  sala_id?: number | null
+  notas?: string | null
+  activo?: boolean
+}
