@@ -7,6 +7,7 @@ import {
   ClipboardList, RotateCcw, BookOpen, GraduationCap,
   Calendar, CalendarDays, BarChart2,
   ChevronLeft, ChevronRight, Sun, Moon,
+  Sofa,
 } from 'lucide-react'
 import { useAuthStore } from '../../store/auth'
 import { useThemeStore } from '../../store/theme'
@@ -19,6 +20,8 @@ const NAV_ITEMS = [
   { to: '/alertas', icon: AlertTriangle, label: 'Alertas',
     roles: ['admin', 'operador_coordinador', 'operador', 'visor'] },
   { to: '/insumos', icon: Package, label: 'Insumos',
+    roles: ['admin', 'operador_coordinador', 'operador', 'visor'] },
+  { to: '/activos-fijos', icon: Sofa, label: 'Activos Fijos',
     roles: ['admin', 'operador_coordinador', 'operador', 'visor'] },
   { to: '/movimientos', icon: ArrowLeftRight, label: 'Movimientos',
     roles: ['admin', 'operador_coordinador', 'operador', 'visor'] },
