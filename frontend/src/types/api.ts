@@ -382,3 +382,30 @@ export interface EntregaDirectaResponse {
   items_procesados: number
   retornos_pendientes: number
 }
+
+// ---------------------------------------------------------------------------
+// Unidades de implemento: sub-codigos por unidad fisica (Fase 5)
+// ---------------------------------------------------------------------------
+
+export type EstadoUnidad = 'disponible' | 'en_uso' | 'dado_de_baja'
+
+export interface UnidadImplementoResponse {
+  id: number
+  implemento_id: number
+  implemento_nombre: string | null
+  codigo: string | null
+  estado: EstadoUnidad
+  notas: string | null
+  activo: boolean
+}
+
+export interface UnidadImplementoCreate {
+  implemento_id: number
+  notas?: string | null
+}
+
+export interface UnidadImplementoUpdate {
+  estado?: EstadoUnidad
+  notas?: string | null
+  activo?: boolean
+}
