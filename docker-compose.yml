@@ -99,7 +99,10 @@ services:
     restart: unless-stopped
 
   # ── Backup automático de PostgreSQL ───────────────────────────────────
-  # Ejecuta pg_dump diariamente a las 02:00 AM UTC.
+  # Ejecuta pg_dump diariamente a las 02:00 AM hora de Santiago.
+  # TZ=America/Santiago hace que el cron "0 2 * * *" se interprete
+  # en hora local chilena, evitando que el respaldo coincida con
+  # horario de clases vespertinas (que terminan cerca de las 22h).
   # Cifra con AES-256-CBC (BACKUP_ENCRYPTION_KEY del .env).
   # Retención: 7 diarios + 4 semanales (copia extra cada lunes).
   # Los backups se almacenan en el volumen 'backup_data' (/backups).
@@ -114,6 +117,7 @@ services:
       - POSTGRES_PASSWORD=hestia_pass
       - DB_HOST=db
       - BACKUP_ENCRYPTION_KEY=${BACKUP_ENCRYPTION_KEY:-cambia-esta-clave-en-produccion}
+      - TZ=America/Santiago
     volumes:
       - backup_data:/backups
     depends_on:
