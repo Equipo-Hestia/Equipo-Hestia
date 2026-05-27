@@ -2,9 +2,9 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import {
   Package, ChevronLeft, ChevronRight,
   Plus, Pencil, Archive, ArchiveRestore, CheckCircle, ShieldAlert,
-  Download, FileText, X, SlidersHorizontal, Camera, CalendarClock
+  Download, FileText, X, SlidersHorizontal, Camera, CalendarClock, Layers
 } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import { useAuthStore } from '../store/auth'
 import type {
@@ -61,7 +61,9 @@ function formatFechaVenc(fechaISO: string): string {
 
 export function Insumos() {
   const { user } = useAuthStore()
+  const navigate = useNavigate()
   const puedeEscribir = user?.rol === 'admin' || user?.rol === 'operador'
+    || user?.rol === 'operador_coordinador'
   const puedeEliminar = user?.rol === 'admin'
 
   const [insumos, setInsumos]       = useState<InsumoResponse[]>([])
@@ -310,8 +312,8 @@ export function Insumos() {
 
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-black text-slate-900">Insumos</h1>
-          <p className="text-slate-500 text-sm mt-0.5">
+          <h1 className="text-2xl font-black text-slate-900 dark:text-slate-50">Insumos</h1>
+          <p className="text-slate-500 dark:text-slate-400 text-sm mt-0.5">
             {loading ? '...' : `${total} insumos`}{hasFilters && ' (filtrado)'}
           </p>
         </div>
@@ -356,7 +358,8 @@ export function Insumos() {
       </div>
 
       {/* Búsqueda + Filtros */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 mb-5">
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200
+                      dark:border-slate-700 shadow-sm p-4 mb-5">
         <div className="flex gap-2 mb-3">
           <SearchWithSuggestions
             value={searchInput}
@@ -370,21 +373,24 @@ export function Insumos() {
           <SlidersHorizontal size={14} className="text-slate-400" />
           <select value={salaFiltro} onChange={e => { setSalaFiltro(e.target.value); setPage(0) }}
             className="flex-1 min-w-36 px-3 py-1.5 rounded-lg border border-slate-200
-                       text-sm text-slate-600 bg-white focus:outline-none
+                       dark:border-slate-600 text-sm text-slate-600 dark:text-slate-300
+                       bg-white dark:bg-slate-700 focus:outline-none
                        focus:ring-2 focus:ring-teal-500 cursor-pointer">
             <option value="">Todas las salas</option>
             {salas.map(s => <option key={s.id} value={s.id}>{s.nombre}</option>)}
           </select>
           <select value={catFiltro} onChange={e => { setCatFiltro(e.target.value); setPage(0) }}
             className="flex-1 min-w-36 px-3 py-1.5 rounded-lg border border-slate-200
-                       text-sm text-slate-600 bg-white focus:outline-none
+                       dark:border-slate-600 text-sm text-slate-600 dark:text-slate-300
+                       bg-white dark:bg-slate-700 focus:outline-none
                        focus:ring-2 focus:ring-teal-500 cursor-pointer">
             <option value="">Todas las categorías</option>
             {categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
           </select>
           <select value={tipoFiltro} onChange={e => { setTipoFiltro(e.target.value); setPage(0) }}
             className="flex-1 min-w-36 px-3 py-1.5 rounded-lg border border-slate-200
-                       text-sm text-slate-600 bg-white focus:outline-none
+                       dark:border-slate-600 text-sm text-slate-600 dark:text-slate-300
+                       bg-white dark:bg-slate-700 focus:outline-none
                        focus:ring-2 focus:ring-teal-500 cursor-pointer">
             <option value="">Todos los tipos</option>
             <option value="insumo">Insumos</option>
@@ -394,14 +400,18 @@ export function Insumos() {
             <input type="checkbox" checked={bajoStock}
               onChange={e => { setBajoStock(e.target.checked); setPage(0) }}
               className="w-4 h-4 rounded accent-teal-600" />
-            <span className="text-sm font-semibold text-slate-600">Sólo bajo stock</span>
+            <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">
+              Sólo bajo stock
+            </span>
           </label>
           {puedeEliminar && (
             <label className="flex items-center gap-2 cursor-pointer select-none">
               <input type="checkbox" checked={mostrarInactivos}
                 onChange={e => { setMostrar(e.target.checked); setPage(0) }}
                 className="w-4 h-4 rounded accent-teal-600" />
-              <span className="text-sm font-semibold text-slate-600">Mostrar inactivos</span>
+              <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">
+                Mostrar inactivos
+              </span>
             </label>
           )}
           {hasFilters && (
@@ -415,27 +425,37 @@ export function Insumos() {
       </div>
 
       {/* Tabla */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200
+                      dark:border-slate-700 shadow-sm overflow-hidden">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-slate-200 bg-slate-50">
-              <th className="text-left px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Nombre</th>
-              <th className="text-left px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Descripción</th>
-              <th className="text-center px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Stock</th>
-              <th className="text-center px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Mínimo</th>
-              <th className="text-right px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Costo/u</th>
-              <th className="text-center px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">
+            <tr className="border-b border-slate-200 dark:border-slate-700
+                           bg-slate-50 dark:bg-slate-900/50">
+              <th className="text-left px-4 py-3 text-xs font-bold text-slate-500
+                             uppercase tracking-wide">Nombre</th>
+              <th className="text-left px-4 py-3 text-xs font-bold text-slate-500
+                             uppercase tracking-wide">Descripción</th>
+              <th className="text-center px-4 py-3 text-xs font-bold text-slate-500
+                             uppercase tracking-wide">Stock</th>
+              <th className="text-center px-4 py-3 text-xs font-bold text-slate-500
+                             uppercase tracking-wide">Mínimo</th>
+              <th className="text-right px-4 py-3 text-xs font-bold text-slate-500
+                             uppercase tracking-wide">Costo/u</th>
+              <th className="text-center px-4 py-3 text-xs font-bold text-slate-500
+                             uppercase tracking-wide">
                 <span className="flex items-center justify-center gap-1">
                   <CalendarClock size={11} /> Vencimiento
                 </span>
               </th>
-              <th className="text-center px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Estado</th>
+              <th className="text-center px-4 py-3 text-xs font-bold text-slate-500
+                             uppercase tracking-wide">Estado</th>
               {puedeEscribir && (
-                <th className="text-center px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Acciones</th>
+                <th className="text-center px-4 py-3 text-xs font-bold text-slate-500
+                               uppercase tracking-wide">Acciones</th>
               )}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
             {loading ? (
               Array.from({ length: PAGE_SIZE }).map((_, i) => (
                 <TableRowSkeleton key={i} cols={totalCols} />
@@ -454,10 +474,13 @@ export function Insumos() {
               </tr>
             ) : insumos.map(i => (
               <tr key={i.id}
-                className={`hover:bg-slate-50 transition-colors ${i.activo ? '' : 'opacity-60'}`}>
+                className={`hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors
+                            ${i.activo ? '' : 'opacity-60'}`}>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-semibold text-slate-900">{i.nombre}</span>
+                    <span className="font-semibold text-slate-900 dark:text-slate-50">
+                      {i.nombre}
+                    </span>
                     {!i.activo && <Badge variant="danger">Inactivo</Badge>}
                     {i.tipo === 'implemento' && <Badge variant="info">Implemento</Badge>}
                   </div>
@@ -465,32 +488,50 @@ export function Insumos() {
                     <div className="text-xs text-slate-400 font-mono mt-0.5">{i.sku}</div>
                   )}
                 </td>
-                <td className="px-4 py-3 text-slate-500 max-w-xs truncate">
-                  {i.descripcion ?? <span className="text-slate-300">—</span>}
+                <td className="px-4 py-3 text-slate-500 dark:text-slate-400 max-w-xs truncate">
+                  {i.descripcion ?? <span className="text-slate-300 dark:text-slate-600">—</span>}
                 </td>
-                <td className="px-4 py-3 text-center font-bold text-slate-900">{i.stock_actual}</td>
-                <td className="px-4 py-3 text-center text-slate-500">{i.stock_minimo}</td>
-                <td className="px-4 py-3 text-right font-mono text-xs text-slate-600">
+                <td className="px-4 py-3 text-center font-bold text-slate-900 dark:text-slate-50">
+                  {i.stock_actual}
+                </td>
+                <td className="px-4 py-3 text-center text-slate-500 dark:text-slate-400">
+                  {i.stock_minimo}
+                </td>
+                <td className="px-4 py-3 text-right font-mono text-xs text-slate-600
+                               dark:text-slate-300">
                   {i.costo_unitario != null
                     ? `$${Number(i.costo_unitario).toLocaleString('es-CL')}`
-                    : <span className="text-slate-300">—</span>}
+                    : <span className="text-slate-300 dark:text-slate-600">—</span>}
                 </td>
                 <td className="px-4 py-3 text-center">{vencimientoCelda(i)}</td>
                 <td className="px-4 py-3 text-center">{stockBadge(i)}</td>
                 {puedeEscribir && (
                   <td className="px-4 py-3">
-                    <div className="flex items-center justify-center gap-2">
+                    <div className="flex items-center justify-center gap-1.5">
+                      {/* Botón Unidades: solo para implementos activos */}
+                      {i.tipo === 'implemento' && i.activo && (
+                        <button
+                          onClick={() => navigate(`/insumos/${i.id}/unidades`)}
+                          title="Ver unidades físicas"
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-violet-600
+                                     hover:bg-violet-50 dark:hover:bg-violet-900/30
+                                     transition-colors">
+                          <Layers size={14} />
+                        </button>
+                      )}
                       {i.activo ? (
                         <>
                           <button onClick={() => abrirEditar(i)}
                             className="p-1.5 rounded-lg text-slate-400 hover:bg-teal-50
-                                       hover:text-teal-600 transition-colors" title="Editar">
+                                       dark:hover:bg-teal-900/30 hover:text-teal-600
+                                       transition-colors" title="Editar">
                             <Pencil size={14} />
                           </button>
                           {puedeEliminar && (
                             <button onClick={() => abrirEliminar(i)}
                               className="p-1.5 rounded-lg text-slate-400 hover:bg-rose-50
-                                         hover:text-rose-600 transition-colors"
+                                         dark:hover:bg-rose-900/30 hover:text-rose-600
+                                         transition-colors"
                               title="Desactivar insumo">
                               <Archive size={14} />
                             </button>
@@ -516,17 +557,22 @@ export function Insumos() {
         </table>
 
         {!loading && totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200">
-            <p className="text-xs text-slate-500">Página {page + 1} de {totalPages}</p>
+          <div className="flex items-center justify-between px-4 py-3 border-t
+                          border-slate-200 dark:border-slate-700">
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Página {page + 1} de {totalPages}
+            </p>
             <div className="flex items-center gap-1">
               <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}
-                className="p-1.5 rounded-lg hover:bg-slate-100 disabled:opacity-40">
-                <ChevronLeft size={16} className="text-slate-600" />
+                className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700
+                           disabled:opacity-40">
+                <ChevronLeft size={16} className="text-slate-600 dark:text-slate-400" />
               </button>
               <button onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
                 disabled={page >= totalPages - 1}
-                className="p-1.5 rounded-lg hover:bg-slate-100 disabled:opacity-40">
-                <ChevronRight size={16} className="text-slate-600" />
+                className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700
+                           disabled:opacity-40">
+                <ChevronRight size={16} className="text-slate-600 dark:text-slate-400" />
               </button>
             </div>
           </div>
@@ -696,7 +742,9 @@ export function Insumos() {
                               justify-center mx-auto mb-4">
                 <Archive size={24} className="text-rose-600" />
               </div>
-              <p className="font-bold text-slate-900 mb-1">¿Desactivar este insumo?</p>
+              <p className="font-bold text-slate-900 dark:text-slate-50 mb-1">
+                ¿Desactivar este insumo?
+              </p>
               <p className="text-slate-500 text-sm mb-3">
                 <strong>{deleteTarget.nombre}</strong> desaparecerá de los listados
                 y no se le podrán registrar movimientos. Su historial se conserva
@@ -722,7 +770,9 @@ export function Insumos() {
                 </div>
               ) : (
                 <>
-                  <p className="text-slate-400 text-xs mb-5">Necesitarás tu código TOTP para confirmar.</p>
+                  <p className="text-slate-400 text-xs mb-5">
+                    Necesitarás tu código TOTP para confirmar.
+                  </p>
                   <div className="flex gap-3">
                     <button onClick={cerrarModal}
                       className="flex-1 py-2.5 rounded-xl border border-slate-200
@@ -775,7 +825,9 @@ export function Insumos() {
                             justify-center mx-auto mb-4">
               <ArchiveRestore size={24} className="text-emerald-600" />
             </div>
-            <p className="font-bold text-slate-900 mb-1">¿Reactivar este insumo?</p>
+            <p className="font-bold text-slate-900 dark:text-slate-50 mb-1">
+              ¿Reactivar este insumo?
+            </p>
             <p className="text-slate-500 text-sm mb-5">
               <strong>{reactivarTarget.nombre}</strong> volverá a aparecer en
               los listados y podrá recibir movimientos de stock.
