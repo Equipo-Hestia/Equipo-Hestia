@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
-  Sofa, BrainCircuit, Plus, Pencil, PowerOff,
+  Sofa, Brain, Plus, Pencil, PowerOff,
   Search, RefreshCw, ChevronDown,
 } from 'lucide-react'
 import api from '../api/client'
@@ -180,7 +180,7 @@ function ActivoModal({ activo, salas, onClose, onSaved }: ModalProps) {
                         ? 'border-teal-500 bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300'
                         : 'border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-400',
                     ].join(' ')}>
-                    {t === 'mueble' ? <Sofa size={16} /> : <BrainCircuit size={16} />}
+                    {t === 'mueble' ? <Sofa size={16} /> : <Brain size={16} />}
                     {t === 'mueble' ? 'Mueble' : 'Phantoma'}
                   </button>
                 ))}
@@ -354,7 +354,7 @@ export function ActivosFijos() {
   const tabs: { key: FiltroTipo; label: string; icon: React.ReactNode }[] = [
     { key: 'todos', label: 'Todos', icon: null },
     { key: 'mueble', label: 'Muebles', icon: <Sofa size={15} /> },
-    { key: 'phantoma', label: 'Phantomas', icon: <BrainCircuit size={15} /> },
+    { key: 'phantoma', label: 'Phantomas', icon: <Brain size={15} /> },
   ]
 
   const conteos = {
@@ -526,7 +526,7 @@ export function ActivosFijos() {
                       ].join(' ')}>
                         {af.tipo === 'mueble'
                           ? <><Sofa size={11} /> Mueble</>
-                          : <><BrainCircuit size={11} /> Phantoma</>}
+                          : <><Brain size={11} /> Phantoma</>}
                       </span>
                     </td>
                     <td className="px-4 py-3">
