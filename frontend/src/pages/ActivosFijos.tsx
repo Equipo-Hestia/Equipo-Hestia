@@ -336,8 +336,11 @@ export function ActivosFijos() {
 
   useEffect(() => { cargar() }, [cargar])
 
+  // /salas/ devuelve PaginatedResponse — hay que extraer .data del cuerpo
   useEffect(() => {
-    api.get<SalaResponse[]>('/salas/').then(r => setSalas(r.data)).catch(() => {})
+    api.get<{ data: SalaResponse[] }>('/salas/', { params: { limit: 100 } })
+      .then(r => setSalas(r.data.data ?? []))
+      .catch(() => {})
   }, [])
 
   async function handleDarDeBaja(af: ActivoFijoResponse) {
