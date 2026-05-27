@@ -360,3 +360,25 @@ export interface ActivoFijoUpdate {
   notas?: string | null
   activo?: boolean
 }
+
+// ---------------------------------------------------------------------------
+// Entrega directa: retiro presencial sin solicitud previa (Fase 5)
+// ---------------------------------------------------------------------------
+
+export interface EntregaDirectaItem {
+  insumo_id: number
+  cantidad: number
+}
+
+export interface EntregaDirectaCreate {
+  sala_id: number
+  docente_id: number
+  items: EntregaDirectaItem[]
+  notas?: string | null
+}
+
+export interface EntregaDirectaResponse {
+  mensaje: string
+  items_procesados: number
+  retornos_pendientes: number
+}
