@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { useSearchParams, Link } from 'react-router-dom'
+import { useParams, Link } from 'react-router-dom'
 import {
   Package, Plus, Pencil, PowerOff, RefreshCw,
   ChevronLeft, CheckCircle,
@@ -99,7 +99,8 @@ function UnidadModal({ unidad, implementoId, onClose, onSaved }: ModalProps) {
         <div className="px-6 py-5 space-y-4">
           {!esNueva && (
             <div>
-              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide">
+              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400
+                            mb-1 uppercase tracking-wide">
                 Estado
               </p>
               <div className="flex gap-2 flex-wrap">
@@ -164,8 +165,9 @@ export function UnidadesImplemento() {
   const puedeEscribir = user?.rol ? ROLES_ESCRITURA.includes(user.rol) : false
   const esAdmin = user?.rol === 'admin'
 
-  const [searchParams] = useSearchParams()
-  const implementoId = parseInt(searchParams.get('implemento_id') ?? '0')
+  // La ruta es /insumos/:implemento_id/unidades → useParams, NO useSearchParams
+  const { implemento_id } = useParams<{ implemento_id: string }>()
+  const implementoId = parseInt(implemento_id ?? '0')
 
   const [implemento, setImplemento] = useState<InsumoResponse | null>(null)
   const [unidades, setUnidades] = useState<UnidadImplementoResponse[]>([])
@@ -281,10 +283,14 @@ export function UnidadesImplemento() {
       {/* Resumen de estados */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: 'Total', value: conteos.total, cls: 'text-slate-700 dark:text-slate-200' },
-          { label: 'Disponibles', value: conteos.disponibles, cls: 'text-emerald-600 dark:text-emerald-400' },
-          { label: 'En uso', value: conteos.en_uso, cls: 'text-blue-600 dark:text-blue-400' },
-          { label: 'Baja', value: conteos.baja, cls: 'text-rose-500 dark:text-rose-400' },
+          { label: 'Total', value: conteos.total,
+            cls: 'text-slate-700 dark:text-slate-200' },
+          { label: 'Disponibles', value: conteos.disponibles,
+            cls: 'text-emerald-600 dark:text-emerald-400' },
+          { label: 'En uso', value: conteos.en_uso,
+            cls: 'text-blue-600 dark:text-blue-400' },
+          { label: 'Baja', value: conteos.baja,
+            cls: 'text-rose-500 dark:text-rose-400' },
         ].map(stat => (
           <div key={stat.label}
             className="bg-white dark:bg-slate-800 rounded-xl border
