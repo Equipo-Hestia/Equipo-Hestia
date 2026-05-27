@@ -54,6 +54,7 @@ export default defineConfig({
       '/asignaturas':    apiProxy(API),
       '/clases-docente': apiProxy(API),
       '/reportes':       apiProxy(API),
+      '/activos-fijos':  apiProxy(API),
     },
   },
 })
