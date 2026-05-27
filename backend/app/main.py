@@ -14,6 +14,7 @@ from app.models import clase_docente     # noqa  <- Fase 4 (FK a asignatura y us
 from app.models import solicitud         # noqa  <- FK a clase_docente
 from app.models import token_recuperacion  # noqa
 from app.models import retorno_implemento  # noqa
+from app.models import activo_fijo       # noqa  <- Fase 5 (muebles y phantomas)
 from app.routes import (
     salas, categorias, usuarios, movimientos, insumos, auth, resumen, importar
 )
@@ -23,6 +24,7 @@ from app.routes import retornos
 from app.routes import asignaturas
 from app.routes import clases_docente
 from app.routes import reportes
+from app.routes import activos_fijos
 
 # 1) crea tablas nuevas. 2) aplica ALTER TABLE / ALTER TYPE idempotentes.
 Base.metadata.create_all(bind=engine)
@@ -92,6 +94,7 @@ app.include_router(retornos.router)
 app.include_router(asignaturas.router)
 app.include_router(clases_docente.router)
 app.include_router(reportes.router)
+app.include_router(activos_fijos.router)
 
 
 @app.get("/")
