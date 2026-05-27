@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import desc
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime, timezone
 from typing import Optional
 import csv
 import io
@@ -13,10 +13,17 @@ from openpyxl.utils import get_column_letter
 
 from app.database import get_db
 from app.models.movimiento import Movimiento, TipoMovimiento
-from app.models.insumo import Insumo
-from app.models.usuario import Usuario
+from app.models.insumo import Insumo, TipoInsumo
+from app.models.usuario import Usuario, RolUsuario
 from app.models.sala import Sala
-from app.schemas.movimiento import MovimientoCreate, MovimientoResponse, MovimientoEnriquecido
+from app.models.retorno_implemento import RetornoImplemento
+from app.schemas.movimiento import (
+    MovimientoCreate,
+    MovimientoResponse,
+    MovimientoEnriquecido,
+    EntregaDirectaCreate,
+    EntregaDirectaResponse,
+)
 from app.schemas.comun import PaginatedResponse
 from app.utils.deps import get_usuario_actual, require_operador
 from app.utils.auditoria import registrar, get_ip
@@ -78,8 +85,8 @@ def _build_query(
 
 
 # ---------------------------------------------------------------------------
-# IMPORTANTE: /exportar debe ir ANTES de las rutas dinamicas /{id},
-# de lo contrario FastAPI lo interpreta como un entero y devuelve 422.
+# IMPORTANTE: /exportar y /entrega-directa deben ir ANTES de las rutas
+# dinamicas /{id}, de lo contrario FastAPI los interpreta como enteros.
 # ---------------------------------------------------------------------------
 
 @router.get("/exportar")
@@ -159,6 +166,114 @@ def exportar_movimientos(
         io.BytesIO(output.getvalue().encode("utf-8-sig")),
         media_type="text/csv",
         headers={"Content-Disposition": "attachment; filename=movimientos_hestia.csv"},
+    )
+
+
+@router.post("/entrega-directa", response_model=EntregaDirectaResponse)
+def entrega_directa(
+    request: Request,
+    datos: EntregaDirectaCreate,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(require_operador),
+):
+    """Operador registra una entrega inmediata a un docente presente.
+
+    No requiere solicitud previa del docente. Replica exactamente la logica
+    de completar_solicitud: descuenta stock con SELECT FOR UPDATE, crea
+    Movimiento(salida) por cada item y RetornoImplemento(pendiente) para
+    los items de tipo implemento.
+
+    El docente es obligatorio para conservar la trazabilidad de quien
+    retiro cada insumo.
+    """
+    # Validar sala
+    sala = db.query(Sala).filter(Sala.id == datos.sala_id).first()
+    if not sala:
+        raise HTTPException(status_code=404, detail="Sala no encontrada")
+
+    # Validar docente: debe existir, estar activo y tener rol docente
+    docente = db.query(Usuario).filter(
+        Usuario.id == datos.docente_id,
+        Usuario.activo.is_(True),
+    ).first()
+    if not docente or docente.rol != RolUsuario.docente:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El usuario indicado no existe o no tiene rol de docente",
+        )
+
+    # Acumular cantidades por insumo (por si vienen duplicados)
+    cantidades: dict[int, int] = {}
+    for item in datos.items:
+        cantidades[item.insumo_id] = cantidades.get(item.insumo_id, 0) + item.cantidad
+
+    # Bloquear y validar todos los insumos antes de modificar nada
+    insumos_bloqueados: dict[int, Insumo] = {}
+    for insumo_id, cantidad in cantidades.items():
+        insumo = (
+            db.query(Insumo)
+            .filter(Insumo.id == insumo_id)
+            .with_for_update()
+            .first()
+        )
+        nombre = insumo.nombre if insumo else str(insumo_id)
+        if not insumo or not insumo.activo:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"'{nombre}' no esta disponible o fue desactivado",
+            )
+        if insumo.stock_actual < cantidad:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=(
+                    f"Stock insuficiente para '{insumo.nombre}'. "
+                    f"Disponible: {insumo.stock_actual}, solicitado: {cantidad}."
+                ),
+            )
+        insumos_bloqueados[insumo_id] = insumo
+
+    motivo = f"Entrega directa \u2014 {docente.nombre} \u2014 {sala.nombre}"
+    ahora = datetime.now(timezone.utc)
+    retornos_generados = 0
+
+    for insumo_id, cantidad in cantidades.items():
+        insumo = insumos_bloqueados[insumo_id]
+        insumo.stock_actual -= cantidad
+        db.add(Movimiento(
+            tipo=TipoMovimiento.salida,
+            cantidad=cantidad,
+            insumo_id=insumo_id,
+            usuario_id=usuario.id,
+            motivo=motivo,
+        ))
+        if insumo.tipo == TipoInsumo.implemento:
+            db.add(RetornoImplemento(
+                insumo_id=insumo_id,
+                solicitud_id=None,
+                docente_id=datos.docente_id,
+                sala_id=datos.sala_id,
+                cantidad=cantidad,
+                fecha_retiro=ahora,
+            ))
+            retornos_generados += 1
+
+    db.commit()
+    registrar(
+        db,
+        "ENTREGA_DIRECTA",
+        usuario=usuario,
+        entidad="movimiento",
+        entidad_id=None,
+        detalle=(
+            f"{len(cantidades)} item(s) a {docente.nombre}"
+            f" en {sala.nombre}"
+        ),
+        ip=get_ip(request),
+    )
+    return EntregaDirectaResponse(
+        mensaje="Entrega registrada correctamente",
+        items_procesados=len(cantidades),
+        retornos_pendientes=retornos_generados,
     )
 
 
