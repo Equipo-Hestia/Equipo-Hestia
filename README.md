@@ -23,6 +23,7 @@ Hestia es una aplicación web para el control de stock de insumos e implementos 
 ## Funcionalidades
 
 - **Inventario** — CRUD de insumos con tipo (insumo desechable / implemento retornable), SKU, código de barras escaneable, costo unitario y filtros por nombre, sala, categoría, tipo y estado de stock
+- **Activos Fijos** — gestión de muebles clínicos y phantomas de simulación como unidades físicas individuales, cada una con código de barras propio y código interno auto-generado (MUE-XXXXX / PHN-XXXXX); los phantomas incluyen nivel de fidelidad (baja/media/alta)
 - **Escaneo de código de barras** — cámara del móvil desde el navegador (HTTPS/LAN, sin app nativa) usando `@zxing/browser`
 - **Movimientos** — registro de entradas y salidas con trazabilidad por usuario; exportación CSV/XLSX con filtros
 - **Alertas de stock** — insumos bajo mínimo y alertas resueltas con rango configurable
@@ -48,10 +49,10 @@ Hestia es una aplicación web para el control de stock de insumos e implementos 
 
 | Rol | Acceso |
 |---|---|
-| `admin` | Acceso completo — gestión de usuarios, insumos, asignaturas, clases, importar, audit log |
-| `operador_coordinador` | Igual que Operador — gestión de insumos, movimientos, salas, solicitudes y retornos. Sus permisos adicionales se definirán próximamente |
-| `operador` | Insumos, movimientos, alertas, salas, categorías, bandeja de solicitudes, retornos |
-| `visor` | Solo lectura — dashboard, insumos, movimientos, alertas, salas, categorías |
+| `admin` | Acceso completo — gestión de usuarios, insumos, activos fijos, asignaturas, clases, importar, audit log |
+| `operador_coordinador` | Igual que Operador — gestión de insumos, activos fijos, movimientos, salas, solicitudes y retornos. Sus permisos adicionales se definirán próximamente |
+| `operador` | Insumos, activos fijos, movimientos, alertas, salas, categorías, bandeja de solicitudes, retornos |
+| `visor` | Solo lectura — dashboard, insumos, activos fijos, movimientos, alertas, salas, categorías |
 | `docente` | Exclusivo — carrito de retiro de insumos para su clase + historial propio |
 
 ---
@@ -139,6 +140,7 @@ docker compose down -v             # apagar y borrar la base de datos
 # Recargar un servicio tras cambios de configuración
 docker compose restart api         # tras cambios en variables de entorno
 docker compose restart frontend    # tras cambios en vite.config.ts
+docker compose restart nginx       # tras cambios en nginx.conf (sin --build)
 
 # Logs en tiempo real
 docker compose logs -f api
@@ -155,19 +157,13 @@ docker compose logs -f frontend
 
 Hestia está diseñado para correr en un servidor dentro de la red interna de DuocUC. Los clientes acceden únicamente desde su navegador; no instalan nada.
 
-1. Ejecutar `docker compose up --build` en el servidor designado.
-2. Verificar la IP del servidor en la red local (ej. `192.168.1.50`).
-3. Los usuarios acceden desde `http://192.168.1.50:3000`.
+El proyecto incluye un servicio `nginx` con TLS configurado (certificado autofirmado). Los usuarios verán una advertencia de seguridad la primera vez; basta con aceptarla una vez por dispositivo.
 
-Para habilitar el escaneo de códigos de barras por cámara desde dispositivos móviles, el sitio debe servirse por HTTPS. Agregar un proxy inverso (ej. Caddy o nginx con certificado autofirmado) frente al frontend resuelve el requisito del navegador.
-
-Para que el frontend llame a la API correctamente desde otros equipos, crear `frontend/.env` con:
-
-```
-VITE_API_URL=http://192.168.1.50:8000
+```bash
+docker compose up --build
 ```
 
-Y reconstruir el contenedor: `docker compose up --build frontend`.
+Los usuarios acceden desde `https://<IP_SERVIDOR>` (puerto 443).
 
 ---
 
@@ -180,7 +176,7 @@ hestia/
 │   │   ├── models/        → SQLAlchemy (usuario, insumo, sala, categoria,
 │   │   │                               movimiento, solicitud, audit_log,
 │   │   │                               asignatura, clase_docente,
-│   │   │                               retorno_implemento)
+│   │   │                               retorno_implemento, activo_fijo)
 │   │   ├── schemas/       → Pydantic v2
 │   │   ├── routes/        → FastAPI routers
 │   │   └── utils/         → security, deps (RBAC), rate_limit, auditoria
@@ -193,7 +189,7 @@ hestia/
 │   │   ├── pages/         → Dashboard, Insumos, Alertas, Movimientos,
 │   │   │                    Usuarios, SolicitudDocente, SolicitudOperador,
 │   │   │                    RetornosOperador, Asignaturas, ClasesDocente,
-│   │   │                    Perfil, Configuracion2FA, AuditLog,
+│   │   │                    ActivosFijos, Perfil, Configuracion2FA, AuditLog,
 │   │   │                    ImportarInsumos, ImportarHorario…
 │   │   ├── components/    → Layout, Sidebar, ui/ (Badge, Card, Modal,
 │   │   │                    Skeleton, SearchSuggestions, BarcodeScanner,
@@ -203,6 +199,9 @@ hestia/
 │   │   └── types/         → interfaces TypeScript sincronizadas con el backend
 │   └── public/
 │       └── logo.png
+├── docker/
+│   └── nginx/
+│       └── nginx.conf     → reverse proxy HTTPS con TLS 1.2/1.3
 ├── docker-compose.yml
 ├── CLAUDE.md              → contexto técnico para asistentes IA
 └── .github/
