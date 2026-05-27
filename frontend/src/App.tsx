@@ -21,6 +21,7 @@ import { RetornosOperador }  from './pages/RetornosOperador'
 import { Asignaturas }       from './pages/Asignaturas'
 import { ClasesDocente }     from './pages/ClasesDocente'
 import { Reportes }          from './pages/Reportes'
+import { ActivosFijos }      from './pages/ActivosFijos'
 import { Layout }            from './components/layout/Layout'
 import { useAuthStore }      from './store/auth'
 
@@ -84,6 +85,9 @@ export function App() {
             element={<ProtectedRoute roles={NO_DOCENTE}><Salas /></ProtectedRoute>} />
           <Route path="categorias"
             element={<ProtectedRoute roles={NO_DOCENTE}><Categorias /></ProtectedRoute>} />
+
+          <Route path="activos-fijos"
+            element={<ProtectedRoute roles={NO_DOCENTE}><ActivosFijos /></ProtectedRoute>} />
 
           <Route path="reportes"
             element={<ProtectedRoute roles={ROLES_REPORTES}><Reportes /></ProtectedRoute>} />
