@@ -3,7 +3,7 @@ import {
   Sofa, Brain, Plus, Pencil, PowerOff,
   Search, RefreshCw, ChevronDown,
 } from 'lucide-react'
-import api from '../api/client'
+import { api } from '../api/client'
 import { useAuthStore } from '../store/auth'
 import type {
   ActivoFijoResponse,
