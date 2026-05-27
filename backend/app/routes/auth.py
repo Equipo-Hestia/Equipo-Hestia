@@ -9,6 +9,7 @@ import base64
 import pyotp
 import qrcode
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -33,11 +34,22 @@ router = APIRouter(prefix="/auth", tags=["Autenticacion"])
 
 _log = logging.getLogger("hestia.auth")
 
+# Zona horaria del sistema: America/Santiago
+# Se usa para determinar si un login ocurre dentro del horario laboral.
+# Chile opera principalmente en UTC-3 (CLST verano) y UTC-4 (CLT invierno).
+_TZ_CHILE = ZoneInfo("America/Santiago")
+
 TOTP_VALID_WINDOW = 1
 NUM_RECOVERY_CODES = 10
 CUENTA_INACTIVA_DETALLE = "Cuenta inactiva. Contacta al administrador."
-HORARIO_INICIO_H = int(os.getenv("HORARIO_INICIO_H", "8"))
-HORARIO_FIN_H = int(os.getenv("HORARIO_FIN_H", "20"))
+
+# Horario laboral en hora local de Santiago.
+# HORARIO_INICIO_H=7  → alertas si login antes de las 07:00 AM
+# HORARIO_FIN_H=23    → alertas si login a las 23:00 en adelante
+# El turno vespertino de DuocUC puede terminar cerca de las 22:00,
+# por lo que 23h es un margen razonable para no generar falsos positivos.
+HORARIO_INICIO_H = int(os.getenv("HORARIO_INICIO_H", "7"))
+HORARIO_FIN_H = int(os.getenv("HORARIO_FIN_H", "23"))
 
 _PASSWORD_REGLAS = [
     (r'[A-Z]', "al menos una letra mayuscula"),
@@ -180,6 +192,7 @@ def login(
        Si quedan <= 2 intentos, registra ALERTA_INTENTOS_FALLIDOS.
     3. Cuenta inactiva -> LOGIN_BLOQUEADO_INACTIVO.
     4. Login exitoso fuera del horario configurado -> ALERTA_ACCESO_FUERA_HORARIO.
+       La comparacion usa hora local de Santiago (America/Santiago), NO UTC.
     Con 2FA habilitado: devuelve pre_token (5 min).
     Sin 2FA configurado (nuevo usuario o reset): devuelve setup_token (15 min)
     con requires_2fa_setup=True — el usuario DEBE configurar 2FA antes de entrar.
@@ -248,14 +261,16 @@ def login(
     limpiar(form_data.username)
     registrar(db, "LOGIN_EXITOSO", usuario=usuario, ip=get_ip(request))
 
-    hora = datetime.now(timezone.utc).hour
-    if hora < HORARIO_INICIO_H or hora >= HORARIO_FIN_H:
+    # Comparacion en hora local de Santiago, no UTC.
+    # Evita falsos positivos cuando el vespertino termina tarde (22h+).
+    hora_local = datetime.now(_TZ_CHILE).hour
+    if hora_local < HORARIO_INICIO_H or hora_local >= HORARIO_FIN_H:
         registrar(
             db, "ALERTA_ACCESO_FUERA_HORARIO",
             usuario=usuario,
             detalle=(
-                f"Login a las {hora:02d}h UTC "
-                f"(horario configurado: {HORARIO_INICIO_H}-{HORARIO_FIN_H}h)"
+                f"Login a las {hora_local:02d}h (hora Santiago) "
+                f"(horario configurado: {HORARIO_INICIO_H}h-{HORARIO_FIN_H}h)"
             ),
             ip=get_ip(request),
         )
