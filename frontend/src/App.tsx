@@ -1,29 +1,30 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { ReactNode } from 'react'
-import { Login }             from './pages/Login'
-import { ResetPassword }     from './pages/ResetPassword'
-import { Dashboard }         from './pages/Dashboard'
-import { Alertas }           from './pages/Alertas'
-import { Insumos }           from './pages/Insumos'
-import { Movimientos }       from './pages/Movimientos'
-import { Salas }             from './pages/Salas'
-import { Categorias }        from './pages/Categorias'
-import { Configuracion2FA }  from './pages/Configuracion2FA'
-import { ImportarInsumos }   from './pages/ImportarInsumos'
-import { ImportarHorario }   from './pages/ImportarHorario'
-import { VerHorario }        from './pages/VerHorario'
-import { Perfil }            from './pages/Perfil'
-import { Usuarios }          from './pages/Usuarios'
-import { AuditLog }          from './pages/AuditLog'
-import { SolicitudDocente }  from './pages/SolicitudDocente'
-import { SolicitudOperador } from './pages/SolicitudOperador'
-import { RetornosOperador }  from './pages/RetornosOperador'
-import { Asignaturas }       from './pages/Asignaturas'
-import { ClasesDocente }     from './pages/ClasesDocente'
-import { Reportes }          from './pages/Reportes'
-import { ActivosFijos }      from './pages/ActivosFijos'
-import { Layout }            from './components/layout/Layout'
-import { useAuthStore }      from './store/auth'
+import { Login }                from './pages/Login'
+import { ResetPassword }        from './pages/ResetPassword'
+import { Dashboard }            from './pages/Dashboard'
+import { Alertas }              from './pages/Alertas'
+import { Insumos }              from './pages/Insumos'
+import { Movimientos }          from './pages/Movimientos'
+import { Salas }                from './pages/Salas'
+import { Categorias }           from './pages/Categorias'
+import { Configuracion2FA }     from './pages/Configuracion2FA'
+import { ImportarInsumos }      from './pages/ImportarInsumos'
+import { ImportarHorario }      from './pages/ImportarHorario'
+import { VerHorario }           from './pages/VerHorario'
+import { Perfil }               from './pages/Perfil'
+import { Usuarios }             from './pages/Usuarios'
+import { AuditLog }             from './pages/AuditLog'
+import { SolicitudDocente }     from './pages/SolicitudDocente'
+import { SolicitudOperador }    from './pages/SolicitudOperador'
+import { RetornosOperador }     from './pages/RetornosOperador'
+import { Asignaturas }          from './pages/Asignaturas'
+import { ClasesDocente }        from './pages/ClasesDocente'
+import { Reportes }             from './pages/Reportes'
+import { ActivosFijos }         from './pages/ActivosFijos'
+import { UnidadesImplemento }   from './pages/UnidadesImplemento'
+import { Layout }               from './components/layout/Layout'
+import { useAuthStore }         from './store/auth'
 
 function getHomeByRol(rol?: string): string {
   return rol === 'docente' ? '/solicitudes' : '/dashboard'
@@ -75,6 +76,14 @@ export function App() {
           <Route path="insumos"
             element={<ProtectedRoute roles={TODOS}><Insumos /></ProtectedRoute>} />
 
+          {/* Sub-ruta de unidades: accesible para no-docentes desde la tabla de insumos */}
+          <Route path="insumos/:implemento_id/unidades"
+            element={
+              <ProtectedRoute roles={NO_DOCENTE}>
+                <UnidadesImplemento />
+              </ProtectedRoute>
+            } />
+
           <Route path="dashboard"
             element={<ProtectedRoute roles={NO_DOCENTE}><Dashboard /></ProtectedRoute>} />
           <Route path="alertas"
@@ -85,10 +94,8 @@ export function App() {
             element={<ProtectedRoute roles={NO_DOCENTE}><Salas /></ProtectedRoute>} />
           <Route path="categorias"
             element={<ProtectedRoute roles={NO_DOCENTE}><Categorias /></ProtectedRoute>} />
-
           <Route path="activos-fijos"
             element={<ProtectedRoute roles={NO_DOCENTE}><ActivosFijos /></ProtectedRoute>} />
-
           <Route path="reportes"
             element={<ProtectedRoute roles={ROLES_REPORTES}><Reportes /></ProtectedRoute>} />
 
