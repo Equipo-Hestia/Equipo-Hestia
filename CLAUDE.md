@@ -48,7 +48,7 @@ docker compose down -v        # apagar Y borrar la BD
 ```bash
 docker compose exec api python seed_demo.py
 ```
-Genera 8 salas, 10 categorías, 10 usuarios (5 docentes), 8 asignaturas, 10 clases docentes, 88 insumos (con tipo/costo/SKU), y ~560 movimientos distribuidos en 60 días. Los docentes de demo tienen clases asignadas en semestre 2025-1.
+Genera 18 salas (numeración real piso -1 + odontología), 10 categorías, 5 usuarios (sin rol docente), 19 asignaturas de las 5 carreras, 8 clases, 88 insumos (con tipo/costo/SKU), y ~560 movimientos distribuidos en 60 días.
 
 ---
 
@@ -115,7 +115,8 @@ backend/
 **`Usuario`** (`usuarios`)
 ```
 id · nombre · email (unique) · password_hash
-rol (Enum: admin|operador_coordinador|operador|visor|docente)
+rol (Enum: admin|operador_coordinador|operador|visor)
+    ← El rol 'docente' fue eliminado. Las solicitudes las gestionan operadores.
 totp_secret · totp_habilitado · recovery_codes (JSON Text)
 avatar_b64 (Text, base64 PNG 256×256, nullable)
 activo (Boolean, default True — soft-delete)
@@ -123,6 +124,8 @@ Relaciones: solicitudes_retiro → · clases_docente →
 ```
 
 **`Sala`** (`salas`) — `id · nombre · tipo · descripcion`
+
+Salas reales: 010–022 (piso -1), Bodega, Oficina, Sala 07/08/09 Odontología.
 
 **`Categoria`** (`categorias`) — `id · nombre`
 
@@ -133,6 +136,7 @@ tipo (Enum PG: insumo|implemento)  ← implemento debe retornar al área común
 sku (VARCHAR 20, unique index parcial WHERE NOT NULL, auto-generado HST-XXXXX)
 codigo_barras (VARCHAR 100, unique index parcial WHERE NOT NULL)
 costo_unitario (NUMERIC 10,2, nullable — para reportes de valorización)
+fecha_vencimiento (DATE, nullable)
 sala_id (FK nullable) · categoria_id (FK nullable)
 activo (Boolean, soft-delete)
 Relaciones: sala ← · categoria ← · movimientos →
@@ -147,22 +151,33 @@ insumo_id (FK) · usuario_id (FK)
 
 **`Asignatura`** (`asignaturas`) ← Fase 4
 ```
-id · nombre · codigo (VARCHAR 20, unique) · activa (Boolean)
-carrera (Enum PG: TENS|TQF|TLCBS|preparador_fisico, nullable)
+id · nombre · codigo (VARCHAR 20, unique) — código oficial DuocUC (ej: CIS1101)
+activa (Boolean)
+carrera (Enum PG: TENS|TQF|TLCBS|TONS|preparador_fisico, nullable)
 Relaciones: clases →
 ```
 
+**Carreras gestionadas:**
+- `TENS` — Técnico en Enfermería
+- `TQF` — Técnico en Química y Farmacia
+- `TLCBS` — Técnico de Laboratorio Clínico y Banco de Sangre
+- `TONS` — Técnico en Odontología ← agregado mayo 2026
+- `preparador_fisico` — Preparador Físico
+
 **`ClaseDocente`** (`clases_docente`) ← Fase 4
 ```
-id · docente_id (FK usuarios) · asignatura_id (FK asignaturas)
-seccion (VARCHAR 10, ej: '001D') · semestre (VARCHAR 10, ej: '2025-1')
-activa (Boolean)
+id · docente_id (FK usuarios — en la práctica, un operador o coordinador)
+asignatura_id (FK asignaturas)
+seccion (VARCHAR 10, ej: '001D') · semestre (VARCHAR 10, ej: '2026-1')
+activa (Boolean) · num_estudiantes (INTEGER nullable)
+dia_semana (VARCHAR 15 nullable) · hora_inicio (VARCHAR 5) · hora_fin (VARCHAR 5)
 Relaciones: docente ← · asignatura ←
 ```
 
 **`SolicitudRetiro`** (`solicitudes_retiro`)
 ```
-id · docente_id (FK usuarios) · sala_id (FK salas)
+id · docente_id (FK usuarios — operador que crea la solicitud)
+sala_id (FK salas)
 clase_docente_id (FK clases_docente, nullable — permite trazabilidad académica)
 fecha_clase (DateTime timezone=True)
 estado (Enum: pendiente|en_preparacion|completada)
@@ -257,9 +272,9 @@ GET  /movimientos/sala/{id}
 **`/solicitudes`** — ventana [+2h, +7 días] antes de fecha_clase
 ```
 GET  /solicitudes/resumen-recientes
-GET  /solicitudes/mis-solicitudes   (docente)
+GET  /solicitudes/mis-solicitudes   (operador — muestra las propias)
 GET  /solicitudes/                  (operador+; ?estado=)
-POST /solicitudes/                  valida clase_docente_id si se provee
+POST /solicitudes/                  crea una solicitud (operador+)
 PUT  /solicitudes/{id}/en-preparacion
 POST /solicitudes/{id}/completar    genera RetornoImplemento para implementos
 ```
@@ -282,7 +297,7 @@ PUT  /asignaturas/{id}
 **`/clases-docente`** ← Fase 4 — /mis-clases ANTES de /{clase_id}
 ```
 GET  /clases-docente/mis-clases     clases activas del usuario autenticado
-GET  /clases-docente/               admin/operador: todas; docente: las suyas
+GET  /clases-docente/               admin/operador: todas
                                     ?docente_id= ?semestre= ?solo_activas=
 POST /clases-docente/               (admin)
 PUT  /clases-docente/{id}           (admin)
@@ -320,14 +335,15 @@ POST /importar/horario-academico                   JSON {filas:[]} con TOTP en h
 
 ```python
 get_usuario_actual   # cualquier JWT válido
-require_docente      # solo docente
 require_operador     # admin, operador u operador_coordinador
 require_admin        # solo admin
 require_reportes     # admin, operador_coordinador o visor
                      # (operador NO tiene acceso a datos financieros)
 ```
 
-**Rol `operador_coordinador`:** tiene los mismos accesos que `operador` via `require_operador`, MÁS acceso a `/reportes` via `require_reportes`. Permisos diferenciados adicionales pendientes de reunión del 26/05/2026.
+> **Nota:** `require_docente` fue eliminado junto con el rol `docente`. Los endpoints de solicitudes ahora usan `require_operador`.
+
+**Rol `operador_coordinador`:** tiene los mismos accesos que `operador` via `require_operador`, MÁS acceso a `/reportes` via `require_reportes`. Permisos diferenciados adicionales pendientes.
 
 ### 3.6 Seguridad
 
@@ -376,13 +392,12 @@ frontend/src/
 │   ├── Alertas.tsx
 │   ├── Insumos.tsx           # tipo/SKU/barcode/costo + escaneo cámara
 │   ├── Movimientos.tsx
-│   ├── SolicitudDocente.tsx  # selector de clase, ventana 2h-7d
-│   ├── SolicitudOperador.tsx # muestra asignatura/sección en cada tarjeta
+│   ├── SolicitudOperador.tsx # bandeja de solicitudes y creación (operador+)
 │   ├── RetornosOperador.tsx  # tabs Hoy/Pendientes, marcar retornado/merma
-│   ├── Asignaturas.tsx       # CRUD (admin)
-│   ├── ClasesDocente.tsx     # asignación docente→asignatura+sección (admin)
-│   ├── ImportarHorario.tsx   # mapeo de columnas + TOTP; llama /importar/horario-academico
-│   ├── Reportes.tsx          # valorización, costo por carrera, exportar PDF
+│   ├── Asignaturas.tsx       # CRUD con selector de carrera (admin)
+│   ├── ClasesDocente.tsx     # asignación usuario→asignatura+sección (admin)
+│   ├── ImportarHorario.tsx   # mapeo de columnas + TOTP
+│   ├── Reportes.tsx          # valorización, costo por carrera
 │   ├── Salas.tsx
 │   ├── Categorias.tsx
 │   ├── Configuracion2FA.tsx
@@ -411,7 +426,7 @@ frontend/src/
 /alertas           → <Alertas />
 /insumos           → <Insumos />
 /movimientos       → <Movimientos />
-/solicitudes       → <SolicitudDocente /> (docente) | <SolicitudOperador /> (operador+)
+/solicitudes       → <SolicitudOperador /> (operador+)
 /retornos          → <RetornosOperador />  (operador+)
 /asignaturas       → <Asignaturas />       (admin)
 /clases-docente    → <ClasesDocente />     (admin)
@@ -426,6 +441,8 @@ frontend/src/
 /reportes          → <Reportes />  (admin, operador_coordinador, visor)
                                    operador → redirect /dashboard
 ```
+
+> La ruta `/solicitudes` ya no tiene bifurcación por rol docente; siempre carga `<SolicitudOperador />`.
 
 ### 4.3 Proxy de Vite — regla crítica
 
@@ -516,11 +533,11 @@ POST /auth/login
 
 ---
 
-## 6. Flujo de retiro (Fases 1-4)
+## 6. Flujo de retiro (rediseñado — sin rol docente)
 
 ```
-Docente crea solicitud (ventana 2h-7d antes de clase)
-  → opcionalmente vincula a ClaseDocente (asignatura+sección)
+Maritza / Operador crea solicitud antes del semestre
+  → vincula a ClaseDocente (asignatura+sección) si aplica
   → estado: pendiente
 
 Operador ve bandeja → "Marcar en preparación"
@@ -581,43 +598,43 @@ VITE_API_URL=http://<IP_SERVIDOR>:8000
 | Inventario | Autocompletado en búsqueda | ✅ |
 | Movimientos | Registro entrada/salida + listado + filtros | ✅ |
 | Movimientos | Exportación CSV/XLSX | ✅ |
-| Solicitudes | Flujo docente → operador | ✅ |
+| Solicitudes | Flujo operador → bandeja | ✅ |
 | Solicitudes | Ventana 2h-7d antes de clase | ✅ Fase 3 |
 | Solicitudes | Trazabilidad por asignatura/sección | ✅ Fase 4 |
 | Solicitudes | SELECT FOR UPDATE en completar | ✅ |
 | Retornos | Flujo retorno de implementos | ✅ Fase 2 |
 | Retornos | Restaurar stock al retornar | ✅ Fase 2 |
-| Académico | Asignaturas CRUD | ✅ Fase 4 |
-| Académico | Clases docentes (asig+sección+semestre) | ✅ Fase 4 |
+| Académico | Asignaturas CRUD con carrera | ✅ Fase 4 |
+| Académico | 5 carreras: TENS/TQF/TLCBS/TONS/preparador_fisico | ✅ mayo 2026 |
+| Académico | Clases (asig+sección+semestre) | ✅ Fase 4 |
 | Académico | Importar horario CSV con mapeo de columnas | ✅ |
 | Auth | Login + JWT + TOTP 2FA + recovery codes | ✅ |
 | Auth | Rate limiting | ✅ |
 | Auth | Security headers + Permissions-Policy | ✅ |
-| Usuarios | RBAC admin/operador_coordinador/operador/visor/docente | ✅ |
+| Usuarios | RBAC admin/operador_coordinador/operador/visor | ✅ |
+| Usuarios | Rol docente eliminado | ✅ mayo 2026 |
 | Usuarios | CRUD + perfil + foto + cambiar clave | ✅ |
 | Dashboard | Métricas + gráfico + feed + top insumos | ✅ |
 | Audit log | Login, CRUD usuarios, insumos y movimientos | ✅ |
 | UI | Sidebar colapsable con estado persistente | ✅ |
 | UI | Modo oscuro/claro con preferencia persistente | ✅ (layout; páginas internas pendiente) |
 | UI | Tipografía Nunito (Google Fonts) | ✅ |
+| UI | Columna Carrera en tabla de Asignaturas | ✅ mayo 2026 |
 | Reportes | Valorización del stock (por categoría y sala) | ✅ |
-| Reportes | Costo por carrera (nombres completos, columnas alineadas) | ✅ |
+| Reportes | Costo por carrera | ✅ |
 | Reportes | Exportar PDF de valorización (WeasyPrint) | ⚠️ Instalado; verificar runtime |
 | Reportes | Acceso restringido — sin operador básico | ✅ require_reportes |
 
-### Pendiente / ideas para versiones futuras
+### Pendiente / próximos pasos
 
 | Funcionalidad | Complejidad |
 |---|---|
-| Dark mode en páginas internas (Dashboard, Insumos, etc.) | Media — requiere añadir dark: variants por página |
-| Solicitud de compra en PDF (Operador Coordinador) | Media — pendiente reunión 26/05/2026 |
-| Acceso a Ficha FER desde cada sala | Media — pendiente reunión 26/05/2026 |
-| Permisos diferenciados del operador_coordinador | Baja — pendiente reunión 26/05/2026 |
-| Recomendación de insumos por asignatura (historial) | Media |
-| Reportes PDF: ABC, costo por estudiante | Media |
-| Predicción de desabastecimiento | Media |
-| Campo `fecha_vencimiento` en insumos | Media |
-| Gestión de lotes | Muy alta |
+| Modelo Taller + Paquete de insumos (Guía de Taller digital) | Alta |
+| Vista móvil de Operadoras — Guía del día por sala | Media |
+| Reporte de conflictos de recursos (phantomas/implementos sobredemandados) | Media |
+| Reportes exportables en Excel con filtros | Media |
+| Dark mode en páginas internas (Dashboard, Insumos, etc.) | Media |
+| Permisos diferenciados del operador_coordinador | Baja |
 
 ---
 
@@ -647,12 +664,16 @@ VITE_API_URL=http://<IP_SERVIDOR>:8000
 
 12. **`datetime-local` usa hora local.** El helper `toDatetimeLocal(date)` del frontend formatea correctamente sin usar `toISOString()` (que daría UTC y desplazaría min/max por la zona horaria).
 
-13. **Nuevo rol `operador_coordinador`.** Al agregar valores a `RolUsuario`, actualizar también `MIGRACIONES_ROL` en `database.py` para que la migración PG idempotente lo agregue al enum de PostgreSQL en el arranque.
+13. **Enum `carreraasignatura`.** Valores: `TENS|TQF|TLCBS|TONS|preparador_fisico`. Al agregar valores nuevos, actualizar `MIGRACIONES_ENUM` en `database.py`.
 
-14. **Dark mode.** Al crear nuevos componentes o páginas, incluir variantes `dark:` de Tailwind para todos los colores de fondo, texto y bordes. La clase `dark` se gestiona en `document.documentElement` desde `Layout.tsx`. El store está en `store/theme.ts`.
+14. **Enum `rolusuario`.** Valores: `admin|operador_coordinador|operador|visor`. El rol `docente` fue eliminado. No reintroducirlo.
 
-15. **Sidebar colapsado.** El estado de colapso se persiste en `localStorage` con clave `hestia-sidebar-collapsed`. En modo colapsado el sidebar tiene `w-16`; en expandido `w-60`.
+15. **Dark mode.** Al crear nuevos componentes o páginas, incluir variantes `dark:` de Tailwind para todos los colores de fondo, texto y bordes. La clase `dark` se gestiona en `document.documentElement` desde `Layout.tsx`. El store está en `store/theme.ts`.
 
-16. **Blob error parsing.** Peticiones con `responseType: 'blob'` que fallan entregan el error también como Blob. Convertir con `.text()` y parsear JSON para obtener el `detail` real. Ver sección 4.9.
+16. **Sidebar colapsado.** El estado de colapso se persiste en `localStorage` con clave `hestia-sidebar-collapsed`. En modo colapsado el sidebar tiene `w-16`; en expandido `w-60`.
 
-17. **require_reportes.** Los endpoints `/reportes/*` usan esta dependencia exclusivamente. El rol `operador` no tiene acceso a datos financieros.
+17. **Blob error parsing.** Peticiones con `responseType: 'blob'` que fallan entregan el error también como Blob. Convertir con `.text()` y parsear JSON para obtener el `detail` real. Ver sección 4.9.
+
+18. **require_reportes.** Los endpoints `/reportes/*` usan esta dependencia exclusivamente. El rol `operador` no tiene acceso a datos financieros.
+
+19. **Sin require_docente.** La función fue eliminada de `deps.py`. No referenciarla.

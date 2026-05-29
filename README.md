@@ -28,13 +28,13 @@ Hestia es una aplicación web para el control de stock de insumos e implementos 
 - **Movimientos** — registro de entradas y salidas con trazabilidad por usuario; exportación CSV/XLSX con filtros
 - **Alertas de stock** — insumos bajo mínimo y alertas resueltas con rango configurable
 - **Dashboard** — métricas en tiempo real, gráfico semanal, feed de actividad reciente y top insumos retirados
-- **Solicitudes de retiro** — flujo de retiro para docentes: carrito de insumos por clase, sala y asignatura/sección; ventana de 2 horas a 7 días antes de la clase; bandeja de gestión para operadores con indicadores de urgencia
+- **Solicitudes de retiro** — flujo gestionado por operadores: carrito de insumos por taller, sala y clase; bandeja de gestión con indicadores de urgencia
 - **Retorno de implementos** — al completar una solicitud, los implementos generan un registro pendiente de retorno; el operador confirma cuáles volvieron al área común (restaurando stock) y cuáles no (registrados como merma)
-- **Asignaturas y clases docentes** — el admin asigna docentes a asignaturas y secciones por semestre; el docente selecciona su clase al solicitar, habilitando trazabilidad académica y futuros reportes de costo por estudiante
+- **Asignaturas y clases** — el admin registra asignaturas por carrera (TENS, TQF, TLCBS, TONS, Preparador Físico) con su código oficial DuocUC; las clases vinculan asignatura, sección y semestre
 - **Importación masiva** — carga de insumos desde CSV o XLSX con verificación TOTP
-- **Importación de horario académico** — carga de clases docentes desde CSV exportado de DuocUC, con mapeo de columnas interactivo y verificación TOTP
+- **Importación de horario académico** — carga de clases desde CSV exportado de DuocUC, con mapeo de columnas interactivo y verificación TOTP
 - **Exportación CSV/XLSX** — descarga del inventario con los filtros activos
-- **Gestión de usuarios** — CRUD desde la UI con roles admin / operador coordinador / operador / visor / docente
+- **Gestión de usuarios** — CRUD desde la UI con roles admin / operador coordinador / operador / visor
 - **Foto de perfil** — upload con redimensionado automático a 256×256
 - **2FA** — setup wizard con códigos QR, códigos de recuperación y reset desde admin
 - **Soft-delete** — usuarios e insumos se desactivan sin perder trazabilidad histórica
@@ -53,7 +53,30 @@ Hestia es una aplicación web para el control de stock de insumos e implementos 
 | `operador_coordinador` | Igual que Operador — gestión de insumos, activos fijos, movimientos, salas, solicitudes y retornos. Sus permisos adicionales se definirán próximamente |
 | `operador` | Insumos, activos fijos, movimientos, alertas, salas, categorías, bandeja de solicitudes, retornos |
 | `visor` | Solo lectura — dashboard, insumos, activos fijos, movimientos, alertas, salas, categorías |
-| `docente` | Exclusivo — carrito de retiro de insumos para su clase + historial propio |
+
+> El rol `docente` fue eliminado. Las solicitudes de retiro son gestionadas íntegramente por operadores y coordinadores, basándose en la Guía de Taller que prepara Maritza antes del semestre.
+
+---
+
+## Salas
+
+Hestia gestiona **18 salas** del piso -1 de la Escuela de Salud:
+
+- **Salas 010–022** (13 salas clínicas de simulación)
+- **Bodega** y **Oficina**
+- **Salas 07, 08 y 09** — Odontología (edificio anexo, conectadas a la escuela)
+
+---
+
+## Carreras gestionadas
+
+| Código | Carrera |
+|---|---|
+| `TENS` | Técnico en Enfermería |
+| `TQF` | Técnico en Química y Farmacia |
+| `TLCBS` | Técnico de Laboratorio Clínico y Banco de Sangre |
+| `TONS` | Técnico en Odontología |
+| `preparador_fisico` | Preparador Físico |
 
 ---
 
@@ -101,7 +124,7 @@ La base de datos se crea automáticamente al iniciar la API. Las migraciones de 
 
 ### 4. Cargar datos de demo (opcional)
 
-Para una demo con 88 insumos médicos (incluyendo implementos retornables), 8 asignaturas, 10 clases asignadas a docentes, y ~560 movimientos distribuidos en 60 días:
+Para una demo con 88 insumos médicos, 19 asignaturas de las 5 carreras, 8 clases y ~560 movimientos distribuidos en 60 días:
 
 ```bash
 docker compose exec api python seed_demo.py
@@ -118,13 +141,6 @@ El script pide confirmación antes de borrar datos existentes y muestra las cred
 | `cfuentes@hestia.duoc.cl` | `Oper2024!` | Operador |
 | `amartinez@hestia.duoc.cl` | `Visor2024!` | Visor |
 | `lperez@hestia.duoc.cl` | `Visor2024!` | Visor |
-| `c.moreno@hestia.duoc.cl` | `Doc2024!` | Docente |
-| `p.vasquez@hestia.duoc.cl` | `Doc2024!` | Docente |
-| `r.ibanez@hestia.duoc.cl` | `Doc2024!` | Docente |
-| `s.reyes@hestia.duoc.cl` | `Doc2024!` | Docente |
-| `m.tapia@hestia.duoc.cl` | `Doc2024!` | Docente |
-
-> Los 5 docentes ya tienen clases asignadas en el semestre 2025-1, por lo que al iniciar sesión verán el selector de clase al crear solicitudes.
 
 ---
 
@@ -187,9 +203,9 @@ hestia/
 ├── frontend/
 │   ├── src/
 │   │   ├── pages/         → Dashboard, Insumos, Alertas, Movimientos,
-│   │   │                    Usuarios, SolicitudDocente, SolicitudOperador,
-│   │   │                    RetornosOperador, Asignaturas, ClasesDocente,
-│   │   │                    ActivosFijos, Perfil, Configuracion2FA, AuditLog,
+│   │   │                    Usuarios, SolicitudOperador, RetornosOperador,
+│   │   │                    Asignaturas, ClasesDocente, ActivosFijos,
+│   │   │                    Perfil, Configuracion2FA, AuditLog,
 │   │   │                    ImportarInsumos, ImportarHorario…
 │   │   ├── components/    → Layout, Sidebar, ui/ (Badge, Card, Modal,
 │   │   │                    Skeleton, SearchSuggestions, BarcodeScanner,
