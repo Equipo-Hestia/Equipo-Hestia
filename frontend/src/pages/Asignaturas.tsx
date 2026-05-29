@@ -8,6 +8,16 @@ import { Badge } from '../components/ui/Badge'
 import { Modal } from '../components/ui/Modal'
 import { TableRowSkeleton } from '../components/ui/Skeleton'
 
+// Orden visual de carreras en la tabla agrupada
+const ORDEN_CARRERAS: Array<CarreraAsignatura | '__sin_carrera__'> = [
+  'TENS',
+  'TQF',
+  'TLCBS',
+  'TONS',
+  'preparador_fisico',
+  '__sin_carrera__',
+]
+
 const CARRERAS: { value: CarreraAsignatura; label: string }[] = [
   { value: 'TENS', label: 'Técnico en Enfermería' },
   { value: 'TQF', label: 'Técnico en Química y Farmacia' },
@@ -16,17 +26,47 @@ const CARRERAS: { value: CarreraAsignatura; label: string }[] = [
   { value: 'preparador_fisico', label: 'Preparador Físico' },
 ]
 
-const CARRERA_VARIANT: Record<CarreraAsignatura, 'info' | 'success' | 'warning' | 'danger' | 'default'> = {
+type BadgeVariant = 'info' | 'warning' | 'success' | 'danger' | 'purple' | 'default'
+
+const CARRERA_VARIANT: Record<CarreraAsignatura, BadgeVariant> = {
   TENS: 'info',
   TQF: 'warning',
   TLCBS: 'success',
   TONS: 'danger',
-  preparador_fisico: 'default',
+  preparador_fisico: 'purple',
 }
 
 function carreraLabel(c: CarreraAsignatura | null): string {
   if (!c) return '—'
   return CARRERAS.find(x => x.value === c)?.label ?? c
+}
+
+/**
+ * Agrupa las asignaturas por carrera respetando ORDEN_CARRERAS.
+ * Dentro de cada grupo ordena alfabéticamente por nombre.
+ */
+function agruparPorCarrera(
+  lista: AsignaturaResponse[]
+): Array<{ carrera: CarreraAsignatura | null; asignaturas: AsignaturaResponse[] }> {
+  const mapa = new Map<string, AsignaturaResponse[]>()
+
+  for (const a of lista) {
+    const clave = a.carrera ?? '__sin_carrera__'
+    if (!mapa.has(clave)) mapa.set(clave, [])
+    mapa.get(clave)!.push(a)
+  }
+
+  // Ordenar alfabéticamente dentro de cada grupo
+  for (const grupo of mapa.values()) {
+    grupo.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
+  }
+
+  return ORDEN_CARRERAS
+    .filter(c => mapa.has(c))
+    .map(c => ({
+      carrera: c === '__sin_carrera__' ? null : (c as CarreraAsignatura),
+      asignaturas: mapa.get(c)!,
+    }))
 }
 
 interface FormState { nombre: string; codigo: string; carrera: CarreraAsignatura | '' }
@@ -105,6 +145,9 @@ export function Asignaturas() {
     text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-slate-50
     focus:bg-white placeholder:text-slate-400 transition-all`
 
+  const grupos = agruparPorCarrera(asignaturas)
+  const totalVisible = asignaturas.length
+
   return (
     <div className="p-8 max-w-5xl mx-auto">
       {toast && (
@@ -120,7 +163,7 @@ export function Asignaturas() {
             <BookOpen size={22} className="text-teal-600" /> Asignaturas
           </h1>
           <p className="text-slate-500 text-sm mt-0.5">
-            {loading ? '...' : `${asignaturas.length} asignaturas`}
+            {loading ? '...' : `${totalVisible} asignaturas`}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -145,59 +188,80 @@ export function Asignaturas() {
             <tr className="border-b border-slate-200 bg-slate-50">
               <th className="text-left px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Nombre</th>
               <th className="text-left px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Código</th>
-              <th className="text-left px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Carrera</th>
               <th className="text-center px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Estado</th>
               <th className="text-center px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Acciones</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {loading ? (
-              Array.from({ length: 5 }).map((_, i) => <TableRowSkeleton key={i} cols={5} />)
+              Array.from({ length: 5 }).map((_, i) => <TableRowSkeleton key={i} cols={4} />)
             ) : asignaturas.length === 0 ? (
               <tr>
-                <td colSpan={5} className="text-center py-12 text-slate-400">
+                <td colSpan={4} className="text-center py-12 text-slate-400">
                   <BookOpen size={28} className="mx-auto mb-2 opacity-30" />
                   <p className="font-semibold">Sin asignaturas registradas</p>
                 </td>
               </tr>
-            ) : asignaturas.map(a => (
-              <tr key={a.id} className={`hover:bg-slate-50 transition-colors ${a.activa ? '' : 'opacity-60'}`}>
-                <td className="px-4 py-3 font-semibold text-slate-900">{a.nombre}</td>
-                <td className="px-4 py-3 font-mono text-xs text-slate-500">{a.codigo}</td>
-                <td className="px-4 py-3">
-                  {a.carrera
-                    ? (
-                      <Badge variant={CARRERA_VARIANT[a.carrera]}>
-                        {carreraLabel(a.carrera)}
-                      </Badge>
-                    )
-                    : <span className="text-slate-400 text-xs">—</span>
-                  }
-                </td>
-                <td className="px-4 py-3 text-center">
-                  {a.activa
-                    ? <Badge variant="success">Activa</Badge>
-                    : <Badge variant="danger">Inactiva</Badge>}
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center justify-center gap-2">
-                    <button onClick={() => abrirEditar(a)}
-                      className="p-1.5 rounded-lg text-slate-400 hover:bg-teal-50
-                                 hover:text-teal-600 transition-colors" title="Editar">
-                      <Pencil size={14} />
-                    </button>
-                    <button onClick={() => toggleActiva(a)}
-                      className={`p-1.5 rounded-lg transition-colors ${
-                        a.activa
-                          ? 'text-slate-400 hover:bg-rose-50 hover:text-rose-600'
-                          : 'text-slate-400 hover:bg-emerald-50 hover:text-emerald-600'
-                      }`}
-                      title={a.activa ? 'Desactivar' : 'Reactivar'}>
-                      {a.activa ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
-                    </button>
-                  </div>
-                </td>
-              </tr>
+            ) : grupos.map(({ carrera, asignaturas: items }) => (
+              <>
+                {/* Fila separadora de grupo */}
+                <tr key={`grupo-${carrera ?? 'sin'}`}>
+                  <td
+                    colSpan={4}
+                    className="px-4 py-2 bg-slate-50 border-t border-slate-200"
+                  >
+                    <div className="flex items-center gap-2">
+                      {carrera ? (
+                        <Badge variant={CARRERA_VARIANT[carrera]}>
+                          {carreraLabel(carrera)}
+                        </Badge>
+                      ) : (
+                        <span className="text-xs font-semibold text-slate-400">
+                          Sin carrera asignada
+                        </span>
+                      )}
+                      <span className="text-xs text-slate-400">
+                        {items.length} asignatura{items.length !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+                  </td>
+                </tr>
+                {/* Filas de asignaturas del grupo */}
+                {items.map(a => (
+                  <tr
+                    key={a.id}
+                    className={`hover:bg-slate-50 transition-colors ${a.activa ? '' : 'opacity-60'}`}
+                  >
+                    <td className="px-4 py-3 font-semibold text-slate-900 pl-8">
+                      {a.nombre}
+                    </td>
+                    <td className="px-4 py-3 font-mono text-xs text-slate-500">{a.codigo}</td>
+                    <td className="px-4 py-3 text-center">
+                      {a.activa
+                        ? <Badge variant="success">Activa</Badge>
+                        : <Badge variant="danger">Inactiva</Badge>}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-center gap-2">
+                        <button onClick={() => abrirEditar(a)}
+                          className="p-1.5 rounded-lg text-slate-400 hover:bg-teal-50
+                                     hover:text-teal-600 transition-colors" title="Editar">
+                          <Pencil size={14} />
+                        </button>
+                        <button onClick={() => toggleActiva(a)}
+                          className={`p-1.5 rounded-lg transition-colors ${
+                            a.activa
+                              ? 'text-slate-400 hover:bg-rose-50 hover:text-rose-600'
+                              : 'text-slate-400 hover:bg-emerald-50 hover:text-emerald-600'
+                          }`}
+                          title={a.activa ? 'Desactivar' : 'Reactivar'}>
+                          {a.activa ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </>
             ))}
           </tbody>
         </table>

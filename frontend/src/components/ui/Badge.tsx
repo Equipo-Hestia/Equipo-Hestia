@@ -1,14 +1,15 @@
 interface BadgeProps {
-  variant?: 'default' | 'warning' | 'danger' | 'success' | 'info'
+  variant?: 'default' | 'warning' | 'danger' | 'success' | 'info' | 'purple'
   children: React.ReactNode
 }
 
 const variants = {
-  default: 'bg-slate-100 text-slate-600',
+  default: 'bg-slate-100 text-slate-600 border border-slate-200',
   warning: 'bg-amber-50 text-amber-700 border border-amber-200',
   danger:  'bg-rose-50 text-rose-700 border border-rose-200',
   success: 'bg-teal-50 text-teal-700 border border-teal-200',
   info:    'bg-blue-50 text-blue-700 border border-blue-200',
+  purple:  'bg-violet-50 text-violet-700 border border-violet-200',
 }
 
 export function Badge({ variant = 'default', children }: BadgeProps) {
