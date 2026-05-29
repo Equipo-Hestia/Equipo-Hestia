@@ -88,6 +88,9 @@ MIGRACIONES_COLUMNAS = [
     "ADD COLUMN IF NOT EXISTS hora_inicio VARCHAR(5)",
     "ALTER TABLE IF EXISTS clases_docente "
     "ADD COLUMN IF NOT EXISTS hora_fin VARCHAR(5)",
+    # Unidad de medida en insumos
+    "ALTER TABLE IF EXISTS insumos "
+    "ADD COLUMN IF NOT EXISTS unidad_medida VARCHAR(60)",
 ]
 
 # Valores requeridos en cada enum nativo de PostgreSQL.

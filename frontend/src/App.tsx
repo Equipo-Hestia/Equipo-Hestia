@@ -15,47 +15,23 @@ import { VerHorario }           from './pages/VerHorario'
 import { Perfil }               from './pages/Perfil'
 import { Usuarios }             from './pages/Usuarios'
 import { AuditLog }             from './pages/AuditLog'
-import { SolicitudDocente }     from './pages/SolicitudDocente'
-import { SolicitudOperador }    from './pages/SolicitudOperador'
-import { RetornosOperador }     from './pages/RetornosOperador'
 import { Asignaturas }          from './pages/Asignaturas'
 import { ClasesDocente }        from './pages/ClasesDocente'
 import { Reportes }             from './pages/Reportes'
 import { ActivosFijos }         from './pages/ActivosFijos'
 import { UnidadesImplemento }   from './pages/UnidadesImplemento'
+import { Paquetes }             from './pages/Paquetes'
 import { Layout }               from './components/layout/Layout'
 import { useAuthStore }         from './store/auth'
 
-function getHomeByRol(rol?: string): string {
-  return rol === 'docente' ? '/solicitudes' : '/dashboard'
-}
-
-const TODOS             = ['admin', 'operador_coordinador', 'operador', 'visor', 'docente']
-const NO_DOCENTE        = ['admin', 'operador_coordinador', 'operador', 'visor']
-const OPERADOR_PLUS     = ['admin', 'operador_coordinador', 'operador']
-const SOLO_ADMIN        = ['admin']
-const ROLES_REPORTES    = ['admin', 'operador_coordinador', 'visor']
-const ROLES_SOLICITUDES = ['admin', 'operador_coordinador', 'operador', 'docente']
+const TODOS          = ['admin', 'operador_coordinador', 'operador', 'visor']
+const NO_VISOR       = ['admin', 'operador_coordinador', 'operador']
+const SOLO_ADMIN     = ['admin']
+const ROLES_REPORTES = ['admin', 'operador_coordinador', 'visor']
 
 function ProtectedRoute({ roles, children }: { roles: string[]; children: ReactNode }) {
   const { user } = useAuthStore()
   if (user?.rol && roles.includes(user.rol)) return <>{children}</>
-  return <Navigate to={getHomeByRol(user?.rol)} replace />
-}
-
-function IndexRedirect() {
-  const { user } = useAuthStore()
-  return <Navigate to={getHomeByRol(user?.rol)} replace />
-}
-
-function SolicitudesPage() {
-  const { user } = useAuthStore()
-  if (user?.rol === 'docente') return <SolicitudDocente />
-  if (
-    user?.rol === 'operador' ||
-    user?.rol === 'operador_coordinador' ||
-    user?.rol === 'admin'
-  ) return <SolicitudOperador />
   return <Navigate to="/dashboard" replace />
 }
 
@@ -67,7 +43,7 @@ export function App() {
         <Route path="/reset-password" element={<ResetPassword />} />
 
         <Route path="/" element={<Layout />}>
-          <Route index element={<IndexRedirect />} />
+          <Route index element={<Navigate to="/dashboard" replace />} />
 
           <Route path="perfil"
             element={<ProtectedRoute roles={TODOS}><Perfil /></ProtectedRoute>} />
@@ -75,38 +51,26 @@ export function App() {
             element={<ProtectedRoute roles={TODOS}><Configuracion2FA /></ProtectedRoute>} />
           <Route path="insumos"
             element={<ProtectedRoute roles={TODOS}><Insumos /></ProtectedRoute>} />
-
-          {/* Sub-ruta de unidades: accesible para no-docentes desde la tabla de insumos */}
           <Route path="insumos/:implemento_id/unidades"
-            element={
-              <ProtectedRoute roles={NO_DOCENTE}>
-                <UnidadesImplemento />
-              </ProtectedRoute>
-            } />
+            element={<ProtectedRoute roles={TODOS}><UnidadesImplemento /></ProtectedRoute>} />
 
           <Route path="dashboard"
-            element={<ProtectedRoute roles={NO_DOCENTE}><Dashboard /></ProtectedRoute>} />
+            element={<ProtectedRoute roles={TODOS}><Dashboard /></ProtectedRoute>} />
           <Route path="alertas"
-            element={<ProtectedRoute roles={NO_DOCENTE}><Alertas /></ProtectedRoute>} />
+            element={<ProtectedRoute roles={TODOS}><Alertas /></ProtectedRoute>} />
           <Route path="movimientos"
-            element={<ProtectedRoute roles={NO_DOCENTE}><Movimientos /></ProtectedRoute>} />
+            element={<ProtectedRoute roles={TODOS}><Movimientos /></ProtectedRoute>} />
           <Route path="salas"
-            element={<ProtectedRoute roles={NO_DOCENTE}><Salas /></ProtectedRoute>} />
+            element={<ProtectedRoute roles={TODOS}><Salas /></ProtectedRoute>} />
           <Route path="categorias"
-            element={<ProtectedRoute roles={NO_DOCENTE}><Categorias /></ProtectedRoute>} />
+            element={<ProtectedRoute roles={TODOS}><Categorias /></ProtectedRoute>} />
           <Route path="activos-fijos"
-            element={<ProtectedRoute roles={NO_DOCENTE}><ActivosFijos /></ProtectedRoute>} />
+            element={<ProtectedRoute roles={TODOS}><ActivosFijos /></ProtectedRoute>} />
           <Route path="reportes"
             element={<ProtectedRoute roles={ROLES_REPORTES}><Reportes /></ProtectedRoute>} />
 
-          <Route path="solicitudes"
-            element={
-              <ProtectedRoute roles={ROLES_SOLICITUDES}>
-                <SolicitudesPage />
-              </ProtectedRoute>
-            } />
-          <Route path="retornos"
-            element={<ProtectedRoute roles={OPERADOR_PLUS}><RetornosOperador /></ProtectedRoute>} />
+          <Route path="paquetes"
+            element={<ProtectedRoute roles={NO_VISOR}><Paquetes /></ProtectedRoute>} />
 
           <Route path="asignaturas"
             element={<ProtectedRoute roles={SOLO_ADMIN}><Asignaturas /></ProtectedRoute>} />

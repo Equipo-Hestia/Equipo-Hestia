@@ -90,6 +90,8 @@ export interface InsumoResponse {
   sku: string | null
   codigo_barras: string | null
   costo_unitario: number | null
+  unidad_medida: string | null
+  fecha_vencimiento: string | null
 }
 
 export interface SalaResponse {
@@ -154,62 +156,6 @@ export interface PaginatedResponse<T> {
 }
 
 // ---------------------------------------------------------------------------
-// Solicitudes de retiro
-// ---------------------------------------------------------------------------
-
-export type EstadoSolicitud = 'pendiente' | 'en_preparacion' | 'completada'
-
-export interface SolicitudItemResponse {
-  id: number
-  insumo_id: number
-  insumo_nombre: string
-  stock_actual: number
-  cantidad_solicitada: number
-}
-
-export interface SolicitudResponse {
-  id: number
-  docente_id: number
-  docente_nombre: string
-  sala_id: number
-  sala_nombre: string
-  fecha_clase: string
-  estado: EstadoSolicitud
-  notas: string | null
-  notas_operador: string | null
-  fecha_creacion: string
-  fecha_completada: string | null
-  items: SolicitudItemResponse[]
-  minutos_hasta_clase: number
-  // Trazabilidad académica (Fase 4)
-  clase_docente_id: number | null
-  asignatura_nombre: string | null
-  seccion: string | null
-  semestre: string | null
-}
-
-// ---------------------------------------------------------------------------
-// Retornos de implementos (Fase 2)
-// ---------------------------------------------------------------------------
-
-export type EstadoRetorno = 'pendiente' | 'retornado' | 'no_retornado'
-
-export interface RetornoResponse {
-  id: number
-  insumo_id: number
-  insumo_nombre: string
-  solicitud_id: number | null
-  docente_nombre: string | null
-  sala_nombre: string | null
-  cantidad: number
-  fecha_retiro: string
-  fecha_retorno: string | null
-  estado: EstadoRetorno
-  operador_nombre: string | null
-  notas: string | null
-}
-
-// ---------------------------------------------------------------------------
 // Asignaturas y Clases Docente (Fase 4)
 // ---------------------------------------------------------------------------
 
@@ -239,7 +185,6 @@ export interface ClaseDocenteResponse {
   semestre: string
   activa: boolean
   num_estudiantes: number | null
-  // Horario (Fase 5)
   dia_semana: string | null
   hora_inicio: string | null
   hora_fin: string | null
@@ -360,10 +305,6 @@ export interface ConsumoCarrerasResponse {
   carreras: CarreraConsumo[]
 }
 
-// ---------------------------------------------------------------------------
-// Importación de horario académico
-// ---------------------------------------------------------------------------
-
 export interface HorarioFila {
   email_docente: string
   codigo_asignatura: string
@@ -381,10 +322,6 @@ export interface HorarioImportResponse {
   omitidos: number
   errores: { fila: number; razon: string }[]
 }
-
-// ---------------------------------------------------------------------------
-// Activos Fijos: muebles clínicos y phantomas (Fase 5)
-// ---------------------------------------------------------------------------
 
 export type TipoActivo = 'mueble' | 'phantoma'
 export type EstadoActivo = 'disponible' | 'en_uso' | 'en_mantenimiento' | 'dado_de_baja'
@@ -427,10 +364,6 @@ export interface ActivoFijoUpdate {
   activo?: boolean
 }
 
-// ---------------------------------------------------------------------------
-// Entrega directa: retiro presencial sin solicitud previa (Fase 5)
-// ---------------------------------------------------------------------------
-
 export interface EntregaDirectaItem {
   insumo_id: number
   cantidad: number
@@ -448,10 +381,6 @@ export interface EntregaDirectaResponse {
   items_procesados: number
   retornos_pendientes: number
 }
-
-// ---------------------------------------------------------------------------
-// Unidades de implemento: sub-códigos por unidad física (Fase 5)
-// ---------------------------------------------------------------------------
 
 export type EstadoUnidad = 'disponible' | 'en_uso' | 'dado_de_baja'
 

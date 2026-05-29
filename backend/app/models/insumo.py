@@ -29,6 +29,12 @@ class Insumo(Base):
         server_default=TipoInsumo.insumo.value,
     )
 
+    # Unidad de medida: describe como se cuantifica el stock.
+    # Ejemplos: 'caja x100', 'unidad', 'frasco 500mL', 'par', 'rollo 5m'.
+    # Especialmente util para insumos de quimica/farmacia donde el volumen
+    # importa mas que el conteo (1 frasco de 500mL puede durar todo el semestre).
+    unidad_medida = Column(String(60), nullable=True)
+
     # Valoracion economica para reportes de costo por estudiante y ABC
     costo_unitario = Column(Numeric(10, 2), nullable=True)
 

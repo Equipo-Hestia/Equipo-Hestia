@@ -14,6 +14,7 @@ class InsumoCreate(BaseModel):
     sku: str | None = None
     codigo_barras: str | None = None
     costo_unitario: float | None = None
+    unidad_medida: str | None = None
     fecha_vencimiento: date | None = None
 
 
@@ -35,6 +36,7 @@ class InsumoUpdate(BaseModel):
     sku: str | None = None
     codigo_barras: str | None = None
     costo_unitario: float | None = None
+    unidad_medida: str | None = None
     fecha_vencimiento: date | None = None
 
 
@@ -51,6 +53,7 @@ class InsumoResponse(BaseModel):
     sku: str | None = None
     codigo_barras: str | None = None
     costo_unitario: float | None = None
+    unidad_medida: str | None = None
     fecha_vencimiento: date | None = None
 
     class Config:

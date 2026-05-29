@@ -24,12 +24,14 @@ interface FormState {
   sala_id: string; categoria_id: string
   tipo: string; sku: string; codigo_barras: string
   costo_unitario: string; fecha_vencimiento: string
+  unidad_medida: string
 }
 const FORM_VACIO: FormState = {
   nombre: '', descripcion: '', stock_actual: '',
   stock_minimo: '', sala_id: '', categoria_id: '',
   tipo: 'insumo', sku: '', codigo_barras: '',
-  costo_unitario: '', fecha_vencimiento: ''
+  costo_unitario: '', fecha_vencimiento: '',
+  unidad_medida: ''
 }
 function insumoAForm(i: InsumoResponse): FormState {
   return {
@@ -41,12 +43,11 @@ function insumoAForm(i: InsumoResponse): FormState {
     sku: i.sku ?? '',
     codigo_barras: i.codigo_barras ?? '',
     costo_unitario: i.costo_unitario != null ? String(i.costo_unitario) : '',
-    fecha_vencimiento: i.fecha_vencimiento ?? ''
+    fecha_vencimiento: i.fecha_vencimiento ?? '',
+    unidad_medida: i.unidad_medida ?? ''
   }
 }
 
-/** Calcula los días hasta el vencimiento.
- * Usa T00:00:00 para evitar el corrimiento de zona horaria de new Date(ISO). */
 function diasHastaVencer(fechaISO: string): number {
   const hoy = new Date(); hoy.setHours(0, 0, 0, 0)
   const venc = new Date(fechaISO + 'T00:00:00')
@@ -205,6 +206,7 @@ export function Insumos() {
       codigo_barras: form.codigo_barras.trim() || null,
       costo_unitario: form.costo_unitario ? parseFloat(form.costo_unitario) : null,
       fecha_vencimiento: form.fecha_vencimiento || null,
+      unidad_medida: form.unidad_medida.trim() || null,
     }
     try {
       if (editTarget) {
@@ -250,8 +252,8 @@ export function Insumos() {
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
   const showModal  = showCrear || editTarget !== null
-  // 7 columnas de datos + 1 acciones = 8; sin acciones = 7
-  const totalCols  = puedeEscribir ? 8 : 7
+  // Columnas: Nombre | Unidad | Stock | Mínimo | Vencimiento | Estado | [Acciones]
+  const totalCols  = puedeEscribir ? 7 : 6
 
   function stockBadge(i: InsumoResponse) {
     if (i.stock_actual === 0) return <Badge variant="danger">Agotado</Badge>
@@ -259,20 +261,13 @@ export function Insumos() {
     return <Badge variant="success">OK</Badge>
   }
 
-  /** Celda de vencimiento: muestra fecha coloreada según urgencia. */
   function vencimientoCelda(i: InsumoResponse) {
     if (!i.fecha_vencimiento) {
       return <span className="text-slate-300 text-xs">—</span>
     }
     const dias = diasHastaVencer(i.fecha_vencimiento)
     const fecha = formatFechaVenc(i.fecha_vencimiento)
-    if (dias < 0) {
-      return (
-        <span className="inline-flex items-center gap-1">
-          <Badge variant="danger">Vencido</Badge>
-        </span>
-      )
-    }
+    if (dias < 0) return <Badge variant="danger">Vencido</Badge>
     if (dias <= 30) {
       return (
         <span className="inline-flex flex-col items-center gap-0.5">
@@ -299,26 +294,23 @@ export function Insumos() {
         </div>
       )}
 
-      {/* Escáner de código de barras (overlay) */}
       {showScanner && (
         <BarcodeScanner
-          onScan={(barcode) => {
-            setField('codigo_barras', barcode)
-            setShowScanner(false)
-          }}
+          onScan={(barcode) => { setField('codigo_barras', barcode); setShowScanner(false) }}
           onClose={() => setShowScanner(false)}
         />
       )}
 
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 dark:text-slate-50">Insumos</h1>
+          <h1 className="text-2xl font-black text-slate-900 dark:text-slate-50">
+            Insumos e Implementos
+          </h1>
           <p className="text-slate-500 dark:text-slate-400 text-sm mt-0.5">
-            {loading ? '...' : `${total} insumos`}{hasFilters && ' (filtrado)'}
+            {loading ? '...' : `${total} ítems`}{hasFilters && ' (filtrado)'}
           </p>
         </div>
         <div className="flex items-center gap-2">
-
           {puedeEscribir && (
             <div className="relative" ref={exportRef}>
               <button
@@ -346,12 +338,11 @@ export function Insumos() {
               )}
             </div>
           )}
-
           {puedeEscribir && (
             <button onClick={abrirCrear}
               className="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white
                          font-bold px-4 py-2.5 rounded-xl text-sm transition-colors">
-              <Plus size={16} /> Nuevo insumo
+              <Plus size={16} /> Nuevo ítem
             </button>
           )}
         </div>
@@ -368,7 +359,6 @@ export function Insumos() {
             placeholder="Buscar por nombre..."
           />
         </div>
-
         <div className="flex flex-wrap items-center gap-3">
           <SlidersHorizontal size={14} className="text-slate-400" />
           <select value={salaFiltro} onChange={e => { setSalaFiltro(e.target.value); setPage(0) }}
@@ -434,13 +424,11 @@ export function Insumos() {
               <th className="text-left px-4 py-3 text-xs font-bold text-slate-500
                              uppercase tracking-wide">Nombre</th>
               <th className="text-left px-4 py-3 text-xs font-bold text-slate-500
-                             uppercase tracking-wide">Descripción</th>
+                             uppercase tracking-wide">Unidad de medida</th>
               <th className="text-center px-4 py-3 text-xs font-bold text-slate-500
                              uppercase tracking-wide">Stock</th>
               <th className="text-center px-4 py-3 text-xs font-bold text-slate-500
                              uppercase tracking-wide">Mínimo</th>
-              <th className="text-right px-4 py-3 text-xs font-bold text-slate-500
-                             uppercase tracking-wide">Costo/u</th>
               <th className="text-center px-4 py-3 text-xs font-bold text-slate-500
                              uppercase tracking-wide">
                 <span className="flex items-center justify-center gap-1">
@@ -464,7 +452,7 @@ export function Insumos() {
               <tr>
                 <td colSpan={totalCols} className="text-center py-16 text-slate-400">
                   <Package size={32} className="mx-auto mb-2 opacity-30" />
-                  <p className="font-semibold">Sin insumos que mostrar</p>
+                  <p className="font-semibold">Sin ítems que mostrar</p>
                   {hasFilters && (
                     <button onClick={limpiarFiltros} className="text-teal-600 text-xs mt-1 font-bold">
                       Limpiar filtros
@@ -488,8 +476,11 @@ export function Insumos() {
                     <div className="text-xs text-slate-400 font-mono mt-0.5">{i.sku}</div>
                   )}
                 </td>
-                <td className="px-4 py-3 text-slate-500 dark:text-slate-400 max-w-xs truncate">
-                  {i.descripcion ?? <span className="text-slate-300 dark:text-slate-600">—</span>}
+                <td className="px-4 py-3 text-slate-500 dark:text-slate-400 text-sm">
+                  {i.unidad_medida
+                    ? i.unidad_medida
+                    : <span className="text-slate-300 dark:text-slate-600">—</span>
+                  }
                 </td>
                 <td className="px-4 py-3 text-center font-bold text-slate-900 dark:text-slate-50">
                   {i.stock_actual}
@@ -497,18 +488,11 @@ export function Insumos() {
                 <td className="px-4 py-3 text-center text-slate-500 dark:text-slate-400">
                   {i.stock_minimo}
                 </td>
-                <td className="px-4 py-3 text-right font-mono text-xs text-slate-600
-                               dark:text-slate-300">
-                  {i.costo_unitario != null
-                    ? `$${Number(i.costo_unitario).toLocaleString('es-CL')}`
-                    : <span className="text-slate-300 dark:text-slate-600">—</span>}
-                </td>
                 <td className="px-4 py-3 text-center">{vencimientoCelda(i)}</td>
                 <td className="px-4 py-3 text-center">{stockBadge(i)}</td>
                 {puedeEscribir && (
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-center gap-1.5">
-                      {/* Botón Unidades: solo para implementos activos */}
                       {i.tipo === 'implemento' && i.activo && (
                         <button
                           onClick={() => navigate(`/insumos/${i.id}/unidades`)}
@@ -532,7 +516,7 @@ export function Insumos() {
                               className="p-1.5 rounded-lg text-slate-400 hover:bg-rose-50
                                          dark:hover:bg-rose-900/30 hover:text-rose-600
                                          transition-colors"
-                              title="Desactivar insumo">
+                              title="Desactivar">
                               <Archive size={14} />
                             </button>
                           )}
@@ -543,7 +527,7 @@ export function Insumos() {
                             className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg
                                        bg-emerald-50 hover:bg-emerald-100 text-emerald-700
                                        text-xs font-bold transition-colors"
-                            title="Reactivar insumo">
+                            title="Reactivar">
                             <ArchiveRestore size={12} /> Reactivar
                           </button>
                         )
@@ -581,9 +565,12 @@ export function Insumos() {
 
       {/* Modal crear/editar */}
       {showModal && (
-        <Modal title={editTarget ? 'Editar insumo' : 'Nuevo insumo'} onClose={cerrarModal} size="lg">
+        <Modal
+          title={editTarget ? 'Editar ítem' : 'Nuevo insumo o implemento'}
+          onClose={cerrarModal}
+          size="lg"
+        >
           <form onSubmit={handleSubmit} className="space-y-4">
-
             {/* Tipo de ítem */}
             <div>
               <label className={labelCls}>Tipo de ítem *</label>
@@ -622,6 +609,19 @@ export function Insumos() {
                 className={inputCls} placeholder="Ej: Guantes de nitrilo talla M" />
             </div>
 
+            {/* Unidad de medida */}
+            <div>
+              <label className={labelCls}>Unidad de medida</label>
+              <input type="text" value={form.unidad_medida}
+                onChange={e => setField('unidad_medida', e.target.value)}
+                className={inputCls}
+                placeholder="Ej: caja x100, frasco 500 mL, unidad, par, rollo 5 m" />
+              <p className="text-xs text-slate-400 mt-1">
+                Describe cómo se cuantifica el stock. Para líquidos y reactivos,
+                indica el volumen del envase (ej: “frasco 500 mL”).
+              </p>
+            </div>
+
             {/* SKU y código de barras */}
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -652,40 +652,30 @@ export function Insumos() {
               <div>
                 <label className={labelCls}>Stock actual *</label>
                 <input type="number" min="0" required value={form.stock_actual}
-                  onChange={e => setField('stock_actual', e.target.value)} className={inputCls} />
+                  onChange={e => setField('stock_actual', e.target.value)}
+                  className={inputCls} />
               </div>
               <div>
                 <label className={labelCls}>Stock mínimo *</label>
                 <input type="number" min="0" required value={form.stock_minimo}
-                  onChange={e => setField('stock_minimo', e.target.value)} className={inputCls} />
+                  onChange={e => setField('stock_minimo', e.target.value)}
+                  className={inputCls} />
               </div>
             </div>
 
-            {/* Costo y fecha de vencimiento */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className={labelCls}>Costo unitario</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400
-                                   text-sm font-semibold pointer-events-none">$</span>
-                  <input type="number" min="0" step="0.01" value={form.costo_unitario}
-                    onChange={e => setField('costo_unitario', e.target.value)}
-                    className={`${inputCls} pl-6`} placeholder="0.00" />
-                </div>
-              </div>
-              <div>
-                <label className={labelCls}>Fecha de vencimiento</label>
-                <input
-                  type="date"
-                  value={form.fecha_vencimiento}
-                  onChange={e => setField('fecha_vencimiento', e.target.value)}
-                  className={inputCls}
-                />
-              </div>
+            {/* Fecha de vencimiento */}
+            <div>
+              <label className={labelCls}>Fecha de vencimiento</label>
+              <input
+                type="date"
+                value={form.fecha_vencimiento}
+                onChange={e => setField('fecha_vencimiento', e.target.value)}
+                className={inputCls}
+              />
+              <p className="text-xs text-slate-400 mt-1">
+                Útil para reactivos, insumos de enfermería y banco de sangre.
+              </p>
             </div>
-            <p className="text-xs text-slate-400 -mt-2">
-              Vencimiento especialmente útil para reactivos, insumos de enfermería y banco de sangre.
-            </p>
 
             {/* Sala y Categoría */}
             <div className="grid grid-cols-2 gap-4">
@@ -726,7 +716,7 @@ export function Insumos() {
               <button type="submit" disabled={saving}
                 className="flex-1 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700
                            text-white font-bold disabled:opacity-50">
-                {saving ? 'Guardando...' : editTarget ? 'Guardar cambios' : 'Crear insumo'}
+                {saving ? 'Guardando...' : editTarget ? 'Guardar cambios' : 'Crear'}
               </button>
             </div>
           </form>
@@ -735,7 +725,7 @@ export function Insumos() {
 
       {/* Modal desactivar */}
       {deleteTarget && (
-        <Modal title="Desactivar insumo" onClose={cerrarModal} size="sm">
+        <Modal title="Desactivar ítem" onClose={cerrarModal} size="sm">
           {deleteStep === 'confirm' ? (
             <div className="text-center">
               <div className="w-14 h-14 bg-rose-100 rounded-full flex items-center
@@ -743,7 +733,7 @@ export function Insumos() {
                 <Archive size={24} className="text-rose-600" />
               </div>
               <p className="font-bold text-slate-900 dark:text-slate-50 mb-1">
-                ¿Desactivar este insumo?
+                ¿Desactivar este ítem?
               </p>
               <p className="text-slate-500 text-sm mb-3">
                 <strong>{deleteTarget.nombre}</strong> desaparecerá de los listados
@@ -757,7 +747,7 @@ export function Insumos() {
                     <div>
                       <p className="text-amber-800 font-bold text-xs">2FA requerido</p>
                       <p className="text-amber-700 text-xs mt-0.5">
-                        Activa la verificación en dos pasos para desactivar insumos.
+                        Activa la verificación en dos pasos para desactivar ítems.
                       </p>
                     </div>
                   </div>
@@ -819,14 +809,14 @@ export function Insumos() {
 
       {/* Modal reactivar */}
       {reactivarTarget && (
-        <Modal title="Reactivar insumo" onClose={cerrarModal} size="sm">
+        <Modal title="Reactivar ítem" onClose={cerrarModal} size="sm">
           <div className="text-center">
             <div className="w-14 h-14 bg-emerald-100 rounded-full flex items-center
                             justify-center mx-auto mb-4">
               <ArchiveRestore size={24} className="text-emerald-600" />
             </div>
             <p className="font-bold text-slate-900 dark:text-slate-50 mb-1">
-              ¿Reactivar este insumo?
+              ¿Reactivar este ítem?
             </p>
             <p className="text-slate-500 text-sm mb-5">
               <strong>{reactivarTarget.nombre}</strong> volverá a aparecer en

@@ -4,10 +4,10 @@ import {
   ArrowLeftRight, DoorOpen, Tag,
   LogOut, ShieldCheck, Upload,
   UserCircle, Users, ScrollText,
-  ClipboardList, RotateCcw, BookOpen, GraduationCap,
+  BookOpen, GraduationCap,
   Calendar, CalendarDays, BarChart2,
   ChevronLeft, ChevronRight, Sun, Moon,
-  Sofa,
+  Sofa, FlaskConical,
 } from 'lucide-react'
 import { useAuthStore } from '../../store/auth'
 import { useThemeStore } from '../../store/theme'
@@ -19,7 +19,7 @@ const NAV_ITEMS = [
     roles: ['admin', 'operador_coordinador', 'operador', 'visor'] },
   { to: '/alertas', icon: AlertTriangle, label: 'Alertas',
     roles: ['admin', 'operador_coordinador', 'operador', 'visor'] },
-  { to: '/insumos', icon: Package, label: 'Insumos',
+  { to: '/insumos', icon: Package, label: 'Insumos e Implementos',
     roles: ['admin', 'operador_coordinador', 'operador', 'visor'] },
   { to: '/activos-fijos', icon: Sofa, label: 'Activos Fijos',
     roles: ['admin', 'operador_coordinador', 'operador', 'visor'] },
@@ -29,15 +29,11 @@ const NAV_ITEMS = [
     roles: ['admin', 'operador_coordinador', 'operador', 'visor'], divider: true },
   { to: '/categorias', icon: Tag, label: 'Categorías',
     roles: ['admin', 'operador_coordinador', 'operador', 'visor'] },
-  // Reportes: no operador
   { to: '/reportes', icon: BarChart2, label: 'Reportes',
     roles: ['admin', 'operador_coordinador', 'visor'], divider: true },
-  // Flujo operativo
-  { to: '/solicitudes', icon: ClipboardList, label: 'Solicitudes',
-    roles: ['admin', 'operador_coordinador', 'operador'], divider: true },
-  { to: '/retornos', icon: RotateCcw, label: 'Retornos',
+  // Gestión académica
+  { to: '/paquetes', icon: FlaskConical, label: 'Paquetes de insumos',
     roles: ['admin', 'operador_coordinador', 'operador'] },
-  // Academico (admin)
   { to: '/asignaturas', icon: BookOpen, label: 'Asignaturas',
     roles: ['admin'], divider: true },
   { to: '/clases-docente', icon: GraduationCap, label: 'Clases Docentes',
@@ -46,18 +42,13 @@ const NAV_ITEMS = [
     roles: ['admin'] },
   { to: '/importar-horario', icon: Calendar, label: 'Importar Horario',
     roles: ['admin'] },
-  // Administracion
+  // Administración
   { to: '/importar', icon: Upload, label: 'Importar Insumos',
     roles: ['admin'], divider: true },
   { to: '/usuarios', icon: Users, label: 'Usuarios',
     roles: ['admin'] },
   { to: '/audit-log', icon: ScrollText, label: 'Audit Log',
     roles: ['admin'] },
-  // Flujo docente
-  { to: '/solicitudes', icon: ClipboardList, label: 'Retiro de Insumos',
-    roles: ['docente'] },
-  { to: '/insumos', icon: Package, label: 'Insumos',
-    roles: ['docente'] },
 ]
 
 const ROL_LABELS: Record<string, string> = {
@@ -65,7 +56,6 @@ const ROL_LABELS: Record<string, string> = {
   operador_coordinador: 'Op. Coordinador',
   operador: 'Operador',
   visor: 'Visor',
-  docente: 'Docente',
 }
 
 const SIDEBAR_KEY = 'hestia-sidebar-collapsed'
