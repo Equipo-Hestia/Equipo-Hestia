@@ -1,9 +1,10 @@
 import re
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from app.database import get_db
 from app.models.unidad_implemento import UnidadImplemento, EstadoUnidad
 from app.models.insumo import Insumo, TipoInsumo
+from app.models.sala import Sala
 from app.schemas.unidad_implemento import (
     UnidadImplementoCreate,
     UnidadImplementoUpdate,
@@ -19,16 +20,32 @@ def _prefijo(nombre: str) -> str:
 
     Elimina tildes y caracteres no alfanumericos, toma los 3 primeros en
     mayusculas y completa con 'X' si el nombre es muy corto.
-    Ej: 'Oximetro' → 'OXI', 'Fonendoscopio' → 'FON', 'BP' → 'BPX'
+    Ej: 'Oximetro' -> 'OXI', 'Fonendoscopio' -> 'FON', 'BP' -> 'BPX'
     """
-    # Normalizar tildes basicas antes de limpiar
     nombre_norm = (
         nombre.upper()
-        .replace("Á", "A").replace("É", "E").replace("Í", "I")
-        .replace("Ó", "O").replace("Ú", "U").replace("Ñ", "N")
+        .replace("A", "A").replace("E", "E").replace("I", "I")
+        .replace("O", "O").replace("U", "U")
+        .replace("\u00c1", "A").replace("\u00c9", "E").replace("\u00cd", "I")
+        .replace("\u00d3", "O").replace("\u00da", "U").replace("\u00d1", "N")
     )
     solo_alfanum = re.sub(r"[^A-Z0-9]", "", nombre_norm)
     return solo_alfanum[:3].ljust(3, "X")
+
+
+def _cargar(db: Session, unidad_id: int) -> UnidadImplemento:
+    u = (
+        db.query(UnidadImplemento)
+        .options(
+            joinedload(UnidadImplemento.implemento),
+            joinedload(UnidadImplemento.sala),
+        )
+        .filter(UnidadImplemento.id == unidad_id)
+        .first()
+    )
+    if not u:
+        raise HTTPException(status_code=404, detail="Unidad no encontrada")
+    return u
 
 
 def _to_response(u: UnidadImplemento) -> UnidadImplementoResponse:
@@ -38,6 +55,8 @@ def _to_response(u: UnidadImplemento) -> UnidadImplementoResponse:
         implemento_nombre=u.implemento.nombre if u.implemento else None,
         codigo=u.codigo,
         estado=u.estado,
+        sala_id=u.sala_id,
+        sala_nombre=u.sala.nombre if u.sala else None,
         notas=u.notas,
         activo=u.activo,
     )
@@ -48,20 +67,36 @@ def _to_response(u: UnidadImplemento) -> UnidadImplementoResponse:
 @router.get("/", response_model=list[UnidadImplementoResponse])
 def listar(
     implemento_id: int | None = Query(None),
+    sala_id: int | None = Query(None),
     estado: EstadoUnidad | None = Query(None),
     incluir_inactivas: bool = Query(False),
     db: Session = Depends(get_db),
     _=Depends(get_usuario_actual),
 ):
-    """Lista unidades. Filtrable por implemento_id y estado."""
-    q = db.query(UnidadImplemento)
+    """Lista unidades. Filtrable por implemento_id, sala_id y estado.
+
+    sala_id=0 puede usarse como convencion para 'solo bodega',
+    pero se recomienda filtrar por sala_id IS NULL en el cliente.
+    """
+    q = (
+        db.query(UnidadImplemento)
+        .options(
+            joinedload(UnidadImplemento.implemento),
+            joinedload(UnidadImplemento.sala),
+        )
+    )
     if not incluir_inactivas:
         q = q.filter(UnidadImplemento.activo.is_(True))
     if implemento_id:
         q = q.filter(UnidadImplemento.implemento_id == implemento_id)
+    if sala_id is not None:
+        q = q.filter(UnidadImplemento.sala_id == sala_id)
     if estado:
         q = q.filter(UnidadImplemento.estado == estado)
-    return [_to_response(u) for u in q.order_by(UnidadImplemento.codigo).all()]
+    return [
+        _to_response(u)
+        for u in q.order_by(UnidadImplemento.codigo).all()
+    ]
 
 
 @router.post("/", response_model=UnidadImplementoResponse, status_code=201)
@@ -73,6 +108,7 @@ def crear(
     """Registra una nueva unidad fisica de un implemento.
 
     Solo se puede crear sobre insumos de tipo=implemento.
+    sala_id=NULL significa que la unidad esta en Bodega.
     El codigo se genera automaticamente: prefijo 3 chars + id con padding.
     """
     implemento = db.query(Insumo).filter(Insumo.id == datos.implemento_id).first()
@@ -81,23 +117,30 @@ def crear(
     if implemento.tipo != TipoInsumo.implemento:
         raise HTTPException(
             status_code=400,
-            detail=f"'{implemento.nombre}' es de tipo insumo, no implemento. "
-                   "Solo se pueden registrar unidades para implementos.",
+            detail=(
+                f"'{implemento.nombre}' es de tipo insumo, no implemento. "
+                "Solo se pueden registrar unidades para implementos."
+            ),
         )
+
+    if datos.sala_id is not None:
+        sala = db.query(Sala).filter(Sala.id == datos.sala_id).first()
+        if not sala:
+            raise HTTPException(status_code=404, detail="Sala no encontrada")
 
     unidad = UnidadImplemento(
         implemento_id=datos.implemento_id,
+        sala_id=datos.sala_id,
         notas=datos.notas,
     )
     db.add(unidad)
-    db.flush()  # obtener id para generar codigo
+    db.flush()
 
     prefijo = _prefijo(implemento.nombre)
     unidad.codigo = f"{prefijo}-{unidad.id:05d}"
 
     db.commit()
-    db.refresh(unidad)
-    return _to_response(unidad)
+    return _to_response(_cargar(db, unidad.id))
 
 
 @router.get("/{unidad_id}", response_model=UnidadImplementoResponse)
@@ -106,10 +149,7 @@ def obtener(
     db: Session = Depends(get_db),
     _=Depends(get_usuario_actual),
 ):
-    u = db.query(UnidadImplemento).filter(UnidadImplemento.id == unidad_id).first()
-    if not u:
-        raise HTTPException(status_code=404, detail="Unidad no encontrada")
-    return _to_response(u)
+    return _to_response(_cargar(db, unidad_id))
 
 
 @router.put("/{unidad_id}", response_model=UnidadImplementoResponse)
@@ -119,14 +159,22 @@ def actualizar(
     db: Session = Depends(get_db),
     _=Depends(require_operador),
 ):
-    u = db.query(UnidadImplemento).filter(UnidadImplemento.id == unidad_id).first()
-    if not u:
-        raise HTTPException(status_code=404, detail="Unidad no encontrada")
+    """Actualiza estado, sala y notas de una unidad.
+
+    Para mover una unidad de Bodega a una sala: sala_id=<id_sala>.
+    Para devolverla a Bodega: sala_id=null (no enviar el campo).
+    """
+    u = _cargar(db, unidad_id)
+
+    if datos.sala_id is not None:
+        sala = db.query(Sala).filter(Sala.id == datos.sala_id).first()
+        if not sala:
+            raise HTTPException(status_code=404, detail="Sala no encontrada")
+
     for campo, valor in datos.model_dump(exclude_unset=True).items():
         setattr(u, campo, valor)
     db.commit()
-    db.refresh(u)
-    return _to_response(u)
+    return _to_response(_cargar(db, unidad_id))
 
 
 @router.delete("/{unidad_id}", status_code=204)

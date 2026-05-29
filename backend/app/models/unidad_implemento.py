@@ -14,20 +14,21 @@ class EstadoUnidad(str, enum.Enum):
 class UnidadImplemento(Base):
     """Unidad fisica individual de un implemento retornable.
 
-    Resuelve la ambiguedad de retornos cuando varios docentes retiran
-    unidades del mismo implemento: en lugar de contar 'N oximetros',
-    cada unidad tiene su propio codigo (ej. OXI-00001) y puede
-    rastrearse de forma independiente.
+    Cada unidad tiene su propio codigo (ej. OXI-00001) y puede
+    rastrearse de forma independiente: estado, sala donde esta
+    asignada y notas de mantenimiento.
 
-    El codigo se auto-genera al crear: primeros 3 chars del nombre del
-    implemento (mayus, alfanumericos) + id con padding de 5 digitos.
-    Ejemplo: implemento 'Oximetro' → OXI-00001, OXI-00002, ...
-             implemento 'Fonendoscopio' → FON-00001, ...
+    Ubicacion:
+    - sala_id = NULL   → la unidad esta en Bodega (sin asignar).
+    - sala_id = X      → asignada permanentemente a esa sala clinica.
+      La operadora verifica fisicamente que este alli al inicio del
+      semestre y reporta si hay unidades danadas para reemplazarlas
+      desde Bodega.
 
     Estados:
-    - disponible:  en el area comun, lista para retiro.
-    - en_uso:      actualmente retirada por un docente.
-    - dado_de_baja: fuera de servicio permanente (baja logica).
+    - disponible:    en la sala o bodega asignada, en buen estado.
+    - en_uso:        actualmente retirada para un taller.
+    - dado_de_baja:  danada o fuera de servicio (baja logica).
     """
     __tablename__ = "unidades_implemento"
 
@@ -35,6 +36,13 @@ class UnidadImplemento(Base):
 
     # FK al Insumo de tipo=implemento al que pertenece esta unidad.
     implemento_id = Column(Integer, ForeignKey("insumos.id"), nullable=False)
+
+    # Sala donde esta asignada fisicamente esta unidad.
+    # NULL = en Bodega (sin asignar a sala especifica).
+    # Ej: 10 gafas en sala 010, 10 en sala 011, 30 en Bodega.
+    sala_id = Column(
+        Integer, ForeignKey("salas.id", ondelete="SET NULL"), nullable=True
+    )
 
     # Codigo auto-generado: prefijo 3 chars + id con padding.
     # Unico globalmente; indexado para busqueda por escaner.
@@ -53,3 +61,4 @@ class UnidadImplemento(Base):
     activo = Column(Boolean, default=True, nullable=False, server_default="true")
 
     implemento = relationship("Insumo", backref="unidades")
+    sala = relationship("Sala")

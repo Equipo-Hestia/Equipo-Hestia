@@ -91,6 +91,11 @@ MIGRACIONES_COLUMNAS = [
     # Unidad de medida en insumos
     "ALTER TABLE IF EXISTS insumos "
     "ADD COLUMN IF NOT EXISTS unidad_medida VARCHAR(60)",
+    # Sala asignada por unidad fisica de implemento
+    # NULL = en Bodega; valor = sala donde esta fisicamente asignada
+    "ALTER TABLE IF EXISTS unidades_implemento "
+    "ADD COLUMN IF NOT EXISTS sala_id INTEGER "
+    "REFERENCES salas(id) ON DELETE SET NULL",
 ]
 
 # Valores requeridos en cada enum nativo de PostgreSQL.
