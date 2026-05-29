@@ -8,14 +8,16 @@ from app.database import Base, engine, aplicar_migraciones_pendientes
 # create_all(). El orden importa: modelos con FK deben cargarse despues del
 # modelo referenciado.
 from app.models import sala, categoria, usuario, movimiento, insumo  # noqa
-from app.models import audit_log         # noqa
-from app.models import asignatura        # noqa  <- Fase 4
-from app.models import clase_docente     # noqa  <- Fase 4 (FK a asignatura y usuario)
-from app.models import solicitud         # noqa  <- FK a clase_docente
+from app.models import audit_log          # noqa
+from app.models import asignatura         # noqa  <- Fase 4
+from app.models import clase_docente      # noqa  <- Fase 4 (FK a asignatura y usuario)
+from app.models import solicitud          # noqa  <- FK a clase_docente
 from app.models import token_recuperacion  # noqa
 from app.models import retorno_implemento  # noqa
-from app.models import activo_fijo       # noqa  <- Fase 5 (muebles y phantomas)
+from app.models import activo_fijo        # noqa  <- Fase 5 (muebles y phantomas)
 from app.models import unidad_implemento  # noqa  <- Fase 5 (sub-codigos implementos)
+from app.models import taller             # noqa  <- Guia de Taller (FK a asignatura)
+from app.models import paquete_insumo     # noqa  <- Guia de Taller (FK a taller e insumo)
 from app.routes import (
     salas, categorias, usuarios, movimientos, insumos, auth, resumen, importar
 )
@@ -27,6 +29,8 @@ from app.routes import clases_docente
 from app.routes import reportes
 from app.routes import activos_fijos
 from app.routes import unidades_implemento
+from app.routes import talleres
+from app.routes import paquetes_insumo
 
 # 1) crea tablas nuevas. 2) aplica ALTER TABLE / ALTER TYPE idempotentes.
 Base.metadata.create_all(bind=engine)
@@ -98,6 +102,8 @@ app.include_router(clases_docente.router)
 app.include_router(reportes.router)
 app.include_router(activos_fijos.router)
 app.include_router(unidades_implemento.router)
+app.include_router(talleres.router)
+app.include_router(paquetes_insumo.router)
 
 
 @app.get("/")

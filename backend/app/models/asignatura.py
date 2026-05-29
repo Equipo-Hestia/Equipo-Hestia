@@ -33,3 +33,4 @@ class Asignatura(Base):
     )
 
     clases = relationship("ClaseDocente", back_populates="asignatura")
+    talleres = relationship("Taller", back_populates="asignatura")
