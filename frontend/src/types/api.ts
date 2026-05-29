@@ -246,6 +246,67 @@ export interface ClaseDocenteResponse {
 }
 
 // ---------------------------------------------------------------------------
+// Talleres y Paquetes de insumos (Guía de Taller)
+// ---------------------------------------------------------------------------
+
+export interface TallerResponse {
+  id: number
+  nombre: string
+  descripcion: string | null
+  asignatura_id: number | null
+  asignatura_nombre: string | null
+  asignatura_codigo: string | null
+  activo: boolean
+}
+
+export interface TallerCreate {
+  nombre: string
+  descripcion?: string | null
+  asignatura_id?: number | null
+}
+
+export interface TallerUpdate {
+  nombre?: string
+  descripcion?: string | null
+  asignatura_id?: number | null
+  activo?: boolean
+}
+
+export interface PaqueteItemResponse {
+  id: number
+  insumo_id: number
+  insumo_nombre: string
+  insumo_tipo: TipoInsumo
+  cantidad_requerida: number
+  notas: string | null
+}
+
+export interface PaqueteResponse {
+  id: number
+  taller_id: number
+  taller_nombre: string
+  semestre: string
+  bloqueado: boolean
+  notas: string | null
+  fecha_creacion: string
+  creado_por_nombre: string | null
+  items: PaqueteItemResponse[]
+}
+
+export interface PaqueteCreate {
+  taller_id: number
+  semestre: string
+  notas?: string | null
+  items?: { insumo_id: number; cantidad_requerida: number; notas?: string | null }[]
+}
+
+export interface PaqueteItemCreate {
+  insumo_id: number
+  cantidad_requerida: number
+  notas?: string | null
+}
+
+// ---------------------------------------------------------------------------
 // Reportes de valorización e inventario
 // ---------------------------------------------------------------------------
 

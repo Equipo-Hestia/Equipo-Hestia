@@ -56,6 +56,8 @@ export default defineConfig({
       '/reportes':               apiProxy(API),
       '/activos-fijos':          apiProxy(API),
       '/unidades-implemento':    apiProxy(API),
+      '/talleres':               apiProxy(API),
+      '/paquetes':               apiProxy(API),
     },
   },
 })
