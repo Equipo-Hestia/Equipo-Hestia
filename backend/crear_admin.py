@@ -17,10 +17,12 @@ from app.models.movimiento import Movimiento
 # solicitud define SolicitudRetiro, que Usuario referencia via
 # relationship("SolicitudRetiro", ...). Sin este import, db.query(Usuario)
 # falla con InvalidRequestError al intentar configurar el mapper.
-from app.models import solicitud  # noqa  <- SolicitudRetiro y SolicitudItem
-from app.models import audit_log  # noqa  <- AuditLog
+from app.models import solicitud       # noqa  <- SolicitudRetiro y SolicitudItem
+from app.models import audit_log       # noqa  <- AuditLog
 from app.models.clase_docente import ClaseDocente  # noqa  <- ClaseDocente
-from app.models.asignatura import Asignatura  # noqa  <- Asignatura
+from app.models.asignatura import Asignatura       # noqa  <- Asignatura
+from app.models import taller          # noqa  <- Taller (FK desde Asignatura.talleres)
+from app.models import paquete_insumo  # noqa  <- PaqueteInsumo y PaqueteItem
 
 # --- Leer credenciales desde el entorno, sin defaults ---
 # Si alguna variable falta, el script falla con un mensaje claro.
