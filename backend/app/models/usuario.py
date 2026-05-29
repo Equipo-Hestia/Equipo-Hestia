@@ -10,7 +10,6 @@ class RolUsuario(str, enum.Enum):
     operador_coordinador = "operador_coordinador"
     operador = "operador"
     visor = "visor"
-    docente = "docente"
 
 
 class Usuario(Base):

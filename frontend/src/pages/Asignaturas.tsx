@@ -1,26 +1,47 @@
 import { useEffect, useState, useCallback } from 'react'
 import {
-  BookOpen, Plus, Pencil, CheckCircle, X, ToggleLeft, ToggleRight
+  BookOpen, Plus, Pencil, CheckCircle, ToggleLeft, ToggleRight
 } from 'lucide-react'
 import { api } from '../api/client'
-import type { AsignaturaResponse } from '../types/api'
+import type { AsignaturaResponse, CarreraAsignatura } from '../types/api'
 import { Badge } from '../components/ui/Badge'
 import { Modal } from '../components/ui/Modal'
 import { TableRowSkeleton } from '../components/ui/Skeleton'
 
-interface FormState { nombre: string; codigo: string }
-const VACIO: FormState = { nombre: '', codigo: '' }
+const CARRERAS: { value: CarreraAsignatura; label: string }[] = [
+  { value: 'TENS', label: 'Técnico en Enfermería' },
+  { value: 'TQF', label: 'Técnico en Química y Farmacia' },
+  { value: 'TLCBS', label: 'Téc. Laboratorio Clínico y Banco de Sangre' },
+  { value: 'TONS', label: 'Técnico en Odontología' },
+  { value: 'preparador_fisico', label: 'Preparador Físico' },
+]
+
+const CARRERA_VARIANT: Record<CarreraAsignatura, 'info' | 'success' | 'warning' | 'danger' | 'default'> = {
+  TENS: 'info',
+  TQF: 'warning',
+  TLCBS: 'success',
+  TONS: 'danger',
+  preparador_fisico: 'default',
+}
+
+function carreraLabel(c: CarreraAsignatura | null): string {
+  if (!c) return '—'
+  return CARRERAS.find(x => x.value === c)?.label ?? c
+}
+
+interface FormState { nombre: string; codigo: string; carrera: CarreraAsignatura | '' }
+const VACIO: FormState = { nombre: '', codigo: '', carrera: '' }
 
 export function Asignaturas() {
   const [asignaturas, setAsignaturas] = useState<AsignaturaResponse[]>([])
-  const [loading, setLoading]         = useState(true)
+  const [loading, setLoading] = useState(true)
   const [incluirInactivas, setIncluir] = useState(false)
-  const [showModal, setShowModal]     = useState(false)
-  const [editTarget, setEditTarget]   = useState<AsignaturaResponse | null>(null)
-  const [form, setForm]               = useState<FormState>(VACIO)
-  const [saving, setSaving]           = useState(false)
-  const [formError, setFormError]     = useState<string | null>(null)
-  const [toast, setToast]             = useState<string | null>(null)
+  const [showModal, setShowModal] = useState(false)
+  const [editTarget, setEditTarget] = useState<AsignaturaResponse | null>(null)
+  const [form, setForm] = useState<FormState>(VACIO)
+  const [saving, setSaving] = useState(false)
+  const [formError, setFormError] = useState<string | null>(null)
+  const [toast, setToast] = useState<string | null>(null)
 
   function showToast(msg: string) {
     setToast(msg); setTimeout(() => setToast(null), 3000)
@@ -42,19 +63,24 @@ export function Asignaturas() {
     setForm(VACIO); setFormError(null); setEditTarget(null); setShowModal(true)
   }
   function abrirEditar(a: AsignaturaResponse) {
-    setForm({ nombre: a.nombre, codigo: a.codigo })
+    setForm({ nombre: a.nombre, codigo: a.codigo, carrera: a.carrera ?? '' })
     setFormError(null); setEditTarget(a); setShowModal(true)
   }
   function cerrar() { setShowModal(false); setFormError(null) }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault(); setSaving(true); setFormError(null)
+    const payload = {
+      nombre: form.nombre,
+      codigo: form.codigo,
+      carrera: form.carrera || null,
+    }
     try {
       if (editTarget) {
-        await api.put(`/asignaturas/${editTarget.id}`, form)
+        await api.put(`/asignaturas/${editTarget.id}`, payload)
         showToast('Asignatura actualizada')
       } else {
-        await api.post('/asignaturas/', form)
+        await api.post('/asignaturas/', payload)
         showToast('Asignatura creada')
       }
       cerrar(); load()
@@ -80,7 +106,7 @@ export function Asignaturas() {
     focus:bg-white placeholder:text-slate-400 transition-all`
 
   return (
-    <div className="p-8 max-w-4xl mx-auto">
+    <div className="p-8 max-w-5xl mx-auto">
       {toast && (
         <div className="fixed top-6 right-6 z-50 flex items-center gap-2 bg-teal-600
                         text-white px-4 py-3 rounded-xl shadow-lg text-sm font-semibold">
@@ -119,16 +145,17 @@ export function Asignaturas() {
             <tr className="border-b border-slate-200 bg-slate-50">
               <th className="text-left px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Nombre</th>
               <th className="text-left px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Código</th>
+              <th className="text-left px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Carrera</th>
               <th className="text-center px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Estado</th>
               <th className="text-center px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Acciones</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {loading ? (
-              Array.from({ length: 5 }).map((_, i) => <TableRowSkeleton key={i} cols={4} />)
+              Array.from({ length: 5 }).map((_, i) => <TableRowSkeleton key={i} cols={5} />)
             ) : asignaturas.length === 0 ? (
               <tr>
-                <td colSpan={4} className="text-center py-12 text-slate-400">
+                <td colSpan={5} className="text-center py-12 text-slate-400">
                   <BookOpen size={28} className="mx-auto mb-2 opacity-30" />
                   <p className="font-semibold">Sin asignaturas registradas</p>
                 </td>
@@ -137,6 +164,16 @@ export function Asignaturas() {
               <tr key={a.id} className={`hover:bg-slate-50 transition-colors ${a.activa ? '' : 'opacity-60'}`}>
                 <td className="px-4 py-3 font-semibold text-slate-900">{a.nombre}</td>
                 <td className="px-4 py-3 font-mono text-xs text-slate-500">{a.codigo}</td>
+                <td className="px-4 py-3">
+                  {a.carrera
+                    ? (
+                      <Badge variant={CARRERA_VARIANT[a.carrera]}>
+                        {carreraLabel(a.carrera)}
+                      </Badge>
+                    )
+                    : <span className="text-slate-400 text-xs">—</span>
+                  }
+                </td>
                 <td className="px-4 py-3 text-center">
                   {a.activa
                     ? <Badge variant="success">Activa</Badge>
@@ -185,8 +222,26 @@ export function Asignaturas() {
                                tracking-wide mb-1.5">Código *</label>
               <input type="text" required value={form.codigo}
                 onChange={e => setForm(f => ({ ...f, codigo: e.target.value.toUpperCase() }))}
-                className={inputCls} placeholder="Ej: PAU-101" maxLength={20} />
-              <p className="text-xs text-slate-400 mt-1">Identificador único corto. Se convierte a mayúsculas.</p>
+                className={inputCls} placeholder="Ej: CIS1101" maxLength={20} />
+              <p className="text-xs text-slate-400 mt-1">
+                Código oficial DuocUC (ej: CIS1101). Se convierte a mayúsculas.
+              </p>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase
+                               tracking-wide mb-1.5">Carrera</label>
+              <select
+                value={form.carrera}
+                onChange={e => setForm(f => ({
+                  ...f, carrera: e.target.value as CarreraAsignatura | ''
+                }))}
+                className={inputCls}
+              >
+                <option value="">Sin carrera asignada</option>
+                {CARRERAS.map(c => (
+                  <option key={c.value} value={c.value}>{c.label}</option>
+                ))}
+              </select>
             </div>
             {formError && (
               <p className="text-rose-600 text-sm bg-rose-50 border border-rose-200

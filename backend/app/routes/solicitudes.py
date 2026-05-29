@@ -15,7 +15,7 @@ from app.schemas.solicitud import (
     SolicitudCreate, SolicitudResponse,
     SolicitudItemResponse, SolicitudUpdateEstado,
 )
-from app.utils.deps import require_docente, require_operador
+from app.utils.deps import require_operador
 
 router = APIRouter(prefix="/solicitudes", tags=["Solicitudes"])
 
@@ -114,8 +114,9 @@ def resumen_solicitudes_recientes(
 @router.get("/mis-solicitudes", response_model=list[SolicitudResponse])
 def mis_solicitudes(
     db: Session = Depends(get_db),
-    usuario: Usuario = Depends(require_docente),
+    usuario: Usuario = Depends(require_operador),
 ):
+    """Lista las solicitudes creadas por el operador autenticado."""
     solicitudes = (
         db.query(SolicitudRetiro)
         .options(
@@ -160,12 +161,12 @@ def listar_solicitudes(
 def crear_solicitud(
     datos: SolicitudCreate,
     db: Session = Depends(get_db),
-    usuario: Usuario = Depends(require_docente),
+    usuario: Usuario = Depends(require_operador),
 ):
-    """Docente crea una solicitud de retiro de insumos para su clase.
+    """Operador crea una solicitud de retiro de insumos para un taller.
 
     Ventana: entre 2 horas y 7 dias antes de la fecha_clase.
-    Si se provee clase_docente_id, debe pertenecer al docente autenticado.
+    Si se provee clase_docente_id, debe existir y estar activa.
     """
     ahora = datetime.now(timezone.utc)
     minutos_hasta = (datos.fecha_clase - ahora).total_seconds() / 60
@@ -175,13 +176,13 @@ def crear_solicitud(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=(
                 f"Debes solicitar con al menos {_MIN_ANTICIPACION // 60} horas "
-                "de anticipacion. El personal necesita tiempo para preparar el pedido."
+                "de anticipacion."
             ),
         )
     if minutos_hasta > _MAX_ANTICIPACION:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Solo puedes solicitar hasta 1 semana (7 dias) antes de tu clase.",
+            detail="Solo puedes solicitar hasta 1 semana (7 dias) antes del taller.",
         )
 
     # Validar sala
@@ -194,13 +195,12 @@ def crear_solicitud(
     if datos.clase_docente_id is not None:
         cd = db.query(ClaseDocente).filter(
             ClaseDocente.id == datos.clase_docente_id,
-            ClaseDocente.docente_id == usuario.id,
             ClaseDocente.activa.is_(True),
         ).first()
         if not cd:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="La clase indicada no existe o no pertenece a tu perfil.",
+                detail="La clase indicada no existe o no esta activa.",
             )
 
     # Acumular cantidades por insumo
@@ -318,9 +318,9 @@ def completar_solicitud(
             )
         insumos_bloqueados[item.insumo_id] = insumo
 
-    docente_nombre = s.docente.nombre if s.docente else "Docente"
+    operador_nombre = s.docente.nombre if s.docente else "Operador"
     sala_nombre = s.sala.nombre if s.sala else "Sala"
-    motivo = f"Solicitud #{s.id} \u2014 {docente_nombre} \u2014 {sala_nombre}"
+    motivo = f"Solicitud #{s.id} \u2014 {operador_nombre} \u2014 {sala_nombre}"
     ahora = datetime.now(timezone.utc)
 
     for item in s.items:
@@ -349,4 +349,4 @@ def completar_solicitud(
         s.notas_operador = datos.notas_operador
 
     db.commit()
-    return _construir_response(_cargar_solicitud(db, solicitud_id))
+    return _construir_response(_cargar_solicitud(db, solicitud.id))

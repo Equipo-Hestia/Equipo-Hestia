@@ -11,7 +11,7 @@ import { Badge } from '../components/ui/Badge'
 
 const PAGE_SIZE = 20
 const ROLES = [
-  'admin', 'operador_coordinador', 'operador', 'visor', 'docente',
+  'admin', 'operador_coordinador', 'operador', 'visor',
 ] as const
 type Rol = typeof ROLES[number]
 
@@ -20,7 +20,6 @@ const ROL_LABEL: Record<Rol, string> = {
   operador_coordinador: 'Op. Coordinador',
   operador: 'Operador',
   visor: 'Visor',
-  docente: 'Docente',
 }
 
 const ROL_VARIANT: Record<Rol, 'danger' | 'warning' | 'info' | 'success'> = {
@@ -28,7 +27,6 @@ const ROL_VARIANT: Record<Rol, 'danger' | 'warning' | 'info' | 'success'> = {
   operador_coordinador: 'warning',
   operador: 'warning',
   visor: 'info',
-  docente: 'success',
 }
 
 interface FormState {
@@ -394,11 +392,6 @@ export function Usuarios() {
                 <p className="text-xs text-teal-600 mt-1.5 font-semibold">
                   El Operador Coordinador tiene los mismos accesos que el Operador.
                   Sus permisos adicionales se configurarán próximamente.
-                </p>
-              )}
-              {form.rol === 'docente' && (
-                <p className="text-xs text-teal-600 mt-1.5 font-semibold">
-                  Los docentes solo pueden crear solicitudes de retiro de insumos.
                 </p>
               )}
             </div>

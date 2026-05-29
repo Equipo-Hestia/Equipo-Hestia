@@ -14,6 +14,7 @@ def get_usuario_actual(
     db: Session = Depends(get_db)
 ) -> Usuario:
     """Cualquier usuario autenticado con token de acceso completo.
+
     Rechaza pre_tokens del flujo 2FA para evitar acceso parcial.
     Rechaza usuarios desactivados (soft-delete).
     Rechaza tokens revocados via logout (blacklist en memoria).
@@ -57,19 +58,11 @@ def get_usuario_actual(
     return usuario
 
 
-def require_docente(usuario: Usuario = Depends(get_usuario_actual)) -> Usuario:
-    """Requiere rol docente. Usado en endpoints exclusivos del flujo de retiro."""
-    if usuario.rol != RolUsuario.docente:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Se requiere rol docente para esta accion"
-        )
-    return usuario
-
-
 def require_operador(usuario: Usuario = Depends(get_usuario_actual)) -> Usuario:
     """Requiere rol admin, operador u operador_coordinador.
-    Usado en endpoints de escritura general y bandeja operativa.
+
+    Usado en endpoints de escritura general y bandeja operativa,
+    incluyendo la gestion de solicitudes de retiro de insumos.
     """
     if usuario.rol not in [
         RolUsuario.admin,
@@ -95,6 +88,7 @@ def require_admin(usuario: Usuario = Depends(get_usuario_actual)) -> Usuario:
 
 def require_reportes(usuario: Usuario = Depends(get_usuario_actual)) -> Usuario:
     """Requiere admin, operador_coordinador o visor para acceder a reportes.
+
     El rol operador no tiene acceso a montos ni datos financieros del sistema.
     """
     if usuario.rol not in [

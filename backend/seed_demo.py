@@ -6,12 +6,13 @@ Uso:
     docker compose exec api python seed_demo.py
 
 Genera:
-    - 8 salas clinicas, 10 categorias, 10 usuarios
-    - 8 asignaturas, 10 clases docentes (semestre 2026-1)
+    - 18 salas clinicas (numeracion real piso -1 + odontologia), 10 categorias
+    - 5 usuarios (admin, 2 operadores, 2 visores) — sin rol docente
+    - 20 asignaturas representativas de las 5 carreras (mallas 2024-2025)
     - 88 insumos (insumo/implemento) con costos reales
     - ~560 movimientos en los ultimos 60 dias
-    - 18 solicitudes en distintos estados con trazabilidad academica
-    - Unidades fisicas (sub-codigos) para todos los implementos
+    - 18 solicitudes en distintos estados
+    - Unidades fisicas para todos los implementos
     - 6 activos fijos: 3 muebles clinicos + 3 phantomas de simulacion
     - 5 retornos de implemento en distintos estados
 
@@ -21,11 +22,6 @@ Credenciales:
     cfuentes@hestia.duoc.cl       / Oper2024!
     amartinez@hestia.duoc.cl      / Visor2024!
     lperez@hestia.duoc.cl         / Visor2024!
-    c.moreno@hestia.duoc.cl       / Doc2024!
-    p.vasquez@hestia.duoc.cl      / Doc2024!
-    r.ibanez@hestia.duoc.cl       / Doc2024!
-    s.reyes@hestia.duoc.cl        / Doc2024!
-    m.tapia@hestia.duoc.cl        / Doc2024!
 """
 
 import re
@@ -64,25 +60,48 @@ IM = "implemento"
 TENS = CarreraAsignatura.TENS
 TQF = CarreraAsignatura.TQF
 TLCBS = CarreraAsignatura.TLCBS
+TONS = CarreraAsignatura.TONS
 PF = CarreraAsignatura.preparador_fisico
 
+# Salas con numeracion real piso -1 + odontologia
 SALAS = [
-    ("Sala de Simulacion Clinica 1", "simulacion",
-     "Simulacion de alta fidelidad con maniquies adultos"),
-    ("Sala de Simulacion Clinica 2", "simulacion",
-     "Simulacion basica y entrenamiento de habilidades"),
-    ("Sala de Procedimientos", "procedimientos",
-     "Practica de procedimientos invasivos y sutura"),
-    ("Sala de Urgencias Simuladas", "urgencias",
-     "Simulacion de urgencias y emergencias vitales"),
-    ("Laboratorio de Anatomia", "laboratorio",
-     "Laboratorio anatomico y de practica clinica"),
-    ("Sala de Atencion Primaria", "atencion primaria",
-     "Simulacion de consulta APS y CESFAM"),
-    ("Sala de Maternidad y Ginecologia", "maternidad",
-     "Practica obstetrica, parto y ginecologia"),
-    ("Bodega Central", "bodega",
-     "Almacenamiento y distribucion de insumos"),
+    ("Sala 010", "simulacion",
+     "Sala de simulacion clinica — piso -1"),
+    ("Sala 011", "simulacion",
+     "Sala de simulacion clinica — piso -1"),
+    ("Sala 012", "simulacion",
+     "Sala de simulacion clinica — piso -1"),
+    ("Sala 013", "simulacion",
+     "Sala de simulacion clinica — piso -1"),
+    ("Sala 014", "simulacion",
+     "Sala de simulacion clinica — piso -1"),
+    ("Sala 015", "simulacion",
+     "Sala de simulacion clinica — piso -1"),
+    ("Sala 016", "simulacion",
+     "Sala de simulacion clinica — piso -1"),
+    ("Sala 017", "simulacion",
+     "Sala de simulacion clinica — piso -1"),
+    ("Sala 018", "simulacion",
+     "Sala de simulacion clinica — piso -1"),
+    ("Sala 019", "simulacion",
+     "Sala de simulacion clinica — piso -1"),
+    ("Sala 020", "simulacion",
+     "Sala de simulacion clinica — piso -1"),
+    ("Sala 021", "simulacion",
+     "Sala de simulacion clinica — piso -1"),
+    ("Sala 022", "simulacion",
+     "Sala de simulacion clinica — piso -1"),
+    ("Bodega", "bodega",
+     "Bodega central de insumos — piso -1"),
+    ("Oficina", "oficina",
+     "Oficina de coordinacion — piso -1"),
+    # Salas de odontologia (fuera del espacio principal, conectadas)
+    ("Sala 07 — Odontologia", "odontologia",
+     "Sala de odontologia — edificio anexo"),
+    ("Sala 08 — Odontologia", "odontologia",
+     "Sala de odontologia — edificio anexo"),
+    ("Sala 09 — Odontologia", "odontologia",
+     "Sala de odontologia — edificio anexo"),
 ]
 
 CATEGORIAS = [
@@ -92,36 +111,55 @@ CATEGORIAS = [
     "Higiene y Antisepticos",
 ]
 
+# Sin rol docente
 USUARIOS = [
     ("Administrador Hestia", "admin@hestia.duoc.cl", "Admin2024!", RolUsuario.admin),
     ("Maria Gonzalez", "mgonzalez@hestia.duoc.cl", "Oper2024!", RolUsuario.operador),
     ("Carlos Fuentes", "cfuentes@hestia.duoc.cl", "Oper2024!", RolUsuario.operador),
     ("Ana Martinez", "amartinez@hestia.duoc.cl", "Visor2024!", RolUsuario.visor),
     ("Luis Perez", "lperez@hestia.duoc.cl", "Visor2024!", RolUsuario.visor),
-    ("Cristian Moreno", "c.moreno@hestia.duoc.cl", "Doc2024!", RolUsuario.docente),
-    ("Patricia Vasquez", "p.vasquez@hestia.duoc.cl", "Doc2024!", RolUsuario.docente),
-    ("Roberto Ibanez", "r.ibanez@hestia.duoc.cl", "Doc2024!", RolUsuario.docente),
-    ("Sandra Reyes", "s.reyes@hestia.duoc.cl", "Doc2024!", RolUsuario.docente),
-    ("Miguel Tapia", "m.tapia@hestia.duoc.cl", "Doc2024!", RolUsuario.docente),
 ]
 
+# Asignaturas representativas de las 5 carreras (codigos oficiales DuocUC)
 ASIGNATURAS = [
-    ("Primeros Auxilios", "PAU-101", TENS),
-    ("Enfermeria Basica", "ENF-101", TENS),
-    ("Anatomia y Fisiologia", "ANF-201", TQF),
-    ("Procedimientos Clinicos", "PRC-301", TENS),
-    ("Simulacion Clinica", "SIM-201", TLCBS),
-    ("Atencion Primaria de Salud", "APS-301", TENS),
-    ("Urgencias y Emergencias", "URG-401", PF),
-    ("Obstetricia y Ginecologia", "OBG-401", TENS),
+    # TENS — Tecnico en Enfermeria
+    ("Primeros Auxilios", "CIS1101", TENS),
+    ("Rol del Tecnico en Enfermeria y Cuidados Basicos", "CIS1102", TENS),
+    ("Anatomofisiologia", "CIS1103", TENS),
+    ("Atencion de Personas con Alteraciones de Salud Medicas y Quirurgicas", "CIS1104", TENS),
+    ("Atencion de la Mujer y Recien Nacido", "CIS1103B", TENS),
+    # TQF — Tecnico en Quimica y Farmacia
+    ("Quimica Analitica e Instrumental", "PFS1115", TQF),
+    ("Bioseguridad Farmaceutica", "BIS1102", TQF),
+    ("Legislacion Farmaceutica", "LFS1112", TQF),
+    ("Farmacologia", "AVS2132", TQF),
+    # TLCBS — Tecnico de Laboratorio Clinico y Banco de Sangre
+    ("Preparacion de Laboratorio Clinico", "LCS1111", TLCBS),
+    ("Administracion de Toma de Muestra", "ATS1111", TLCBS),
+    ("Bioseguridad Clinica", "BIS1111", TLCBS),
+    ("Microbiologia para Laboratorio Clinico", "LCS3111", TLCBS),
+    # TONS — Tecnico en Odontologia
+    ("Anatomo Fisiopatologia Estomatognatica", "ACS1101", TONS),
+    ("Tecnicas de Primeros Auxilios y Procedimientos Basicos", "ACS1102", TONS),
+    ("Servicios de Salud Generales y Odontologicos", "GAS1101", TONS),
+    ("Asistencia en Cirugia Maxilofacial e Implantologia", "ACS1105", TONS),
+    # Preparador Fisico
+    ("Anatomia Funcional del Aparato Locomotor", "FES1101", PF),
+    ("Teoria del Entrenamiento", "EAS1101", PF),
+    ("Evaluacion para la Condicion Fisica", "EAS1102", PF),
 ]
 
+# Clases sin docente externo — el operador_idx referencia usuarios[1] (mgonzalez)
+# Formato: (usuario_idx, asig_idx, seccion, semestre, num_estudiantes)
 CLASES_DOCENTE = [
-    (5, 4, "001D", "2026-1", 28), (5, 6, "001D", "2026-1", 32),
-    (6, 1, "001D", "2026-1", 35), (6, 3, "002D", "2026-1", 30),
-    (7, 2, "001D", "2026-1", 22), (7, 0, "001D", "2026-1", 34),
-    (8, 5, "001D", "2026-1", 36), (8, 1, "002D", "2026-1", 33),
-    (9, 6, "002D", "2026-1", 29), (9, 7, "001D", "2026-1", 24),
+    (1, 0, "001D", "2026-1", 28),
+    (1, 1, "001D", "2026-1", 32),
+    (2, 2, "001D", "2026-1", 30),
+    (2, 3, "002D", "2026-1", 35),
+    (1, 5, "001D", "2026-1", 22),
+    (2, 9, "001D", "2026-1", 25),
+    (1, 13, "001D", "2026-1", 20),
+    (2, 17, "001D", "2026-1", 18),
 ]
 
 INSUMOS = [
@@ -248,58 +286,58 @@ ACTIVOS_FIJOS_DEMO = [
 ]
 
 SOLICITUDES_DEMO = [
-    (5, 0, EstadoSolicitud.pendiente, 18,
+    (1, 0, EstadoSolicitud.pendiente, 18,
      "Clase de simulacion alta fidelidad, maniqui adulto", None,
      [(0, 2), (1, 2), (4, 1), (11, 5), (7, 3)], 0),
-    (6, 1, EstadoSolicitud.pendiente, 22, "Taller de venopuncion", None,
-     [(1, 4), (40, 3), (41, 3), (49, 5), (53, 5)], 2),
-    (7, 2, EstadoSolicitud.pendiente, 26,
-     "Practica de sutura, necesito hilo vicryl", None,
-     [(22, 3), (23, 2), (24, 2), (27, 1), (28, 1)], 5),
-    (8, 5, EstadoSolicitud.pendiente, 30, None, None,
-     [(31, 2), (32, 2), (33, 1), (34, 1), (36, 1)], 6),
-    (9, 3, EstadoSolicitud.pendiente, 14,
+    (1, 1, EstadoSolicitud.pendiente, 22, "Taller de venopuncion", None,
+     [(1, 4), (40, 3), (41, 3), (49, 5), (53, 5)], 1),
+    (2, 2, EstadoSolicitud.pendiente, 26,
+     "Practica de sutura", None,
+     [(22, 3), (23, 2), (24, 2), (27, 1), (28, 1)], 2),
+    (1, 5, EstadoSolicitud.pendiente, 30, None, None,
+     [(31, 2), (32, 2), (33, 1), (34, 1), (36, 1)], 3),
+    (2, 3, EstadoSolicitud.pendiente, 14,
      "Urgencias simuladas, RCP avanzado", None,
-     [(5, 2), (57, 2), (58, 1), (63, 2), (64, 3)], 8),
-    (5, 6, EstadoSolicitud.pendiente, 36, "Clase de maternidad", None,
+     [(5, 2), (57, 2), (58, 1), (63, 2), (64, 3)], 4),
+    (1, 0, EstadoSolicitud.pendiente, 36, "Clase de maternidad", None,
      [(0, 2), (1, 2), (11, 4), (75, 2), (76, 2)], None),
-    (6, 0, EstadoSolicitud.en_preparacion, 8,
+    (1, 0, EstadoSolicitud.en_preparacion, 8,
      "Necesito guantes talla M si es posible",
      "Preparando kit, stock de M bajo - enviare L",
-     [(1, 3), (3, 2), (11, 5), (70, 1), (80, 1)], 3),
-    (7, 4, EstadoSolicitud.en_preparacion, 10,
+     [(1, 3), (3, 2), (11, 5), (70, 1), (80, 1)], 5),
+    (2, 4, EstadoSolicitud.en_preparacion, 10,
      None, "Kit listo en bodega, sala 4",
-     [(30, 2), (31, 1), (35, 1), (72, 2)], 4),
-    (8, 2, EstadoSolicitud.en_preparacion, 5,
+     [(30, 2), (31, 1), (35, 1), (72, 2)], 6),
+    (1, 2, EstadoSolicitud.en_preparacion, 5,
      "Clase en menos de 6 horas, urgente", "Priorizando este pedido",
      [(22, 2), (23, 2), (11, 3), (6, 2)], 7),
-    (5, 0, EstadoSolicitud.completada, -48,
+    (1, 0, EstadoSolicitud.completada, -48,
      "Simulacion alta fidelidad semana pasada", "Despachado sin novedades",
      [(0, 2), (1, 2), (11, 4), (12, 3)], 0),
-    (6, 1, EstadoSolicitud.completada, -72, None, "Todo OK",
-     [(40, 2), (41, 3), (49, 4), (53, 3)], 2),
-    (7, 2, EstadoSolicitud.completada, -96,
+    (2, 1, EstadoSolicitud.completada, -72, None, "Todo OK",
+     [(40, 2), (41, 3), (49, 4), (53, 3)], 1),
+    (1, 2, EstadoSolicitud.completada, -96,
      "Taller de sutura avanzada", "Despachado completo",
-     [(22, 3), (23, 2), (24, 1), (27, 1)], 5),
-    (8, 5, EstadoSolicitud.completada, -120, None, "Sin novedades",
-     [(31, 1), (32, 2), (33, 1)], 6),
-    (9, 3, EstadoSolicitud.completada, -144,
+     [(22, 3), (23, 2), (24, 1), (27, 1)], 2),
+    (2, 5, EstadoSolicitud.completada, -120, None, "Sin novedades",
+     [(31, 1), (32, 2), (33, 1)], 3),
+    (1, 3, EstadoSolicitud.completada, -144,
      "Clase urgencias criticas", "Kit urgencias despachado",
-     [(5, 1), (57, 2), (63, 2), (64, 2)], 8),
-    (5, 6, EstadoSolicitud.completada, -168, None, "Despachado",
+     [(5, 1), (57, 2), (63, 2), (64, 2)], 4),
+    (2, 0, EstadoSolicitud.completada, -168, None, "Despachado",
      [(0, 2), (1, 2), (11, 3)], 0),
-    (6, 0, EstadoSolicitud.completada, -192,
+    (1, 0, EstadoSolicitud.completada, -192,
      "Simulacion con maniqui neonato", "Completo",
-     [(1, 2), (3, 2), (11, 4)], 2),
-    (7, 4, EstadoSolicitud.completada, -216, None, "OK",
-     [(30, 1), (35, 1), (72, 2)], 4),
-    (9, 1, EstadoSolicitud.completada, -240,
+     [(1, 2), (3, 2), (11, 4)], 1),
+    (2, 4, EstadoSolicitud.completada, -216, None, "OK",
+     [(30, 1), (35, 1), (72, 2)], 2),
+    (1, 1, EstadoSolicitud.completada, -240,
      "Taller introductorio venoclisis", "Despachado completo",
-     [(40, 2), (41, 2), (44, 2), (49, 3)], 9),
+     [(40, 2), (41, 2), (44, 2), (49, 3)], 3),
 ]
 
 MOTIVOS_SALIDA = [
-    "Practica clinica - Enfermeria",
+    "Practica clinica — Enfermeria",
     "Practica simulacion alta fidelidad",
     "Uso en procedimiento de simulacion",
     "Practica de sutura y cierre de heridas",
@@ -398,8 +436,7 @@ def main():
             usuarios.append(u)
         db.flush()
         operadores = [u for u in usuarios if u.rol == RolUsuario.operador]
-        docentes_demo = [u for u in usuarios if u.rol == RolUsuario.docente]
-        print(f"  {len(usuarios)} usuarios ({len(docentes_demo)} docentes)")
+        print(f"  {len(usuarios)} usuarios")
 
         # --- Asignaturas ---
         print("Insertando asignaturas...")
@@ -409,14 +446,14 @@ def main():
             db.add(a)
             asignaturas.append(a)
         db.flush()
-        print(f"  {len(asignaturas)} asignaturas")
+        print(f"  {len(asignaturas)} asignaturas (5 carreras)")
 
-        # --- Clases Docente ---
-        print("Insertando clases docentes...")
+        # --- Clases ---
+        print("Insertando clases...")
         clases = []
-        for doc_idx, asig_idx, seccion, semestre, num_est in CLASES_DOCENTE:
+        for u_idx, asig_idx, seccion, semestre, num_est in CLASES_DOCENTE:
             c = ClaseDocente(
-                docente_id=usuarios[doc_idx].id,
+                docente_id=usuarios[u_idx].id,
                 asignatura_id=asignaturas[asig_idx].id,
                 seccion=seccion, semestre=semestre, num_estudiantes=num_est,
             )
@@ -525,7 +562,7 @@ def main():
         print("Insertando solicitudes de retiro...")
         ahora = datetime.now(timezone.utc)
         total_sols = 0
-        for (doc_idx, sala_idx, estado, horas,
+        for (u_idx, sala_idx, estado, horas,
              notas, notas_op, items, clase_idx) in SOLICITUDES_DEMO:
             items_v = [(i, c) for i, c in items if i < len(insumos_db)]
             if not items_v:
@@ -538,7 +575,7 @@ def main():
             if estado == EstadoSolicitud.completada:
                 fecha_comp = fecha_clase + timedelta(hours=random.randint(1, 3))
             sol = SolicitudRetiro(
-                docente_id=usuarios[doc_idx].id,
+                docente_id=usuarios[u_idx].id,
                 sala_id=salas[sala_idx].id,
                 fecha_clase=fecha_clase, estado=estado,
                 notas=notas, notas_operador=notas_op,
@@ -586,7 +623,7 @@ def main():
             db.add(RetornoImplemento(
                 insumo_id=impl.id,
                 solicitud_id=None,
-                docente_id=random.choice(docentes_demo).id,
+                docente_id=random.choice(operadores).id,
                 sala_id=random.choice(salas).id,
                 cantidad=random.randint(1, 3),
                 fecha_retiro=f_retiro,
@@ -605,10 +642,10 @@ def main():
         alertas = sum(1 for _, _, s, m, *_ in INSUMOS if s <= m)
         print("\n" + "=" * 40)
         print("Demo cargada exitosamente.")
-        print(f"  Salas:         {len(salas)}")
+        print(f"  Salas:         {len(salas)} (15 clinicas + 3 odontologia)")
         print(f"  Categorias:    {len(cats)}")
-        print(f"  Usuarios:      {len(usuarios)}")
-        print(f"  Asignaturas:   {len(asignaturas)} (con carrera asignada)")
+        print(f"  Usuarios:      {len(usuarios)} (sin rol docente)")
+        print(f"  Asignaturas:   {len(asignaturas)} (5 carreras)")
         print(f"  Clases:        {len(clases)} (semestre 2026-1)")
         print(
             f"  Insumos:       {len(insumos_db)} ({alertas} en alerta de stock)"

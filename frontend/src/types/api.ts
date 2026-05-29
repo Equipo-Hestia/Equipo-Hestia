@@ -154,7 +154,7 @@ export interface PaginatedResponse<T> {
 }
 
 // ---------------------------------------------------------------------------
-// Solicitudes de retiro (flujo docente)
+// Solicitudes de retiro
 // ---------------------------------------------------------------------------
 
 export type EstadoSolicitud = 'pendiente' | 'en_preparacion' | 'completada'
@@ -181,7 +181,7 @@ export interface SolicitudResponse {
   fecha_completada: string | null
   items: SolicitudItemResponse[]
   minutos_hasta_clase: number
-  // Trazabilidad academica (Fase 4)
+  // Trazabilidad académica (Fase 4)
   clase_docente_id: number | null
   asignatura_nombre: string | null
   seccion: string | null
@@ -213,7 +213,12 @@ export interface RetornoResponse {
 // Asignaturas y Clases Docente (Fase 4)
 // ---------------------------------------------------------------------------
 
-export type CarreraAsignatura = 'TENS' | 'TQF' | 'TLCBS' | 'preparador_fisico'
+export type CarreraAsignatura =
+  | 'TENS'
+  | 'TQF'
+  | 'TLCBS'
+  | 'TONS'
+  | 'preparador_fisico'
 
 export interface AsignaturaResponse {
   id: number
@@ -241,7 +246,7 @@ export interface ClaseDocenteResponse {
 }
 
 // ---------------------------------------------------------------------------
-// Reportes de valorizacion e inventario
+// Reportes de valorización e inventario
 // ---------------------------------------------------------------------------
 
 export interface InsumoValorizado {
@@ -295,7 +300,7 @@ export interface ConsumoCarrerasResponse {
 }
 
 // ---------------------------------------------------------------------------
-// Importacion de horario academico
+// Importación de horario académico
 // ---------------------------------------------------------------------------
 
 export interface HorarioFila {
@@ -317,7 +322,7 @@ export interface HorarioImportResponse {
 }
 
 // ---------------------------------------------------------------------------
-// Activos Fijos: muebles clinicos y phantomas (Fase 5)
+// Activos Fijos: muebles clínicos y phantomas (Fase 5)
 // ---------------------------------------------------------------------------
 
 export type TipoActivo = 'mueble' | 'phantoma'
@@ -384,7 +389,7 @@ export interface EntregaDirectaResponse {
 }
 
 // ---------------------------------------------------------------------------
-// Unidades de implemento: sub-codigos por unidad fisica (Fase 5)
+// Unidades de implemento: sub-códigos por unidad física (Fase 5)
 // ---------------------------------------------------------------------------
 
 export type EstadoUnidad = 'disponible' | 'en_uso' | 'dado_de_baja'

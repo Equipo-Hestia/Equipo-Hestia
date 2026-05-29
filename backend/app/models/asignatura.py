@@ -9,14 +9,15 @@ class CarreraAsignatura(str, enum.Enum):
     TENS = "TENS"
     TQF = "TQF"
     TLCBS = "TLCBS"
+    TONS = "TONS"
     preparador_fisico = "preparador_fisico"
 
 
 class Asignatura(Base):
     """Asignatura academica de la Escuela de Salud.
 
-    El codigo es un identificador corto unico (ej: 'PAU-101') que se usa
-    como referencia rapida en reportes y en la vista del docente.
+    El codigo es el identificador oficial DuocUC (ej: 'CIS1101') unico
+    por carrera, usado como referencia en reportes y planificacion.
     """
     __tablename__ = "asignaturas"
 

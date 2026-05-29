@@ -90,11 +90,17 @@ MIGRACIONES_COLUMNAS = [
     "ADD COLUMN IF NOT EXISTS hora_fin VARCHAR(5)",
 ]
 
-# (tabla, tipo_enum_pg, columna, valores_requeridos)
-MIGRACIONES_ROL = [
+# Valores requeridos en cada enum nativo de PostgreSQL.
+# El sistema agrega los que falten de forma idempotente.
+MIGRACIONES_ENUM = [
+    # (nombre_tipo_pg, [valores_requeridos])
     (
-        "usuarios", "rolusuario", "rol",
-        ("admin", "operador_coordinador", "operador", "visor", "docente"),
+        "rolusuario",
+        ["admin", "operador_coordinador", "operador", "visor"],
+    ),
+    (
+        "carreraasignatura",
+        ["TENS", "TQF", "TLCBS", "preparador_fisico", "TONS"],
     ),
 ]
 
@@ -104,74 +110,64 @@ def aplicar_migraciones_pendientes() -> None:
         for sql in MIGRACIONES_COLUMNAS:
             conn.execute(text(sql))
     try:
-        _aplicar_migracion_rol()
+        _aplicar_migraciones_enum()
     except Exception as exc:
         log.critical(
-            "[Hestia] FALLO EN MIGRACION DE ROL. "
-            "Ejecuta manualmente en la BD:\n"
-            "  ALTER TYPE rolusuario ADD VALUE IF NOT EXISTS 'operador_coordinador';\n"
+            "[Hestia] FALLO EN MIGRACION DE ENUM. "
+            "Ejecuta manualmente en la BD si es necesario.\n"
             "Error original: %s",
             exc,
         )
         raise
 
 
-def _aplicar_migracion_rol() -> None:
-    """Migra el campo 'rol' para aceptar los nuevos valores del enum."""
+def _aplicar_migraciones_enum() -> None:
+    """Agrega valores faltantes a enums nativos de PostgreSQL.
+
+    Usa psycopg2 directamente porque ALTER TYPE ... ADD VALUE no puede
+    ejecutarse dentro de una transaccion en PostgreSQL < 12. Cada ADD VALUE
+    es idempotente gracias a IF NOT EXISTS.
+    """
     import psycopg2
 
     dsn = (DATABASE_URL or "").replace("postgresql+psycopg2://", "postgresql://")
-    log.info("[Hestia] Iniciando migracion de enum 'rol'...")
+    log.info("[Hestia] Iniciando migracion de enums...")
     conn = psycopg2.connect(dsn)
     conn.autocommit = True
     try:
         cur = conn.cursor()
-        for tabla, tipo_enum, columna, valores in MIGRACIONES_ROL:
-            cur.execute("SELECT 1 FROM pg_type WHERE typname = %s", (tipo_enum,))
-            if cur.fetchone():
-                log.info("[Hestia] Enum nativo '%s' encontrado.", tipo_enum)
-                for valor in valores:
-                    cur.execute(
-                        "SELECT 1 FROM pg_enum e "
-                        "JOIN pg_type t ON e.enumtypid = t.oid "
-                        "WHERE t.typname = %s AND e.enumlabel = %s",
-                        (tipo_enum, valor),
-                    )
-                    if not cur.fetchone():
-                        log.info(
-                            "[Hestia] Agregando '%s' al enum '%s'.",
-                            valor, tipo_enum
-                        )
-                        cur.execute(
-                            f"ALTER TYPE {tipo_enum} "
-                            f"ADD VALUE IF NOT EXISTS '{valor}'"
-                        )
-                    else:
-                        log.info(
-                            "[Hestia] '%s' ya existe en '%s'.",
-                            valor, tipo_enum
-                        )
-                continue
-            log.info(
-                "[Hestia] Enum '%s' no encontrado, revisando CHECK constraints.",
-                tipo_enum,
-            )
+        for tipo_enum, valores in MIGRACIONES_ENUM:
             cur.execute(
-                "SELECT conname, pg_get_constraintdef(oid) "
-                "FROM pg_constraint "
-                "WHERE conrelid = %s::regclass AND contype = 'c'",
-                (tabla,),
+                "SELECT 1 FROM pg_type WHERE typname = %s", (tipo_enum,)
             )
-            for conname, condef in cur.fetchall():
-                if columna not in (condef or ""):
-                    continue
-                if all(v in (condef or "") for v in valores):
-                    continue
-                log.info("[Hestia] Eliminando constraint '%s'.", conname)
-                cur.execute(
-                    f"ALTER TABLE {tabla} DROP CONSTRAINT IF EXISTS {conname}"
+            if not cur.fetchone():
+                log.info(
+                    "[Hestia] Enum '%s' no encontrado en PG, omitiendo.",
+                    tipo_enum,
                 )
+                continue
+            for valor in valores:
+                cur.execute(
+                    "SELECT 1 FROM pg_enum e "
+                    "JOIN pg_type t ON e.enumtypid = t.oid "
+                    "WHERE t.typname = %s AND e.enumlabel = %s",
+                    (tipo_enum, valor),
+                )
+                if not cur.fetchone():
+                    log.info(
+                        "[Hestia] Agregando '%s' a enum '%s'.",
+                        valor, tipo_enum,
+                    )
+                    cur.execute(
+                        f"ALTER TYPE {tipo_enum} "
+                        f"ADD VALUE IF NOT EXISTS '{valor}'"
+                    )
+                else:
+                    log.info(
+                        "[Hestia] '%s' ya existe en enum '%s'.",
+                        valor, tipo_enum,
+                    )
         cur.close()
-        log.info("[Hestia] Migracion de rol completada.")
+        log.info("[Hestia] Migracion de enums completada.")
     finally:
         conn.close()
