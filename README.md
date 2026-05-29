@@ -22,14 +22,13 @@ Hestia es una aplicación web para el control de stock de insumos e implementos 
 
 ## Funcionalidades
 
-- **Inventario** — CRUD de insumos con tipo (insumo desechable / implemento retornable), SKU, código de barras escaneable, costo unitario y filtros por nombre, sala, categoría, tipo y estado de stock
+- **Inventario** — CRUD de insumos e implementos con SKU, código de barras escaneable, unidad de medida (ej: “caja x100”, “frasco 500 mL”) y filtros por nombre, sala, categoría, tipo y estado de stock
 - **Activos Fijos** — gestión de muebles clínicos y phantomas de simulación como unidades físicas individuales, cada una con código de barras propio y código interno auto-generado (MUE-XXXXX / PHN-XXXXX); los phantomas incluyen nivel de fidelidad (baja/media/alta)
 - **Escaneo de código de barras** — cámara del móvil desde el navegador (HTTPS/LAN, sin app nativa) usando `@zxing/browser`
 - **Movimientos** — registro de entradas y salidas con trazabilidad por usuario; exportación CSV/XLSX con filtros
 - **Alertas de stock** — insumos bajo mínimo y alertas resueltas con rango configurable
 - **Dashboard** — métricas en tiempo real, gráfico semanal, feed de actividad reciente y top insumos retirados
-- **Solicitudes de retiro** — flujo gestionado por operadores: carrito de insumos por taller, sala y clase; bandeja de gestión con indicadores de urgencia
-- **Retorno de implementos** — al completar una solicitud, los implementos generan un registro pendiente de retorno; el operador confirma cuáles volvieron al área común (restaurando stock) y cuáles no (registrados como merma)
+- **Talleres y Paquetes de insumos** — los talleres son las clases prácticas asociadas a cada asignatura; los paquetes definen qué insumos e implementos se necesitan por taller y semestre (Guía de Taller digital); vista con filtros en cascada por carrera → asignatura → taller → semestre
 - **Asignaturas y clases** — el admin registra asignaturas por carrera (TENS, TQF, TLCBS, TONS, Preparador Físico) con su código oficial DuocUC; las clases vinculan asignatura, sección y semestre
 - **Importación masiva** — carga de insumos desde CSV o XLSX con verificación TOTP
 - **Importación de horario académico** — carga de clases desde CSV exportado de DuocUC, con mapeo de columnas interactivo y verificación TOTP
@@ -49,12 +48,12 @@ Hestia es una aplicación web para el control de stock de insumos e implementos 
 
 | Rol | Acceso |
 |---|---|
-| `admin` | Acceso completo — gestión de usuarios, insumos, activos fijos, asignaturas, clases, importar, audit log |
-| `operador_coordinador` | Igual que Operador — gestión de insumos, activos fijos, movimientos, salas, solicitudes y retornos. Sus permisos adicionales se definirán próximamente |
-| `operador` | Insumos, activos fijos, movimientos, alertas, salas, categorías, bandeja de solicitudes, retornos |
+| `admin` | Acceso completo — gestión de usuarios, insumos, activos fijos, asignaturas, talleres, paquetes, clases, importar, audit log |
+| `operador_coordinador` | Igual que Operador. Sus permisos adicionales se definirán próximamente |
+| `operador` | Insumos, activos fijos, movimientos, alertas, salas, categorías, paquetes de insumos |
 | `visor` | Solo lectura — dashboard, insumos, activos fijos, movimientos, alertas, salas, categorías |
 
-> El rol `docente` fue eliminado. Las solicitudes de retiro son gestionadas íntegramente por operadores y coordinadores, basándose en la Guía de Taller que prepara Maritza antes del semestre.
+> El rol `docente` fue eliminado. No hay solicitudes de retiro individuales: Maritza y las operadoras gestionan los paquetes de insumos antes del semestre.
 
 ---
 
@@ -192,7 +191,8 @@ hestia/
 │   │   ├── models/        → SQLAlchemy (usuario, insumo, sala, categoria,
 │   │   │                               movimiento, solicitud, audit_log,
 │   │   │                               asignatura, clase_docente,
-│   │   │                               retorno_implemento, activo_fijo)
+│   │   │                               retorno_implemento, activo_fijo,
+│   │   │                               taller, paquete_insumo)
 │   │   ├── schemas/       → Pydantic v2
 │   │   ├── routes/        → FastAPI routers
 │   │   └── utils/         → security, deps (RBAC), rate_limit, auditoria
@@ -203,10 +203,9 @@ hestia/
 ├── frontend/
 │   ├── src/
 │   │   ├── pages/         → Dashboard, Insumos, Alertas, Movimientos,
-│   │   │                    Usuarios, SolicitudOperador, RetornosOperador,
-│   │   │                    Asignaturas, ClasesDocente, ActivosFijos,
-│   │   │                    Perfil, Configuracion2FA, AuditLog,
-│   │   │                    ImportarInsumos, ImportarHorario…
+│   │   │                    Usuarios, Paquetes, Asignaturas, ClasesDocente,
+│   │   │                    ActivosFijos, Perfil, Configuracion2FA,
+│   │   │                    AuditLog, ImportarInsumos, ImportarHorario…
 │   │   ├── components/    → Layout, Sidebar, ui/ (Badge, Card, Modal,
 │   │   │                    Skeleton, SearchSuggestions, BarcodeScanner,
 │   │   │                    Logo)
