@@ -1,3 +1,30 @@
+export type EstadoUnidad = 'disponible' | 'en_uso' | 'dado_de_baja'
+
+export interface UnidadImplementoResponse {
+  id: number
+  implemento_id: number
+  implemento_nombre: string | null
+  codigo: string | null
+  estado: EstadoUnidad
+  sala_id: number | null
+  sala_nombre: string | null
+  notas: string | null
+  activo: boolean
+}
+
+export interface UnidadImplementoCreate {
+  implemento_id: number
+  sala_id?: number | null
+  notas?: string | null
+}
+
+export interface UnidadImplementoUpdate {
+  estado?: EstadoUnidad
+  sala_id?: number | null
+  notas?: string | null
+  activo?: boolean
+}
+
 // ---------------------------------------------------------------------------
 // Tipos TypeScript sincronizados con los schemas Pydantic del backend.
 // ---------------------------------------------------------------------------
@@ -156,7 +183,7 @@ export interface PaginatedResponse<T> {
 }
 
 // ---------------------------------------------------------------------------
-// Asignaturas y Clases Docente (Fase 4)
+// Asignaturas y Clases Docente
 // ---------------------------------------------------------------------------
 
 export type CarreraAsignatura =
@@ -252,7 +279,7 @@ export interface PaqueteItemCreate {
 }
 
 // ---------------------------------------------------------------------------
-// Reportes de valorización e inventario
+// Reportes
 // ---------------------------------------------------------------------------
 
 export interface InsumoValorizado {
@@ -380,27 +407,4 @@ export interface EntregaDirectaResponse {
   mensaje: string
   items_procesados: number
   retornos_pendientes: number
-}
-
-export type EstadoUnidad = 'disponible' | 'en_uso' | 'dado_de_baja'
-
-export interface UnidadImplementoResponse {
-  id: number
-  implemento_id: number
-  implemento_nombre: string | null
-  codigo: string | null
-  estado: EstadoUnidad
-  notas: string | null
-  activo: boolean
-}
-
-export interface UnidadImplementoCreate {
-  implemento_id: number
-  notas?: string | null
-}
-
-export interface UnidadImplementoUpdate {
-  estado?: EstadoUnidad
-  notas?: string | null
-  activo?: boolean
 }

@@ -8,7 +8,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import { useAuthStore } from '../store/auth'
 import type {
-  InsumoResponse, SalaResponse, CategoriaResponse, PaginatedResponse
+  InsumoResponse, CategoriaResponse, PaginatedResponse
 } from '../types/api'
 import { Badge } from '../components/ui/Badge'
 import { TableRowSkeleton } from '../components/ui/Skeleton'
@@ -21,14 +21,14 @@ const PAGE_SIZE = 15
 interface FormState {
   nombre: string; descripcion: string
   stock_actual: string; stock_minimo: string
-  sala_id: string; categoria_id: string
+  categoria_id: string
   tipo: string; sku: string; codigo_barras: string
   costo_unitario: string; fecha_vencimiento: string
   unidad_medida: string
 }
 const FORM_VACIO: FormState = {
   nombre: '', descripcion: '', stock_actual: '',
-  stock_minimo: '', sala_id: '', categoria_id: '',
+  stock_minimo: '', categoria_id: '',
   tipo: 'insumo', sku: '', codigo_barras: '',
   costo_unitario: '', fecha_vencimiento: '',
   unidad_medida: ''
@@ -37,7 +37,6 @@ function insumoAForm(i: InsumoResponse): FormState {
   return {
     nombre: i.nombre, descripcion: i.descripcion ?? '',
     stock_actual: String(i.stock_actual), stock_minimo: String(i.stock_minimo),
-    sala_id: i.sala_id != null ? String(i.sala_id) : '',
     categoria_id: i.categoria_id != null ? String(i.categoria_id) : '',
     tipo: i.tipo ?? 'insumo',
     sku: i.sku ?? '',
@@ -71,18 +70,16 @@ export function Insumos() {
   const [total, setTotal]           = useState(0)
   const [page, setPage]             = useState(0)
   const [loading, setLoading]       = useState(true)
-  const [salas, setSalas]           = useState<SalaResponse[]>([])
   const [categorias, setCategorias] = useState<CategoriaResponse[]>([])
   const [userHas2FA, setUserHas2FA] = useState<boolean | null>(null)
 
   const [searchInput, setSearchInput]   = useState('')
   const [nombreFiltro, setNombreFiltro] = useState('')
-  const [salaFiltro, setSalaFiltro]     = useState('')
   const [catFiltro, setCatFiltro]       = useState('')
   const [tipoFiltro, setTipoFiltro]     = useState('')
   const [bajoStock, setBajoStock]       = useState(false)
   const [mostrarInactivos, setMostrar]  = useState(false)
-  const hasFilters = nombreFiltro || salaFiltro || catFiltro || bajoStock || mostrarInactivos || tipoFiltro
+  const hasFilters = nombreFiltro || catFiltro || bajoStock || mostrarInactivos || tipoFiltro
 
   const [editTarget, setEditTarget]     = useState<InsumoResponse | null>(null)
   const [showCrear, setShowCrear]       = useState(false)
@@ -116,18 +113,16 @@ export function Insumos() {
 
   useEffect(() => {
     Promise.all([
-      api.get<PaginatedResponse<SalaResponse>>('/salas/', { params: { limit: 200 } }),
       api.get<PaginatedResponse<CategoriaResponse>>('/categorias/', { params: { limit: 200 } }),
       api.get<{ totp_habilitado: boolean }>('/usuarios/me')
-    ]).then(([s, c, me]) => {
-      setSalas(s.data.data)
+    ]).then(([c, me]) => {
       setCategorias(c.data.data)
       setUserHas2FA(me.data.totp_habilitado)
     })
   }, [])
 
   const load = useCallback(async (
-    skip: number, nombre: string, sala_id: string,
+    skip: number, nombre: string,
     categoria_id: string, bajo_stock: boolean, incluir_inactivos: boolean,
     tipo: string
   ) => {
@@ -135,7 +130,6 @@ export function Insumos() {
     try {
       const params: Record<string, string | number | boolean> = { skip, limit: PAGE_SIZE }
       if (nombre) params.nombre = nombre
-      if (sala_id) params.sala_id = parseInt(sala_id)
       if (categoria_id) params.categoria_id = parseInt(categoria_id)
       if (bajo_stock) params.bajo_stock = true
       if (incluir_inactivos) params.incluir_inactivos = true
@@ -146,14 +140,14 @@ export function Insumos() {
   }, [])
 
   useEffect(() => {
-    load(page * PAGE_SIZE, nombreFiltro, salaFiltro, catFiltro, bajoStock, mostrarInactivos, tipoFiltro)
-  }, [page, nombreFiltro, salaFiltro, catFiltro, bajoStock, mostrarInactivos, tipoFiltro, load])
+    load(page * PAGE_SIZE, nombreFiltro, catFiltro, bajoStock, mostrarInactivos, tipoFiltro)
+  }, [page, nombreFiltro, catFiltro, bajoStock, mostrarInactivos, tipoFiltro, load])
 
   function aplicarBusqueda(val: string) { setNombreFiltro(val); setPage(0) }
 
   function limpiarFiltros() {
     setSearchInput(''); setNombreFiltro('')
-    setSalaFiltro(''); setCatFiltro('')
+    setCatFiltro('')
     setBajoStock(false); setMostrar(false)
     setTipoFiltro(''); setPage(0)
   }
@@ -163,7 +157,6 @@ export function Insumos() {
     try {
       const params: Record<string, string | number | boolean> = { formato }
       if (nombreFiltro) params.nombre = nombreFiltro
-      if (salaFiltro)   params.sala_id = parseInt(salaFiltro)
       if (catFiltro)    params.categoria_id = parseInt(catFiltro)
       if (bajoStock)    params.bajo_stock = true
       if (mostrarInactivos) params.incluir_inactivos = true
@@ -199,7 +192,6 @@ export function Insumos() {
       nombre: form.nombre.trim(), descripcion: form.descripcion.trim() || null,
       stock_actual: parseInt(form.stock_actual) || 0,
       stock_minimo: parseInt(form.stock_minimo) || 0,
-      sala_id: form.sala_id ? parseInt(form.sala_id) : null,
       categoria_id: form.categoria_id ? parseInt(form.categoria_id) : null,
       tipo: form.tipo,
       sku: form.sku.trim() || null,
@@ -215,7 +207,7 @@ export function Insumos() {
         await api.post('/insumos/', payload); showToast('Insumo creado')
       }
       cerrarModal()
-      load(page * PAGE_SIZE, nombreFiltro, salaFiltro, catFiltro, bajoStock, mostrarInactivos, tipoFiltro)
+      load(page * PAGE_SIZE, nombreFiltro, catFiltro, bajoStock, mostrarInactivos, tipoFiltro)
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
       setFormError(msg ?? 'Error al guardar.')
@@ -228,7 +220,7 @@ export function Insumos() {
     try {
       await api.delete(`/insumos/${deleteTarget.id}`, { headers: { 'x-totp-code': deleteTotp } })
       showToast(`'${deleteTarget.nombre}' desactivado`); cerrarModal()
-      load(page * PAGE_SIZE, nombreFiltro, salaFiltro, catFiltro, bajoStock, mostrarInactivos, tipoFiltro)
+      load(page * PAGE_SIZE, nombreFiltro, catFiltro, bajoStock, mostrarInactivos, tipoFiltro)
     } catch (err: unknown) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const detail = (err as any)?.response?.data?.detail
@@ -242,7 +234,7 @@ export function Insumos() {
     try {
       await api.put(`/insumos/${reactivarTarget.id}`, { activo: true })
       showToast(`'${reactivarTarget.nombre}' reactivado`); cerrarModal()
-      load(page * PAGE_SIZE, nombreFiltro, salaFiltro, catFiltro, bajoStock, mostrarInactivos, tipoFiltro)
+      load(page * PAGE_SIZE, nombreFiltro, catFiltro, bajoStock, mostrarInactivos, tipoFiltro)
     } catch (err: unknown) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const detail = (err as any)?.response?.data?.detail
@@ -361,14 +353,6 @@ export function Insumos() {
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <SlidersHorizontal size={14} className="text-slate-400" />
-          <select value={salaFiltro} onChange={e => { setSalaFiltro(e.target.value); setPage(0) }}
-            className="flex-1 min-w-36 px-3 py-1.5 rounded-lg border border-slate-200
-                       dark:border-slate-600 text-sm text-slate-600 dark:text-slate-300
-                       bg-white dark:bg-slate-700 focus:outline-none
-                       focus:ring-2 focus:ring-teal-500 cursor-pointer">
-            <option value="">Todas las salas</option>
-            {salas.map(s => <option key={s.id} value={s.id}>{s.nombre}</option>)}
-          </select>
           <select value={catFiltro} onChange={e => { setCatFiltro(e.target.value); setPage(0) }}
             className="flex-1 min-w-36 px-3 py-1.5 rounded-lg border border-slate-200
                        dark:border-slate-600 text-sm text-slate-600 dark:text-slate-300
@@ -383,8 +367,8 @@ export function Insumos() {
                        bg-white dark:bg-slate-700 focus:outline-none
                        focus:ring-2 focus:ring-teal-500 cursor-pointer">
             <option value="">Todos los tipos</option>
-            <option value="insumo">Insumos</option>
-            <option value="implemento">Implementos</option>
+            <option value="insumo">Insumos desechables</option>
+            <option value="implemento">Implementos retornables</option>
           </select>
           <label className="flex items-center gap-2 cursor-pointer select-none">
             <input type="checkbox" checked={bajoStock}
@@ -496,7 +480,7 @@ export function Insumos() {
                       {i.tipo === 'implemento' && i.activo && (
                         <button
                           onClick={() => navigate(`/insumos/${i.id}/unidades`)}
-                          title="Ver unidades físicas"
+                          title="Ver unidades físicas y salas asignadas"
                           className="p-1.5 rounded-lg text-slate-400 hover:text-violet-600
                                      hover:bg-violet-50 dark:hover:bg-violet-900/30
                                      transition-colors">
@@ -582,7 +566,7 @@ export function Insumos() {
                       ? 'bg-teal-600 text-white'
                       : 'text-slate-500 hover:bg-slate-50'
                   }`}>
-                  Insumo
+                  Insumo desechable
                 </button>
                 <button type="button"
                   onClick={() => setField('tipo', 'implemento')}
@@ -591,13 +575,13 @@ export function Insumos() {
                       ? 'bg-teal-600 text-white border-teal-600'
                       : 'text-slate-500 hover:bg-slate-50'
                   }`}>
-                  Implemento
+                  Implemento retornable
                 </button>
               </div>
               <p className="text-xs text-slate-400 mt-1">
                 {form.tipo === 'insumo'
-                  ? 'Desechable — se consume durante la clase y no retorna al stock'
-                  : 'Retornable — debe devolverse al área común al finalizar la clase'}
+                  ? 'Se consume durante la clase y se descuenta del stock en bodega'
+                  : 'Puede asignarse a salas clínicas; sus unidades físicas se rastrean individualmente'}
               </p>
             </div>
 
@@ -617,8 +601,7 @@ export function Insumos() {
                 className={inputCls}
                 placeholder="Ej: caja x100, frasco 500 mL, unidad, par, rollo 5 m" />
               <p className="text-xs text-slate-400 mt-1">
-                Describe cómo se cuantifica el stock. Para líquidos y reactivos,
-                indica el volumen del envase (ej: “frasco 500 mL”).
+                Para líquidos y reactivos, indica el volumen del envase (ej: “frasco 500 mL”).
               </p>
             </div>
 
@@ -654,6 +637,9 @@ export function Insumos() {
                 <input type="number" min="0" required value={form.stock_actual}
                   onChange={e => setField('stock_actual', e.target.value)}
                   className={inputCls} />
+                <p className="text-xs text-slate-400 mt-1">
+                  Total de unidades en bodega y salas.
+                </p>
               </div>
               <div>
                 <label className={labelCls}>Stock mínimo *</label>
@@ -677,24 +663,14 @@ export function Insumos() {
               </p>
             </div>
 
-            {/* Sala y Categoría */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className={labelCls}>Sala</label>
-                <select value={form.sala_id} onChange={e => setField('sala_id', e.target.value)}
-                  className={selectCls}>
-                  <option value="">Sin sala</option>
-                  {salas.map(s => <option key={s.id} value={s.id}>{s.nombre}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className={labelCls}>Categoría</label>
-                <select value={form.categoria_id} onChange={e => setField('categoria_id', e.target.value)}
-                  className={selectCls}>
-                  <option value="">Sin categoría</option>
-                  {categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-                </select>
-              </div>
+            {/* Categoría */}
+            <div>
+              <label className={labelCls}>Categoría</label>
+              <select value={form.categoria_id} onChange={e => setField('categoria_id', e.target.value)}
+                className={selectCls}>
+                <option value="">Sin categoría</option>
+                {categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+              </select>
             </div>
 
             {/* Descripción */}

@@ -2,13 +2,14 @@ import { useState, useEffect, useCallback } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import {
   Package, Plus, Pencil, PowerOff, RefreshCw,
-  ChevronLeft, CheckCircle,
+  ChevronLeft, CheckCircle, MapPin,
 } from 'lucide-react'
 import { api } from '../api/client'
 import { useAuthStore } from '../store/auth'
 import type {
   UnidadImplementoResponse, UnidadImplementoCreate,
   UnidadImplementoUpdate, EstadoUnidad, InsumoResponse,
+  SalaResponse, PaginatedResponse,
 } from '../types/api'
 
 // ---------------------------------------------------------------------------
@@ -37,13 +38,15 @@ const ESTADO_CFG: Record<EstadoUnidad, { label: string; cls: string }> = {
 interface ModalProps {
   unidad: UnidadImplementoResponse | null  // null = crear nueva
   implementoId: number
+  salas: SalaResponse[]
   onClose: () => void
   onSaved: () => void
 }
 
-function UnidadModal({ unidad, implementoId, onClose, onSaved }: ModalProps) {
+function UnidadModal({ unidad, implementoId, salas, onClose, onSaved }: ModalProps) {
   const esNueva = unidad === null
   const [estado, setEstado] = useState<EstadoUnidad>(unidad?.estado ?? 'disponible')
+  const [salaId, setSalaId] = useState<string>(unidad?.sala_id != null ? String(unidad.sala_id) : '')
   const [notas, setNotas] = useState(unidad?.notas ?? '')
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState('')
@@ -60,15 +63,18 @@ function UnidadModal({ unidad, implementoId, onClose, onSaved }: ModalProps) {
     setGuardando(true)
     setError('')
     try {
+      const sala_id = salaId ? parseInt(salaId) : null
       if (esNueva) {
         const body: UnidadImplementoCreate = {
           implemento_id: implementoId,
+          sala_id,
           notas: notas.trim() || null,
         }
         await api.post('/unidades-implemento/', body)
       } else {
         const body: UnidadImplementoUpdate = {
           estado,
+          sala_id,
           notas: notas.trim() || null,
         }
         await api.put(`/unidades-implemento/${unidad!.id}`, body)
@@ -97,12 +103,11 @@ function UnidadModal({ unidad, implementoId, onClose, onSaved }: ModalProps) {
         </div>
 
         <div className="px-6 py-5 space-y-4">
+          {/* Estado — solo en edición */}
           {!esNueva && (
             <div>
               <p className="text-xs font-semibold text-slate-500 dark:text-slate-400
-                            mb-1 uppercase tracking-wide">
-                Estado
-              </p>
+                            mb-2 uppercase tracking-wide">Estado</p>
               <div className="flex gap-2 flex-wrap">
                 {(['disponible', 'en_uso', 'dado_de_baja'] as EstadoUnidad[]).map(e => (
                   <button key={e} onClick={() => setEstado(e)}
@@ -119,6 +124,31 @@ function UnidadModal({ unidad, implementoId, onClose, onSaved }: ModalProps) {
             </div>
           )}
 
+          {/* Sala asignada */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-700
+                              dark:text-slate-300 mb-1.5 uppercase tracking-wide">
+              <span className="flex items-center gap-1.5">
+                <MapPin size={11} /> Ubicación física
+              </span>
+            </label>
+            <select
+              value={salaId}
+              onChange={e => setSalaId(e.target.value)}
+              className={inputCls}
+            >
+              <option value="">Bodega (sin asignar a sala)</option>
+              {salas.map(s => (
+                <option key={s.id} value={s.id}>{s.nombre}</option>
+              ))}
+            </select>
+            <p className="text-xs text-slate-400 mt-1">
+              Si esta unidad está asignada permanentemente a una sala clínica,
+              selecciónala. De lo contrario, se indica que está en Bodega.
+            </p>
+          </div>
+
+          {/* Notas */}
           <div>
             <label className="block text-xs font-semibold text-slate-700
                               dark:text-slate-300 mb-1 uppercase tracking-wide">
@@ -126,7 +156,7 @@ function UnidadModal({ unidad, implementoId, onClose, onSaved }: ModalProps) {
             </label>
             <textarea className={inputCls} rows={2} value={notas}
               onChange={e => setNotas(e.target.value)}
-              placeholder="Observaciones sobre esta unidad…" />
+              placeholder="Ej: rayada, falta goma de sellado…" />
           </div>
 
           {error && (
@@ -165,43 +195,48 @@ export function UnidadesImplemento() {
   const puedeEscribir = user?.rol ? ROLES_ESCRITURA.includes(user.rol) : false
   const esAdmin = user?.rol === 'admin'
 
-  // La ruta es /insumos/:implemento_id/unidades → useParams, NO useSearchParams
   const { implemento_id } = useParams<{ implemento_id: string }>()
   const implementoId = parseInt(implemento_id ?? '0')
 
   const [implemento, setImplemento] = useState<InsumoResponse | null>(null)
   const [unidades, setUnidades] = useState<UnidadImplementoResponse[]>([])
+  const [salas, setSalas] = useState<SalaResponse[]>([])
   const [cargando, setCargando] = useState(true)
   const [modal, setModal] = useState<UnidadImplementoResponse | null | undefined>(undefined)
   const [toast, setToast] = useState('')
+  // Filtro de sala en la vista
+  const [filtroSala, setFiltroSala] = useState<string>('')
 
   function mostrarToast(msg: string) {
     setToast(msg)
     setTimeout(() => setToast(''), 3000)
   }
 
-  // Cargar info del implemento padre
   useEffect(() => {
     if (!implementoId) return
-    api.get<InsumoResponse>(`/insumos/${implementoId}`)
-      .then(r => setImplemento(r.data))
-      .catch(() => {})
+    Promise.all([
+      api.get<InsumoResponse>(`/insumos/${implementoId}`),
+      api.get<PaginatedResponse<SalaResponse>>('/salas/', { params: { limit: 100 } }),
+    ]).then(([insumoRes, salasRes]) => {
+      setImplemento(insumoRes.data)
+      setSalas(salasRes.data.data)
+    }).catch(() => {})
   }, [implementoId])
 
   const cargar = useCallback(async () => {
     if (!implementoId) return
     setCargando(true)
     try {
-      const res = await api.get<UnidadImplementoResponse[]>('/unidades-implemento/', {
-        params: { implemento_id: implementoId },
-      })
+      const params: Record<string, string | number> = { implemento_id: implementoId }
+      if (filtroSala) params.sala_id = parseInt(filtroSala)
+      const res = await api.get<UnidadImplementoResponse[]>('/unidades-implemento/', { params })
       setUnidades(res.data)
     } catch {
       mostrarToast('Error al cargar unidades')
     } finally {
       setCargando(false)
     }
-  }, [implementoId])
+  }, [implementoId, filtroSala])
 
   useEffect(() => { cargar() }, [cargar])
 
@@ -216,12 +251,13 @@ export function UnidadesImplemento() {
     }
   }
 
-  // Conteos por estado
   const conteos = {
     total: unidades.length,
     disponibles: unidades.filter(u => u.estado === 'disponible').length,
     en_uso: unidades.filter(u => u.estado === 'en_uso').length,
     baja: unidades.filter(u => u.estado === 'dado_de_baja').length,
+    en_salas: unidades.filter(u => u.sala_id != null).length,
+    en_bodega: unidades.filter(u => u.sala_id == null).length,
   }
 
   if (!implementoId) {
@@ -248,7 +284,7 @@ export function UnidadesImplemento() {
         <Link to="/insumos"
           className="flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400
                      hover:text-teal-600 dark:hover:text-teal-400 transition-colors mb-3">
-          <ChevronLeft size={15} /> Volver a Insumos
+          <ChevronLeft size={15} /> Volver a Insumos e Implementos
         </Link>
 
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
@@ -265,7 +301,9 @@ export function UnidadesImplemento() {
               </span>
             </div>
             <p className="text-sm text-slate-500 dark:text-slate-400">
-              Gestión de unidades físicas individuales con sub-código propio
+              Unidades físicas individuales —
+              {' '}<strong>{conteos.en_salas}</strong> en salas,
+              {' '}<strong>{conteos.en_bodega}</strong> en bodega
             </p>
           </div>
 
@@ -303,6 +341,24 @@ export function UnidadesImplemento() {
         ))}
       </div>
 
+      {/* Filtro de sala */}
+      <div className="flex items-center gap-3">
+        <MapPin size={14} className="text-slate-400" />
+        <select
+          value={filtroSala}
+          onChange={e => setFiltroSala(e.target.value)}
+          className="px-3 py-1.5 rounded-lg border border-slate-200 text-sm
+                     text-slate-600 bg-white focus:outline-none
+                     focus:ring-2 focus:ring-teal-500 cursor-pointer"
+        >
+          <option value="">Todas las ubicaciones</option>
+          <option value="0">Solo Bodega</option>
+          {salas.map(s => (
+            <option key={s.id} value={s.id}>{s.nombre}</option>
+          ))}
+        </select>
+      </div>
+
       {/* Tabla de unidades */}
       <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm
                       border border-slate-200 dark:border-slate-700 overflow-hidden">
@@ -315,11 +371,11 @@ export function UnidadesImplemento() {
           <div className="p-12 text-center">
             <Package size={32} className="mx-auto mb-3 text-slate-300" />
             <p className="text-slate-500 dark:text-slate-400 font-medium">
-              Aún no hay unidades registradas
+              No hay unidades para esta selección
             </p>
             {puedeEscribir && (
               <p className="text-slate-400 dark:text-slate-500 text-sm mt-1">
-                Usa "Registrar unidad" para agregar la primera unidad de este implemento.
+                Usa "Registrar unidad" para agregar la primera unidad.
               </p>
             )}
           </div>
@@ -329,7 +385,7 @@ export function UnidadesImplemento() {
               <thead>
                 <tr className="border-b border-slate-200 dark:border-slate-700
                                bg-slate-50 dark:bg-slate-900/50">
-                  {['Sub-código', 'Estado', 'Notas', 'Acciones'].map(col => (
+                  {['Sub-código', 'Ubicación', 'Estado', 'Notas', 'Acciones'].map(col => (
                     <th key={col}
                       className="text-left px-4 py-3 text-xs font-semibold
                                  text-slate-500 dark:text-slate-400 uppercase tracking-wide">
@@ -349,6 +405,21 @@ export function UnidadesImplemento() {
                                        px-2.5 py-1 rounded-lg">
                         {u.codigo ?? '—'}
                       </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      {u.sala_nombre ? (
+                        <span className="flex items-center gap-1.5 text-slate-600
+                                         dark:text-slate-300 text-sm">
+                          <MapPin size={11} className="text-teal-500" />
+                          {u.sala_nombre}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-slate-400
+                                         bg-slate-100 dark:bg-slate-700
+                                         px-2 py-0.5 rounded-full font-semibold">
+                          Bodega
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex items-center px-2.5 py-0.5
@@ -394,6 +465,7 @@ export function UnidadesImplemento() {
         <UnidadModal
           unidad={modal}
           implementoId={implementoId}
+          salas={salas}
           onClose={() => setModal(undefined)}
           onSaved={() => {
             setModal(undefined)
