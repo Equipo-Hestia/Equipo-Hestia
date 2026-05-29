@@ -349,4 +349,4 @@ def completar_solicitud(
         s.notas_operador = datos.notas_operador
 
     db.commit()
-    return _construir_response(_cargar_solicitud(db, solicitud.id))
+    return _construir_response(_cargar_solicitud(db, solicitud_id))
