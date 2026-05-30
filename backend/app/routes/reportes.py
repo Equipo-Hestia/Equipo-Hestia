@@ -323,8 +323,8 @@ def _generar_xlsx_bytes(
 
     kpis = [
         ("Valor Total Inventario", float(val.valor_total_inventario)),
-        ("Insumos con Costo",      val.total_insumos_valorados),
-        ("Insumos sin Costo",      val.total_insumos_sin_costo),
+        ("Insumos con Costo", val.total_insumos_valorados),
+        ("Insumos sin Costo", val.total_insumos_sin_costo),
     ]
     ws1.append(["KPI", "Valor"])
     for cell in ws1[ws1.max_row]:
