@@ -48,7 +48,9 @@ docker compose down -v        # apagar Y borrar la BD
 ```bash
 docker compose exec api python seed_demo.py
 ```
-Genera 18 salas (numeración real piso -1 + odontología), 10 categorías, 5 usuarios (sin rol docente), 19 asignaturas de las 5 carreras, 8 clases, 88 insumos (con tipo/unidad_medida/SKU), y ~560 movimientos distribuidos en 60 días.
+Genera 18 salas, 10 categorías, 5 usuarios (sin rol docente), 20 asignaturas de las 5 carreras,
+8 clases, 88 insumos todos en Bodega (sin sala), unidades de implementos con algunas asignadas
+a salas clínicas demo, 4 talleres y 2 paquetes de insumos, y ~560 movimientos en 60 días.
 
 ---
 
@@ -108,7 +110,7 @@ id · nombre · descripcion
 sku (VARCHAR 20, unique index parcial)
 codigo_barras (VARCHAR 100, unique index parcial)
 tipo (Enum PG: insumo|implemento)
-unidad_medida (VARCHAR 60, nullable)  <- NUEVO: ej. 'caja x100', 'frasco 500 mL'
+unidad_medida (VARCHAR 60, nullable)  <- ej. 'caja x100', 'frasco 500 mL'
 costo_unitario (NUMERIC 10,2, nullable - para reportes internos)
 fecha_vencimiento (DATE, nullable)
 stock_actual · stock_minimo
@@ -116,9 +118,21 @@ activo (Boolean, soft-delete)
 sala_id (FK nullable) · categoria_id (FK nullable)
 ```
 
-> **Nota UI:** `costo_unitario` sigue existiendo en el modelo y schemas para reportes
-> de valorización, pero fue eliminado de la tabla y formulario de la página Insumos
-> por indicación de Maritza (no necesario en la vista cotidiana).
+> **Nota de ubicación:** `sala_id` en `Insumo` es un campo legado que ya NO se usa en la UI.
+> Todos los insumos e implementos viven en **Bodega** (sala_id = NULL en la práctica).
+> La ubicación física de las unidades de implemento se gestiona en `UnidadImplemento.sala_id`.
+> Ver Regla 23.
+
+**`UnidadImplemento`** (`unidades_implemento`)
+```
+id · implemento_id (FK insumos) · codigo (VARCHAR 15, unique, auto-generado)
+sala_id (FK salas, nullable)  <- NULL = en Bodega; valor = sala asignada permanentemente
+estado (Enum: disponible|en_uso|dado_de_baja)
+notas (Text nullable) · activo (Boolean, soft-delete)
+```
+
+El stock total del implemento = suma de todas sus unidades (en salas + en bodega).
+Ejemplo: 50 gafas = 10 sala 010 + 10 sala 011 + 30 bodega.
 
 **`Asignatura`** (`asignaturas`)
 ```
@@ -135,7 +149,7 @@ asignatura_id (FK asignaturas, nullable)
 activo (Boolean, soft-delete)
 Relaciones: asignatura ← · paquetes →
 ```
-Representa el tipo de clase práctica (ej: “Taller de venopunción”). Reutilizable entre semestres.
+Representa el tipo de clase práctica (ej: "Taller de venopunción"). Reutilizable entre semestres.
 
 **`PaqueteInsumo`** (`paquetes_insumo`) — Guía de Taller digital
 ```
@@ -164,20 +178,24 @@ dia_semana · hora_inicio · hora_fin
 ```
 
 **`SolicitudRetiro`** / **`RetornoImplemento`** — modelos conservados en BD por trazabilidad
-historica, pero las rutas y páginas de Solicitudes y Retornos fueron **eliminadas del
+histórica, pero las rutas y páginas de Solicitudes y Retornos fueron **eliminadas del
 frontend**. Maritza gestiona los insumos a través de los Paquetes de insumos.
 
-### 3.3 Registro de modelos en `main.py`
+### 3.3 Registro de modelos en `main.py` Y `crear_admin.py` Y `seed_demo.py`
 
-Orden de importación obligatorio (por FKs):
+Orden de importación obligatorio (por FKs). **Los tres scripts deben tener estos imports:**
 ```python
 from app.models import asignatura         # antes de taller
 from app.models import clase_docente      # FK a asignatura
 from app.models import solicitud          # FK a clase_docente
-from app.models import taller             # FK a asignatura
-from app.models import paquete_insumo     # FK a taller e insumo
+from app.models import taller             # FK a asignatura — CRÍTICO
+from app.models import paquete_insumo     # FK a taller e insumo — CRÍTICO
 ```
-Esto mismo debe replicarse en `crear_admin.py`.
+
+**Regla de oro:** si `Asignatura` tiene `relationship("Taller", ...)` y `Taller` no está en el
+mapper registry al ejecutar la primera query ORM, SQLAlchemy lanza
+`InvalidRequestError: 'Taller' failed to locate a name`. Esto ocurre en cualquier script que
+use `db.query(...)` sin haber importado todos los modelos relacionados.
 
 ### 3.4 Endpoints relevantes (nuevos)
 
@@ -201,6 +219,15 @@ DELETE /paquetes/{id}/items/{item_id}
 ```
 Cuando `bloqueado=true`, PUT y los endpoints de items devuelven 409.
 
+**`/unidades-implemento`**
+```
+GET  /unidades-implemento/     ?implemento_id= ?sala_id= ?estado= ?incluir_inactivas=
+POST /unidades-implemento/     sala_id=NULL → bodega; sala_id=X → sala clínica
+GET  /unidades-implemento/{id}
+PUT  /unidades-implemento/{id} actualiza estado, sala_id y notas
+DELETE /unidades-implemento/{id}  (admin) soft-delete
+```
+
 ### 3.5 RBAC
 
 ```python
@@ -215,8 +242,10 @@ require_reportes     # admin, operador_coordinador o visor
 En `database.py`, `MIGRACIONES_COLUMNAS` incluye:
 ```sql
 ALTER TABLE IF EXISTS insumos ADD COLUMN IF NOT EXISTS unidad_medida VARCHAR(60)
+ALTER TABLE IF EXISTS unidades_implemento ADD COLUMN IF NOT EXISTS sala_id INTEGER
+    REFERENCES salas(id) ON DELETE SET NULL
 ```
-Se ejecuta automáticamente al arrancar. Sin downtime ni pérdida de datos.
+Se ejecutan automáticamente al arrancar. Sin downtime ni pérdida de datos.
 
 ---
 
@@ -228,7 +257,7 @@ Se ejecuta automáticamente al arrancar. Sin downtime ni pérdida de datos.
 frontend/src/pages/
   Dashboard, Alertas, Insumos, Movimientos, Salas, Categorias
   ActivosFijos, UnidadesImplemento
-  Paquetes             <- NUEVA: tabla con filtros carrera→asignatura→taller→semestre
+  Paquetes             <- tabla con filtros carrera→asignatura→taller→semestre
   Asignaturas, ClasesDocente, VerHorario, ImportarHorario
   Reportes, ImportarInsumos
   Perfil, Configuracion2FA, Usuarios, AuditLog
@@ -251,7 +280,7 @@ frontend/src/pages/
 Menú actual (por orden de aparición):
 1. Dashboard
 2. Alertas
-3. **Insumos e Implementos** (renombrado desde “Insumos”)
+3. **Insumos e Implementos** (renombrado desde "Insumos")
 4. Activos Fijos
 5. Movimientos
 6. Salas
@@ -270,28 +299,38 @@ Menú actual (por orden de aparición):
 
 ### 4.4 Página Insumos (`/insumos`)
 
-- Título: **“Insumos e Implementos”**
+- Título: **"Insumos e Implementos"**
 - Columnas tabla: Nombre | **Unidad de medida** | Stock | Mínimo | Vencimiento | Estado | Acciones
-- Columna **Costo/u eliminada** de la tabla (el campo sigue en el modelo para reportes)
-- Formulario: campo **Unidad de medida** (placeholder: “Ej: caja x100, frasco 500 mL, unidad, par, rollo 5 m”)
+- Columna **Costo/u eliminada** (sigue en modelo para reportes)
+- Columna **Sala eliminada** (la ubicación se gestiona en UnidadImplemento)
+- Formulario: campo **Unidad de medida**; campo Sala **eliminado**
 
-### 4.5 Página Paquetes (`/paquetes`)
+### 4.5 Página UnidadesImplemento (`/insumos/:id/unidades`)
+
+- Header muestra conteo **"X en salas, Y en bodega"**
+- Columna **Ubicación**: nombre de sala o badge "Bodega"
+- Filtro de ubicación (todas / bodega / sala específica)
+- Modal: selector **"Ubicación física"** — opción por defecto = "Bodega"
+
+### 4.6 Página Paquetes (`/paquetes`)
 
 Tabla con filtros en cascada:
 1. **Carrera** → filtra las asignaturas disponibles
 2. **Asignatura** → filtra los talleres disponibles
 3. **Taller** → filtra los paquetes en el backend
-4. **Semestre** → filtra adicional en el backend
+4. **Semestre** → filtro adicional en el backend
 
-Cada fila es expandible (ChevronDown/Up) para ver los items del paquete con su tipo y cantidad. Botón Lock/Unlock para bloquear/desbloquear el paquete.
+Cada fila es expandible para ver los ítems del paquete. Botón Lock/Unlock por paquete.
 
-### 4.6 Proxy Vite
+### 4.7 Proxy Vite
 
-Prefijos registrados: `/auth`, `/insumos`, `/importar`, `/resumen`, `/salas`, `/categorias`, `/usuarios`, `/movimientos`, `/audit-log`, `/asignaturas`, `/clases-docente`, `/reportes`, `/activos-fijos`, `/unidades-implemento`, `/talleres`, `/paquetes`.
+Prefijos registrados: `/auth`, `/insumos`, `/importar`, `/resumen`, `/salas`, `/categorias`,
+`/usuarios`, `/movimientos`, `/audit-log`, `/asignaturas`, `/clases-docente`, `/reportes`,
+`/activos-fijos`, `/unidades-implemento`, `/talleres`, `/paquetes`.
 
 **Eliminados del proxy:** `/solicitudes`, `/retornos`.
 
-### 4.7 Badge
+### 4.8 Badge
 
 Variantes disponibles: `default` | `warning` | `danger` | `success` | `info` | `purple`.
 - `purple` → Preparador Físico en Asignaturas y Paquetes.
@@ -303,7 +342,7 @@ Variantes disponibles: `default` | `warning` | `danger` | `success` | `info` | `
 1. **Leer el código real antes de escribir.** Usar MCP de GitHub para ver los archivos actuales.
 2. **Flake8 primero.** No usar espacios de alineación visual (E221). Líneas ≤ 100 chars.
 3. **Proxy de Vite.** Al agregar un router FastAPI, agregar su prefix en `vite.config.ts`.
-4. **Importar modelos en `main.py` Y `crear_admin.py` en orden de FK.**
+4. **Importar modelos en `main.py`, `crear_admin.py` Y `seed_demo.py` en orden de FK.**
 5. **Rutas estáticas antes que dinámicas.** `/alertas`, `/exportar`, `/mis-clases` van ANTES de `/{id}`.
 6. **Try/catch en fetches del frontend.**
 7. **Sincronizar tipos.** Al modificar un schema Pydantic, actualizar `frontend/src/types/api.ts`.
@@ -316,15 +355,23 @@ Variantes disponibles: `default` | `warning` | `danger` | `success` | `info` | `
 14. **Enum `rolusuario`.** Valores: `admin|operador_coordinador|operador|visor`. Sin `docente`.
 15. **Dark mode.** Nuevos componentes deben incluir variantes `dark:` de Tailwind.
 16. **Sidebar colapsado.** Clave localStorage: `hestia-sidebar-collapsed`.
-17. **Blob error parsing.** Ver sección anterior de CLAUDE.md para el patrón correcto.
+17. **Blob error parsing.** Peticiones con `responseType: 'blob'` que fallan entregan el error
+    también como Blob. Convertir con `.text()` y parsear JSON para obtener el `detail` real.
 18. **`require_reportes`.** Endpoints `/reportes/*` usan esta dependencia. `operador` no accede.
 19. **Sin `require_docente`.** Eliminada. No referenciarla.
-20. **Paquete bloqueado.** Si `bloqueado=true`, PUT y endpoints de items devuelven 409. No modificar.
-21. **`costo_unitario` oculto en UI.** El campo existe en BD y schemas (necesario para reportes de
-    valorización), pero no se muestra en la tabla ni en el formulario de Insumos.
-22. **Sin rutas Solicitudes/Retornos.** Las páginas `/solicitudes` y `/retornos` fueron eliminadas.
-    Los modelos `SolicitudRetiro` y `RetornoImplemento` existen en BD por trazabilidad, pero no
-    tienen UI activa.
+20. **Paquete bloqueado.** Si `bloqueado=true`, PUT y endpoints de items devuelven 409.
+21. **`costo_unitario` oculto en UI.** Existe en BD/schemas para reportes, no en formulario.
+22. **Sin rutas Solicitudes/Retornos.** Páginas eliminadas. Modelos existen en BD por trazabilidad.
+23. **Lógica de ubicación física (CRÍTICO):**
+    - **Insumos desechables:** siempre en Bodega. `sala_id = NULL` en `Insumo`. No asignar sala.
+    - **Implementos:** también salen de Bodega, pero sus unidades físicas pueden asignarse
+      permanentemente a salas clínicas vía `UnidadImplemento.sala_id`.
+      - `UnidadImplemento.sala_id = NULL` → unidad en Bodega.
+      - `UnidadImplemento.sala_id = X` → asignada a sala X (ej: sala 010).
+      - El stock total del implemento en `Insumo.stock_actual` = suma de TODAS sus unidades.
+    - **`Insumo.sala_id`** es un campo legado conservado en BD. No usarlo en nueva UI/lógica.
+    - El filtro por sala fue eliminado de la página Insumos. Para saber dónde está un
+      implemento específico, usar la página de Unidades Físicas (`/insumos/:id/unidades`).
 
 ---
 
@@ -339,6 +386,7 @@ Variantes disponibles: `default` | `warning` | `danger` | `success` | `info` | `
 | Inventario | Fecha de vencimiento | ✅ |
 | Inventario | Exportación CSV/XLSX | ✅ |
 | Inventario | Importación CSV/XLSX | ✅ |
+| Implementos | sala_id por unidad física (Bodega vs sala clínica) | ✅ mayo 2026 |
 | Académico | Asignaturas agrupadas por carrera | ✅ mayo 2026 |
 | Académico | 5 carreras: TENS/TQF/TLCBS/TONS/preparador_fisico | ✅ |
 | Académico | Talleres CRUD | ✅ mayo 2026 |
