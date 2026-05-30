@@ -13,7 +13,7 @@ Genera:
     - Unidades fisicas de implementos: algunas asignadas a salas demo
     - ~560 movimientos en los ultimos 60 dias
     - 6 activos fijos: 3 muebles clinicos + 3 phantomas de simulacion
-    - 4 talleres + 2 paquetes de insumos de ejemplo
+    - 10 talleres + 10 paquetes de insumos cubriendo las 5 carreras
 
 Credenciales:
     admin@hestia.duoc.cl          / Admin2024!
@@ -68,39 +68,22 @@ TLCBS = CarreraAsignatura.TLCBS
 TONS = CarreraAsignatura.TONS
 PF = CarreraAsignatura.preparador_fisico
 
-# Salas con numeracion real piso -1 + odontologia
 SALAS = [
-    ("Sala 010", "simulacion",
-     "Sala de simulacion clinica \u2014 piso -1"),
-    ("Sala 011", "simulacion",
-     "Sala de simulacion clinica \u2014 piso -1"),
-    ("Sala 012", "simulacion",
-     "Sala de simulacion clinica \u2014 piso -1"),
-    ("Sala 013", "simulacion",
-     "Sala de simulacion clinica \u2014 piso -1"),
-    ("Sala 014", "simulacion",
-     "Sala de simulacion clinica \u2014 piso -1"),
-    ("Sala 015", "simulacion",
-     "Sala de simulacion clinica \u2014 piso -1"),
-    ("Sala 016", "simulacion",
-     "Sala de simulacion clinica \u2014 piso -1"),
-    ("Sala 017", "simulacion",
-     "Sala de simulacion clinica \u2014 piso -1"),
-    ("Sala 018", "simulacion",
-     "Sala de simulacion clinica \u2014 piso -1"),
-    ("Sala 019", "simulacion",
-     "Sala de simulacion clinica \u2014 piso -1"),
-    ("Sala 020", "simulacion",
-     "Sala de simulacion clinica \u2014 piso -1"),
-    ("Sala 021", "simulacion",
-     "Sala de simulacion clinica \u2014 piso -1"),
-    ("Sala 022", "simulacion",
-     "Sala de simulacion clinica \u2014 piso -1"),
-    ("Bodega", "bodega",
-     "Bodega central de insumos \u2014 piso -1"),
-    ("Oficina", "oficina",
-     "Oficina de coordinacion \u2014 piso -1"),
-    # Salas de odontologia (fuera del espacio principal, conectadas)
+    ("Sala 010", "simulacion", "Sala de simulacion clinica \u2014 piso -1"),
+    ("Sala 011", "simulacion", "Sala de simulacion clinica \u2014 piso -1"),
+    ("Sala 012", "simulacion", "Sala de simulacion clinica \u2014 piso -1"),
+    ("Sala 013", "simulacion", "Sala de simulacion clinica \u2014 piso -1"),
+    ("Sala 014", "simulacion", "Sala de simulacion clinica \u2014 piso -1"),
+    ("Sala 015", "simulacion", "Sala de simulacion clinica \u2014 piso -1"),
+    ("Sala 016", "simulacion", "Sala de simulacion clinica \u2014 piso -1"),
+    ("Sala 017", "simulacion", "Sala de simulacion clinica \u2014 piso -1"),
+    ("Sala 018", "simulacion", "Sala de simulacion clinica \u2014 piso -1"),
+    ("Sala 019", "simulacion", "Sala de simulacion clinica \u2014 piso -1"),
+    ("Sala 020", "simulacion", "Sala de simulacion clinica \u2014 piso -1"),
+    ("Sala 021", "simulacion", "Sala de simulacion clinica \u2014 piso -1"),
+    ("Sala 022", "simulacion", "Sala de simulacion clinica \u2014 piso -1"),
+    ("Bodega", "bodega", "Bodega central de insumos \u2014 piso -1"),
+    ("Oficina", "oficina", "Oficina de coordinacion \u2014 piso -1"),
     ("Sala 07 \u2014 Odontologia", "odontologia",
      "Sala de odontologia \u2014 edificio anexo"),
     ("Sala 08 \u2014 Odontologia", "odontologia",
@@ -116,7 +99,6 @@ CATEGORIAS = [
     "Higiene y Antisepticos",
 ]
 
-# Sin rol docente
 USUARIOS = [
     ("Administrador Hestia", "admin@hestia.duoc.cl", "Admin2024!", RolUsuario.admin),
     ("Maria Gonzalez", "mgonzalez@hestia.duoc.cl", "Oper2024!", RolUsuario.operador),
@@ -125,26 +107,25 @@ USUARIOS = [
     ("Luis Perez", "lperez@hestia.duoc.cl", "Visor2024!", RolUsuario.visor),
 ]
 
-# Asignaturas representativas de las 5 carreras (codigos oficiales DuocUC)
 ASIGNATURAS = [
-    # TENS — Tecnico en Enfermeria
+    # TENS
     ("Primeros Auxilios", "CIS1101", TENS),
     ("Rol del Tecnico en Enfermeria y Cuidados Basicos", "CIS1102", TENS),
     ("Anatomofisiologia", "CIS1103", TENS),
     ("Atencion de Personas con Alteraciones de Salud Medicas y Quirurgicas",
      "CIS1104", TENS),
     ("Atencion de la Mujer y Recien Nacido", "CIS1103B", TENS),
-    # TQF — Tecnico en Quimica y Farmacia
+    # TQF
     ("Quimica Analitica e Instrumental", "PFS1115", TQF),
     ("Bioseguridad Farmaceutica", "BIS1102", TQF),
     ("Legislacion Farmaceutica", "LFS1112", TQF),
     ("Farmacologia", "AVS2132", TQF),
-    # TLCBS — Tecnico de Laboratorio Clinico y Banco de Sangre
+    # TLCBS
     ("Preparacion de Laboratorio Clinico", "LCS1111", TLCBS),
     ("Administracion de Toma de Muestra", "ATS1111", TLCBS),
     ("Bioseguridad Clinica", "BIS1111", TLCBS),
     ("Microbiologia para Laboratorio Clinico", "LCS3111", TLCBS),
-    # TONS — Tecnico en Odontologia
+    # TONS
     ("Anatomo Fisiopatologia Estomatognatica", "ACS1101", TONS),
     ("Tecnicas de Primeros Auxilios y Procedimientos Basicos", "ACS1102", TONS),
     ("Servicios de Salud Generales y Odontologicos", "GAS1101", TONS),
@@ -155,7 +136,6 @@ ASIGNATURAS = [
     ("Evaluacion para la Condicion Fisica", "EAS1102", PF),
 ]
 
-# Formato: (usuario_idx, asig_idx, seccion, semestre, num_estudiantes)
 CLASES_DOCENTE = [
     (1, 0, "001D", "2026-1", 28),
     (1, 1, "001D", "2026-1", 32),
@@ -167,8 +147,6 @@ CLASES_DOCENTE = [
     (2, 17, "001D", "2026-1", 18),
 ]
 
-# Todos los insumos viven en Bodega (sin sala_id).
-# La ubicacion fisica de los IMPLEMENTOS se gestiona a nivel de UnidadImplemento.
 # Formato: (nombre, unidad_medida, stock, minimo, cat_idx, tipo, costo)
 INSUMOS = [
     # EPP (cat 0)
@@ -269,7 +247,6 @@ INSUMOS = [
     ("Gasas con clorhexidina CHG", "Sobre", 40, 15, 9, IN, 1200),
 ]
 
-# (nombre, descripcion, tipo, sala_idx, fidelidad, notas)
 ACTIVOS_FIJOS_DEMO = [
     ("Camilla articulada con barandas",
      "Camilla electrica 3 secciones, barandas abatibles",
@@ -314,6 +291,101 @@ MOTIVOS_ENTRADA = [
     "Recepcion pedido proveedor",
 ]
 
+# ---------------------------------------------------------------------------
+# Talleres y paquetes de insumos
+# ---------------------------------------------------------------------------
+# Formato: (nombre, descripcion, asig_idx)
+TALLERES_DATA = [
+    # TENS — 4 talleres
+    ("Taller de venopuncion",
+     "Practica de cateterizacion venosa periferica", 0),
+    ("Taller de sutura basica",
+     "Tecnicas de sutura y cierre de heridas en simulador", 0),
+    ("Taller de RCP avanzado",
+     "Reanimacion cardiopulmonar con maniqui de alta fidelidad", 2),
+    ("Taller de cuidados al recien nacido",
+     "Atencion y cuidados del recien nacido en simulador neonatal", 4),
+    # TQF — 2 talleres
+    ("Taller de bioseguridad y EPP",
+     "Uso correcto de equipos de proteccion personal", 6),
+    ("Taller de quimica analitica",
+     "Preparacion de reactivos y tecnicas de laboratorio farmaceutico", 5),
+    # TLCBS — 2 talleres
+    ("Taller de toma de muestra",
+     "Tecnicas de extraccion de muestra y flebotomia", 10),
+    ("Taller de bioseguridad de laboratorio",
+     "Uso correcto de EPP y manejo de residuos en laboratorio clinico", 11),
+    # TONS — 1 taller
+    ("Taller de primeros auxilios odontologicos",
+     "Manejo de emergencias y primeros auxilios en clinica dental", 14),
+    # Preparador Fisico — 1 taller
+    ("Taller de evaluacion de condicion fisica",
+     "Medicion de parametros antropometricos y test de capacidad fisica", 19),
+]
+
+# Paquetes: (taller_idx, semestre, notas, items_list)
+# items_list: [(insumo_idx, cantidad, nota_opcional)]
+PAQUETES_DATA = [
+    # P1: Venopuncion — TENS 2026-1
+    (0, "2026-1",
+     "Para 30 alumnos. Verificar stock de catetes 20G antes del semestre.",
+     [(0, 30, "Talla S/M segun alumno"), (1, 30, None), (4, 30, None),
+      (40, 5, None), (41, 10, None), (49, 15, None),
+      (51, 5, "Torniquete"), (11, 30, None)]),
+    # P2: Sutura — TENS 2026-1
+    (1, "2026-1",
+     "Incluye set de instrumental de sutura por pareja de alumnos.",
+     [(0, 20, None), (1, 20, None), (22, 15, None), (23, 10, None),
+      (24, 8, None), (27, 4, "Una pinza por pareja"),
+      (28, 4, "Una tijera por pareja"), (29, 4, None), (11, 20, None)]),
+    # P3: RCP avanzado — TENS 2026-1
+    (2, "2026-1",
+     "Usar SimMan 3G y Nursing Anne. Verificar AMBU antes de la clase.",
+     [(0, 20, None), (1, 20, None), (4, 20, None),
+      (57, 4, None), (59, 4, None), (62, 2, None),
+      (63, 2, None), (64, 2, None)]),
+    # P4: Cuidados recien nacido — TENS 2026-1
+    (3, "2026-1",
+     "Requiere simulador neonatal. Coordinar con Maritza.",
+     [(0, 25, "Talla S/XS"), (4, 25, None), (11, 20, None),
+      (13, 15, None), (33, 5, None), (32, 5, None)]),
+    # P5: EPP y bioseguridad — TQF 2026-1
+    (4, "2026-1",
+     "EPP completo por alumno. Verificar stock de mascarillas N95.",
+     [(0, 25, None), (1, 25, None), (4, 25, None), (5, 25, None),
+      (6, 25, None), (7, 25, None), (8, 25, None)]),
+    # P6: Quimica analitica — TQF 2026-1
+    (5, "2026-1",
+     "Insumos de higiene y seguridad para laboratorio quimico.",
+     [(0, 20, None), (1, 20, None), (4, 20, None),
+      (78, 5, "Frasco 1L"), (79, 5, None), (84, 4, None),
+      (85, 4, None), (65, 10, None), (66, 10, None)]),
+    # P7: Toma de muestra — TLCBS 2026-1
+    (6, "2026-1",
+     "Tecnicas de flebotomia. Cada alumno usa su propio kit de puncion.",
+     [(0, 28, None), (1, 28, None), (4, 28, None),
+      (41, 10, None), (49, 15, None), (51, 8, None),
+      (52, 80, None), (53, 80, None), (55, 10, None)]),
+    # P8: Bioseguridad laboratorio — TLCBS 2026-1
+    (7, "2026-1",
+     "Manejo correcto de residuos biologicos y EPP de laboratorio.",
+     [(0, 25, None), (4, 25, None), (6, 10, None),
+      (65, 5, None), (66, 5, None), (67, 10, None),
+      (68, 6, None), (83, 8, None)]),
+    # P9: Primeros auxilios odontologicos — TONS 2026-1
+    (8, "2026-1",
+     "Protocolo de emergencias en clinica dental.",
+     [(0, 20, None), (4, 20, None), (11, 10, None),
+      (30, 5, None), (31, 5, None), (33, 5, None),
+      (70, 3, None), (71, 3, None)]),
+    # P10: Evaluacion condicion fisica — PF 2026-1
+    (9, "2026-1",
+     "Test de capacidad fisica y mediciones antropometricas.",
+     [(0, 18, None), (4, 18, None),
+      (31, 8, None), (32, 8, None), (33, 8, None),
+      (39, 8, None)]),
+]
+
 
 def _prefijo_codigo(nombre: str) -> str:
     """Misma logica que el backend para generar prefijo de 3 chars."""
@@ -330,6 +402,28 @@ def fecha_aleatoria(dias_min, dias_max):
         hours=random.randint(0, 12),
         minutes=random.randint(0, 59),
     )
+
+
+def _crear_paquete(db, taller_id, semestre, notas, usuario_id,
+                   items, insumos_db):
+    """Crea un PaqueteInsumo con sus items. Ignora items fuera de rango."""
+    p = PaqueteInsumo(
+        taller_id=taller_id,
+        semestre=semestre,
+        creado_por_id=usuario_id,
+        notas=notas,
+    )
+    db.add(p)
+    db.flush()
+    for insumo_idx, cantidad, nota in items:
+        if insumo_idx < len(insumos_db):
+            db.add(PaqueteItem(
+                paquete_id=p.id,
+                insumo_id=insumos_db[insumo_idx].id,
+                cantidad_requerida=cantidad,
+                notas=nota,
+            ))
+    return p
 
 
 def main():
@@ -423,8 +517,6 @@ def main():
         print(f"  {len(clases)} clases (semestre 2026-1)")
 
         # --- Insumos ---
-        # Todos viven en Bodega: sala_id=NULL.
-        # La ubicacion fisica de los implementos se define a nivel de unidad.
         print("Insertando insumos...")
         insumos_db = []
         for nombre, unidad_medida, stock, minimo, cat_idx, tipo, costo in INSUMOS:
@@ -452,8 +544,6 @@ def main():
         print(f"  {len(insumos_db)} insumos ({len(implementos_list)} implementos)")
 
         # --- Unidades fisicas de implementos ---
-        # Algunas unidades se asignan a salas clinicas (sala 010, 011, 012).
-        # El resto queda en Bodega (sala_id=None).
         print("Insertando unidades fisicas de implementos...")
         total_unidades = 0
         salas_clinicas = salas[:3]  # 010, 011, 012
@@ -465,14 +555,12 @@ def main():
                     EstadoUnidad.disponible, EstadoUnidad.disponible,
                     EstadoUnidad.disponible, EstadoUnidad.en_uso,
                 ])
-                # Primera unidad de cada EPP/implemento comun va a sala 010
-                # Segunda va a sala 011; el resto queda en Bodega
                 if j == 0 and impl.categoria_id == cats[0].id:
-                    sala_asignada = salas_clinicas[0].id  # sala 010
+                    sala_asignada = salas_clinicas[0].id
                 elif j == 1 and impl.categoria_id == cats[0].id:
-                    sala_asignada = salas_clinicas[1].id  # sala 011
+                    sala_asignada = salas_clinicas[1].id
                 else:
-                    sala_asignada = None  # Bodega
+                    sala_asignada = None
                 u = UnidadImplemento(
                     implemento_id=impl.id,
                     estado=estado,
@@ -543,24 +631,9 @@ def main():
         print(f"  {total_movs} movimientos")
 
         # --- Talleres ---
-        print("Insertando talleres de demo...")
-        talleres_data = [
-            # (nombre, descripcion, asig_idx)
-            ("Taller de venopuncion",
-             "Practica de cateterizacion venosa periferica",
-             0),  # CIS1101 TENS
-            ("Taller de sutura basica",
-             "Tecnicas de sutura y cierre de heridas en simulador",
-             0),  # CIS1101 TENS
-            ("Taller de RCP avanzado",
-             "Reanimacion cardiopulmonar con maniqui de alta fidelidad",
-             2),  # CIS1103 TENS
-            ("Taller de bioseguridad y EPP",
-             "Uso correcto de equipos de proteccion personal",
-             6),  # BIS1102 TQF
-        ]
+        print("Insertando talleres...")
         talleres_db = []
-        for nombre, desc, asig_idx in talleres_data:
+        for nombre, desc, asig_idx in TALLERES_DATA:
             t = Taller(
                 nombre=nombre,
                 descripcion=desc,
@@ -569,88 +642,41 @@ def main():
             db.add(t)
             talleres_db.append(t)
         db.flush()
-        print(f"  {len(talleres_db)} talleres")
+        print(f"  {len(talleres_db)} talleres (5 carreras)")
 
-        # --- Paquetes de insumos (Guia de Taller) ---
-        print("Insertando paquetes de insumos de demo...")
+        # --- Paquetes de insumos ---
+        print("Insertando paquetes de insumos...")
         total_paquetes = 0
-
-        # Paquete 1: Taller de venopuncion — 2026-1
-        p1 = PaqueteInsumo(
-            taller_id=talleres_db[0].id,
-            semestre="2026-1",
-            creado_por_id=usuarios[1].id,  # mgonzalez
-            notas="Preparado para 30 alumnos. Verificar stock de catetes 20G.",
-        )
-        db.add(p1)
-        db.flush()
-        items_p1 = [
-            # (insumo_idx, cantidad, nota)
-            (0, 30, "Talla S/M segun alumno"),   # Guantes latex S
-            (1, 30, None),                         # Guantes latex M
-            (4, 30, None),                         # Mascarillas quirurgicas
-            (40, 5, None),                         # Cateter 18G
-            (41, 10, None),                        # Cateter 20G
-            (49, 15, None),                        # Jeringa 10ml
-            (51, 5, None),                         # Torniquete
-            (11, 30, None),                        # Gasa esteril
-        ]
-        for insumo_idx, cantidad, nota in items_p1:
-            if insumo_idx < len(insumos_db):
-                db.add(PaqueteItem(
-                    paquete_id=p1.id,
-                    insumo_id=insumos_db[insumo_idx].id,
-                    cantidad_requerida=cantidad,
-                    notas=nota,
-                ))
-        total_paquetes += 1
-
-        # Paquete 2: Taller de bioseguridad y EPP — 2026-1
-        p2 = PaqueteInsumo(
-            taller_id=talleres_db[3].id,
-            semestre="2026-1",
-            creado_por_id=usuarios[1].id,
-            notas="Incluye EPP completo para cada alumno.",
-        )
-        db.add(p2)
-        db.flush()
-        items_p2 = [
-            (0, 25, None),   # Guantes S
-            (1, 25, None),   # Guantes M
-            (4, 25, None),   # Mascarillas
-            (5, 25, None),   # N95
-            (6, 25, None),   # Gafas de proteccion
-            (7, 25, None),   # Pecheras
-            (8, 25, None),   # Gorros
-        ]
-        for insumo_idx, cantidad, nota in items_p2:
-            if insumo_idx < len(insumos_db):
-                db.add(PaqueteItem(
-                    paquete_id=p2.id,
-                    insumo_id=insumos_db[insumo_idx].id,
-                    cantidad_requerida=cantidad,
-                    notas=nota,
-                ))
-        total_paquetes += 1
+        for taller_idx, semestre, notas, items in PAQUETES_DATA:
+            _crear_paquete(
+                db,
+                taller_id=talleres_db[taller_idx].id,
+                semestre=semestre,
+                notas=notas,
+                usuario_id=usuarios[1].id,
+                items=items,
+                insumos_db=insumos_db,
+            )
+            total_paquetes += 1
         db.commit()
-        print(f"  {total_paquetes} paquetes (con sus items)")
+        print(f"  {total_paquetes} paquetes (5 carreras, semestre 2026-1)")
 
         # --- Resumen final ---
         alertas = sum(1 for _, _, s, m, *_ in INSUMOS if s <= m)
         print("\n" + "=" * 40)
         print("Demo cargada exitosamente.")
-        print(f"  Salas:         {len(salas)} (13 clinicas + 2 admin + 3 odontologia)")
+        print(f"  Salas:         {len(salas)}")
         print(f"  Categorias:    {len(cats)}")
-        print(f"  Usuarios:      {len(usuarios)} (sin rol docente)")
+        print(f"  Usuarios:      {len(usuarios)}")
         print(f"  Asignaturas:   {len(asignaturas)} (5 carreras)")
-        print(f"  Clases:        {len(clases)} (semestre 2026-1)")
+        print(f"  Clases:        {len(clases)}")
         print(
             f"  Insumos:       {len(insumos_db)} "
-            f"({alertas} en alerta de stock) — todos en Bodega"
+            f"({alertas} en alerta) — todos en Bodega"
         )
         print(
             f"  Implementos:   {len(implementos_list)} "
-            f"con {total_unidades} unidades fisicas (algunas en salas)"
+            f"con {total_unidades} unidades fisicas"
         )
         print(
             f"  Activos fijos: {len(activos_db)} "
