@@ -283,9 +283,7 @@ def _generar_xlsx_bytes(
     """
     try:
         import openpyxl
-        from openpyxl.styles import (
-            Font, PatternFill, Alignment, Border, Side
-        )
+        from openpyxl.styles import Font, PatternFill, Alignment, Side
         from openpyxl.utils import get_column_letter
         import io
     except ImportError:
@@ -297,17 +295,15 @@ def _generar_xlsx_bytes(
             ),
         )
 
-    # Estilos
+    # Estilos reutilizados en las hojas
     TEAL_HEX = "0D7377"
     HEADER_FILL = PatternFill("solid", fgColor=TEAL_HEX)
     HEADER_FONT = Font(color="FFFFFF", bold=True, size=10)
     ALT_FILL = PatternFill("solid", fgColor="F0FDFA")
-    BOLD = Font(bold=True)
     CENTER = Alignment(horizontal="center", vertical="center")
     RIGHT = Alignment(horizontal="right", vertical="center")
-    LEFT = Alignment(horizontal="left", vertical="center")
-    THIN = Side(style="thin", color="E2E8F0")
-    BORDER = Border(bottom=THIN)
+    # Side se usa para crear bordes si se necesitan en futuras extensiones
+    _thin = Side(style="thin", color="E2E8F0")  # noqa: F841
 
     fecha = datetime.now(timezone.utc).strftime("%d/%m/%Y %H:%M UTC")
     semestre_str = semestre or "N/A"
@@ -325,14 +321,10 @@ def _generar_xlsx_bytes(
     ws1.append([f"Generado el {fecha} | Semestre: {semestre_str}"])
     ws1.append([])
 
-    # KPIs
     kpis = [
-        ("Valor Total Inventario",
-         float(val.valor_total_inventario)),
-        ("Insumos con Costo",
-         val.total_insumos_valorados),
-        ("Insumos sin Costo",
-         val.total_insumos_sin_costo),
+        ("Valor Total Inventario", float(val.valor_total_inventario)),
+        ("Insumos con Costo",      val.total_insumos_valorados),
+        ("Insumos sin Costo",      val.total_insumos_sin_costo),
     ]
     ws1.append(["KPI", "Valor"])
     for cell in ws1[ws1.max_row]:
@@ -389,7 +381,6 @@ def _generar_xlsx_bytes(
     for col_idx, w in enumerate(widths2, 1):
         ws2.column_dimensions[get_column_letter(col_idx)].width = w
 
-    # Formato numerico para columnas de costo
     for row in ws2.iter_rows(min_row=2):
         row[2].alignment = RIGHT
         row[3].alignment = RIGHT
