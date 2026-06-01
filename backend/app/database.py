@@ -96,6 +96,32 @@ MIGRACIONES_COLUMNAS = [
     "ALTER TABLE IF EXISTS unidades_implemento "
     "ADD COLUMN IF NOT EXISTS sala_id INTEGER "
     "REFERENCES salas(id) ON DELETE SET NULL",
+    # Tipo base + subtipo en movimientos (refactor trazabilidad)
+    # subtipo nullable en migracion para no romper filas historicas;
+    # las filas nuevas lo requieren a nivel de aplicacion.
+    (
+        "DO $$ BEGIN "
+        "CREATE TYPE subtipomovimiento AS ENUM ("
+        "'compra', 'devolucion_proveedor_entrada', 'ajuste_entrada', "
+        "'consumo_taller', 'prestamo_implemento', "
+        "'devolucion_proveedor_salida', 'baja', 'ajuste_salida', "
+        "'enviado_mantenimiento', 'reingreso_disponible', "
+        "'devolucion_interna'"
+        "); "
+        "EXCEPTION WHEN duplicate_object THEN NULL; END $$"
+    ),
+    "ALTER TABLE IF EXISTS movimientos "
+    "ADD COLUMN IF NOT EXISTS subtipo subtipomovimiento",
+    # FK al paquete de insumos que origino el movimiento (nullable)
+    "ALTER TABLE IF EXISTS movimientos "
+    "ADD COLUMN IF NOT EXISTS paquete_id INTEGER "
+    "REFERENCES paquetes_insumo(id) ON DELETE SET NULL",
+    # FK a la sala destino/origen del movimiento (nullable)
+    "ALTER TABLE IF EXISTS movimientos "
+    "ADD COLUMN IF NOT EXISTS sala_id INTEGER "
+    "REFERENCES salas(id) ON DELETE SET NULL",
+    # Agregar valor 'interno' al enum tipomovimiento si no existe
+    # (se maneja via MIGRACIONES_ENUM para usar autocommit)
 ]
 
 # Valores requeridos en cada enum nativo de PostgreSQL.
@@ -109,6 +135,10 @@ MIGRACIONES_ENUM = [
     (
         "carreraasignatura",
         ["TENS", "TQF", "TLCBS", "preparador_fisico", "TONS"],
+    ),
+    (
+        "tipomovimiento",
+        ["entrada", "salida", "interno"],
     ),
 ]
 
