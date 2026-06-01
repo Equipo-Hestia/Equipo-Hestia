@@ -50,3 +50,29 @@ class PaqueteResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# ---------------------------------------------------------------------------
+# Checklist de preparacion de taller
+# ---------------------------------------------------------------------------
+
+class ChecklistItemResponse(BaseModel):
+    """Item del paquete enriquecido con stock actual para la vista operadora."""
+    item_id: int
+    insumo_id: int
+    insumo_nombre: str
+    insumo_tipo: str          # 'insumo' | 'implemento'
+    cantidad_requerida: int
+    stock_actual: int         # stock_actual del insumo en el sistema
+    notas_guia: Optional[str] = None  # notas del item en la guia de taller
+
+    class Config:
+        from_attributes = True
+
+
+class ChecklistResponse(BaseModel):
+    paquete_id: int
+    taller_nombre: str
+    semestre: str
+    bloqueado: bool
+    items: List[ChecklistItemResponse]
