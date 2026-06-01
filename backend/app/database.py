@@ -120,8 +120,10 @@ MIGRACIONES_COLUMNAS = [
     "ALTER TABLE IF EXISTS movimientos "
     "ADD COLUMN IF NOT EXISTS sala_id INTEGER "
     "REFERENCES salas(id) ON DELETE SET NULL",
-    # Agregar valor 'interno' al enum tipomovimiento si no existe
-    # (se maneja via MIGRACIONES_ENUM para usar autocommit)
+    # Proveedor original del activo fijo (nullable)
+    "ALTER TABLE IF EXISTS activos_fijos "
+    "ADD COLUMN IF NOT EXISTS proveedor_id INTEGER "
+    "REFERENCES proveedores(id) ON DELETE SET NULL",
 ]
 
 # Valores requeridos en cada enum nativo de PostgreSQL.

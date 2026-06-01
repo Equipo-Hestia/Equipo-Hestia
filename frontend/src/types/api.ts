@@ -417,6 +417,8 @@ export interface ActivoFijoResponse {
   fidelidad: FidelidadPhantoma | null
   sala_id: number | null
   sala_nombre: string | null
+  proveedor_id: number | null
+  proveedor_nombre: string | null
   notas: string | null
   activo: boolean
 }
@@ -429,6 +431,7 @@ export interface ActivoFijoCreate {
   estado?: EstadoActivo
   fidelidad?: FidelidadPhantoma | null
   sala_id?: number | null
+  proveedor_id?: number | null
   notas?: string | null
 }
 
@@ -439,6 +442,7 @@ export interface ActivoFijoUpdate {
   estado?: EstadoActivo
   fidelidad?: FidelidadPhantoma | null
   sala_id?: number | null
+  proveedor_id?: number | null
   notas?: string | null
   activo?: boolean
 }
@@ -459,4 +463,89 @@ export interface EntregaDirectaResponse {
   mensaje: string
   items_procesados: number
   retornos_pendientes: number
+}
+
+// ---------------------------------------------------------------------------
+// Proveedores
+// ---------------------------------------------------------------------------
+
+export interface ProveedorResponse {
+  id: number
+  nombre: string
+  rut: string | null
+  contacto_nombre: string | null
+  contacto_email: string | null
+  telefono: string | null
+  /** URL al perfil del proveedor en SeNegocia.com */
+  url_seneg: string | null
+  notas: string | null
+  activo: boolean
+}
+
+export interface ProveedorCreate {
+  nombre: string
+  rut?: string | null
+  contacto_nombre?: string | null
+  contacto_email?: string | null
+  telefono?: string | null
+  url_seneg?: string | null
+  notas?: string | null
+}
+
+export interface ProveedorUpdate {
+  nombre?: string
+  rut?: string | null
+  contacto_nombre?: string | null
+  contacto_email?: string | null
+  telefono?: string | null
+  url_seneg?: string | null
+  notas?: string | null
+  activo?: boolean
+}
+
+// ---------------------------------------------------------------------------
+// Órdenes de Mantenimiento
+// ---------------------------------------------------------------------------
+
+export type EstadoOrden = 'enviado' | 'en_proceso' | 'completado' | 'cancelado'
+
+export const ETIQUETA_ESTADO_ORDEN: Record<EstadoOrden, string> = {
+  enviado: 'Enviado al proveedor',
+  en_proceso: 'En proceso',
+  completado: 'Completado',
+  cancelado: 'Cancelado',
+}
+
+export interface OrdenMantenimientoResponse {
+  id: number
+  activo_fijo_id: number
+  activo_fijo_nombre: string
+  activo_fijo_codigo: string | null
+  proveedor_id: number | null
+  proveedor_nombre: string | null
+  creado_por_id: number | null
+  creado_por_nombre: string | null
+  estado: EstadoOrden
+  fecha_envio: string
+  fecha_retorno: string | null
+  descripcion_problema: string | null
+  descripcion_trabajo: string | null
+  costo: number | null
+  activo: boolean
+}
+
+export interface OrdenMantenimientoCreate {
+  activo_fijo_id: number
+  proveedor_id?: number | null
+  fecha_envio: string
+  descripcion_problema?: string | null
+}
+
+export interface OrdenMantenimientoUpdate {
+  proveedor_id?: number | null
+  estado?: EstadoOrden
+  fecha_retorno?: string | null
+  descripcion_trabajo?: string | null
+  costo?: number | null
+  activo?: boolean
 }

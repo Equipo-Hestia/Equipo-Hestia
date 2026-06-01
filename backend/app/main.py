@@ -18,6 +18,8 @@ from app.models import activo_fijo        # noqa  <- Fase 5 (muebles y phantomas
 from app.models import unidad_implemento  # noqa  <- Fase 5 (sub-codigos implementos)
 from app.models import taller             # noqa  <- Guia de Taller (FK a asignatura)
 from app.models import paquete_insumo     # noqa  <- Guia de Taller (FK a taller e insumo)
+from app.models import proveedor          # noqa  <- antes de orden_mantenimiento
+from app.models import orden_mantenimiento  # noqa  <- FK a activo_fijo y proveedor
 from app.routes import (
     salas, categorias, usuarios, movimientos, insumos, auth, resumen, importar
 )
@@ -31,6 +33,8 @@ from app.routes import activos_fijos
 from app.routes import unidades_implemento
 from app.routes import talleres
 from app.routes import paquetes_insumo
+from app.routes import proveedores
+from app.routes import ordenes_mantenimiento
 
 # 1) crea tablas nuevas. 2) aplica ALTER TABLE / ALTER TYPE idempotentes.
 Base.metadata.create_all(bind=engine)
@@ -104,6 +108,8 @@ app.include_router(activos_fijos.router)
 app.include_router(unidades_implemento.router)
 app.include_router(talleres.router)
 app.include_router(paquetes_insumo.router)
+app.include_router(proveedores.router)
+app.include_router(ordenes_mantenimiento.router)
 
 
 @app.get("/")
