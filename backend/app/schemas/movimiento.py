@@ -1,23 +1,29 @@
 from pydantic import BaseModel, Field
-from app.models.movimiento import TipoMovimiento
+from app.models.movimiento import TipoMovimiento, SubtipoMovimiento
 from datetime import datetime
 
 
 class MovimientoCreate(BaseModel):
     tipo: TipoMovimiento
-    cantidad: int
+    subtipo: SubtipoMovimiento
+    cantidad: int = Field(gt=0)
     motivo: str | None = None
     insumo_id: int
+    paquete_id: int | None = None
+    sala_id: int | None = None
 
 
 class MovimientoResponse(BaseModel):
     id: int
     tipo: TipoMovimiento
+    subtipo: SubtipoMovimiento
     cantidad: int
     motivo: str | None = None
     fecha: datetime
     insumo_id: int
     usuario_id: int
+    paquete_id: int | None = None
+    sala_id: int | None = None
 
     class Config:
         from_attributes = True
@@ -26,12 +32,14 @@ class MovimientoResponse(BaseModel):
 class MovimientoEnriquecido(BaseModel):
     id: int
     tipo: TipoMovimiento
+    subtipo: SubtipoMovimiento
     cantidad: int
     motivo: str | None = None
     fecha: datetime
     insumo: str
     sala: str | None = None
     usuario: str
+    paquete_id: int | None = None
 
     class Config:
         from_attributes = True
