@@ -77,7 +77,8 @@ export interface DiaMovimiento {
 
 export interface ActividadReciente {
   id: number
-  tipo: 'entrada' | 'salida'
+  tipo: TipoMovimiento
+  subtipo: SubtipoMovimiento
   insumo: string
   sala: string | null
   cantidad: number
@@ -143,24 +144,75 @@ export interface CategoriaCreate {
   nombre: string
 }
 
-export type TipoMovimiento = 'entrada' | 'salida'
+// Tipo base del movimiento: dirección del flujo
+export type TipoMovimiento = 'entrada' | 'salida' | 'interno'
+
+// Subtipo: motivo específico que detalla el tipo base
+export type SubtipoMovimiento =
+  // Entradas
+  | 'compra'
+  | 'devolucion_proveedor_entrada'
+  | 'ajuste_entrada'
+  // Salidas
+  | 'consumo_taller'
+  | 'prestamo_implemento'
+  | 'devolucion_proveedor_salida'
+  | 'baja'
+  | 'ajuste_salida'
+  // Internos
+  | 'enviado_mantenimiento'
+  | 'reingreso_disponible'
+  | 'devolucion_interna'
+
+/** Mapa de subtipos válidos por tipo base. Útil para poblar selects. */
+export const SUBTIPOS_POR_TIPO: Record<TipoMovimiento, SubtipoMovimiento[]> = {
+  entrada: ['compra', 'devolucion_proveedor_entrada', 'ajuste_entrada'],
+  salida: [
+    'consumo_taller',
+    'prestamo_implemento',
+    'devolucion_proveedor_salida',
+    'baja',
+    'ajuste_salida',
+  ],
+  interno: ['enviado_mantenimiento', 'reingreso_disponible', 'devolucion_interna'],
+}
+
+/** Etiquetas en español para mostrar en la UI */
+export const ETIQUETA_SUBTIPO: Record<SubtipoMovimiento, string> = {
+  compra: 'Compra a proveedor',
+  devolucion_proveedor_entrada: 'Devolución de proveedor (reingreso)',
+  ajuste_entrada: 'Ajuste de inventario (sobrante)',
+  consumo_taller: 'Consumo en taller',
+  prestamo_implemento: 'Préstamo de implemento',
+  devolucion_proveedor_salida: 'Devolución a proveedor',
+  baja: 'Baja definitiva',
+  ajuste_salida: 'Ajuste de inventario (faltante)',
+  enviado_mantenimiento: 'Enviado a mantenimiento',
+  reingreso_disponible: 'Reingreso tras mantenimiento',
+  devolucion_interna: 'Devolución interna a bodega',
+}
 
 export interface MovimientoCreate {
   tipo: TipoMovimiento
+  subtipo: SubtipoMovimiento
   cantidad: number
   insumo_id: number
   motivo?: string | null
+  paquete_id?: number | null
+  sala_id?: number | null
 }
 
 export interface MovimientoEnriquecido {
   id: number
   tipo: TipoMovimiento
+  subtipo: SubtipoMovimiento
   cantidad: number
   motivo: string | null
   fecha: string
   insumo: string
   sala: string | null
   usuario: string
+  paquete_id: number | null
 }
 
 export interface AuditLogEntry {

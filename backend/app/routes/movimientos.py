@@ -12,9 +12,9 @@ from openpyxl.styles import Font, PatternFill, Alignment
 from openpyxl.utils import get_column_letter
 
 from app.database import get_db
-from app.models.movimiento import Movimiento, TipoMovimiento
+from app.models.movimiento import Movimiento, TipoMovimiento, SubtipoMovimiento
 from app.models.insumo import Insumo, TipoInsumo
-from app.models.usuario import Usuario, RolUsuario
+from app.models.usuario import Usuario
 from app.models.sala import Sala
 from app.models.retorno_implemento import RetornoImplemento
 from app.schemas.movimiento import (
@@ -30,17 +30,64 @@ from app.utils.auditoria import registrar, get_ip
 
 router = APIRouter(prefix="/movimientos", tags=["Movimientos"])
 
+# Subtipos que reducen stock al registrarse
+_SUBTIPOS_SALIDA = {
+    SubtipoMovimiento.consumo_taller,
+    SubtipoMovimiento.prestamo_implemento,
+    SubtipoMovimiento.devolucion_proveedor_salida,
+    SubtipoMovimiento.baja,
+    SubtipoMovimiento.ajuste_salida,
+}
+
+# Subtipos que aumentan stock al registrarse
+_SUBTIPOS_ENTRADA = {
+    SubtipoMovimiento.compra,
+    SubtipoMovimiento.devolucion_proveedor_entrada,
+    SubtipoMovimiento.ajuste_entrada,
+}
+
+# Subtipos internos: no tocan stock (solo cambian estado del item)
+_SUBTIPOS_INTERNOS = {
+    SubtipoMovimiento.enviado_mantenimiento,
+    SubtipoMovimiento.reingreso_disponible,
+    SubtipoMovimiento.devolucion_interna,
+}
+
+# Tabla de validacion cruzada tipo <-> subtipo permitidos
+_TIPO_SUBTIPO_VALIDO: dict[TipoMovimiento, set[SubtipoMovimiento]] = {
+    TipoMovimiento.entrada: _SUBTIPOS_ENTRADA,
+    TipoMovimiento.salida: _SUBTIPOS_SALIDA,
+    TipoMovimiento.interno: _SUBTIPOS_INTERNOS,
+}
+
+
+def _validar_tipo_subtipo(
+    tipo: TipoMovimiento, subtipo: SubtipoMovimiento
+) -> None:
+    """Lanza 422 si el subtipo no corresponde al tipo base."""
+    permitidos = _TIPO_SUBTIPO_VALIDO.get(tipo, set())
+    if subtipo not in permitidos:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                f"El subtipo '{subtipo.value}' no es valido "
+                f"para el tipo '{tipo.value}'."
+            ),
+        )
+
 
 def _enriquecer(m: Movimiento) -> MovimientoEnriquecido:
     return MovimientoEnriquecido(
         id=m.id,
         tipo=m.tipo,
+        subtipo=m.subtipo,
         cantidad=m.cantidad,
         motivo=m.motivo,
         fecha=m.fecha,
         insumo=m.insumo.nombre if m.insumo else "Desconocido",
-        sala=m.insumo.sala.nombre if m.insumo and m.insumo.sala else None,
-        usuario=m.usuario.nombre if m.usuario else "Desconocido"
+        sala=m.sala.nombre if m.sala else None,
+        usuario=m.usuario.nombre if m.usuario else "Desconocido",
+        paquete_id=m.paquete_id,
     )
 
 
@@ -48,22 +95,20 @@ def _build_query(
     db: Session,
     insumo: Optional[str] = None,
     tipo: Optional[str] = None,
+    subtipo: Optional[str] = None,
     fecha_desde: Optional[date] = None,
     fecha_hasta: Optional[date] = None,
 ):
     """Query base con filtros opcionales para listado y exportacion.
-
-    Para filtrar por nombre de insumo usamos una subquery sobre la tabla
-    insumos en vez de un JOIN explicito, para no interferir con los
-    joinedload que cargan las relaciones para _enriquecer().
 
     fecha_hasta es inclusivo: se suma un dia para incluir todo el dia UTC.
     """
     q = (
         db.query(Movimiento)
         .options(
-            joinedload(Movimiento.insumo).joinedload(Insumo.sala),
+            joinedload(Movimiento.insumo),
             joinedload(Movimiento.usuario),
+            joinedload(Movimiento.sala),
         )
         .order_by(desc(Movimiento.fecha))
     )
@@ -74,12 +119,17 @@ def _build_query(
             .subquery()
         )
         q = q.filter(Movimiento.insumo_id.in_(ids))
-    if tipo and tipo in ("entrada", "salida"):
+    if tipo and tipo in ("entrada", "salida", "interno"):
         q = q.filter(Movimiento.tipo == tipo)
+    if subtipo:
+        try:
+            subtipo_enum = SubtipoMovimiento(subtipo)
+            q = q.filter(Movimiento.subtipo == subtipo_enum)
+        except ValueError:
+            pass
     if fecha_desde:
         q = q.filter(Movimiento.fecha >= fecha_desde)
     if fecha_hasta:
-        # Sumar 1 dia para que fecha_hasta sea inclusivo
         q = q.filter(Movimiento.fecha < fecha_hasta + timedelta(days=1))
     return q
 
@@ -94,6 +144,7 @@ def exportar_movimientos(
     formato: str = "csv",
     insumo: Optional[str] = None,
     tipo: Optional[str] = None,
+    subtipo: Optional[str] = None,
     fecha_desde: Optional[date] = None,
     fecha_hasta: Optional[date] = None,
     db: Session = Depends(get_db),
@@ -104,12 +155,16 @@ def exportar_movimientos(
     formato=csv  -> archivo .csv con BOM UTF-8 (abre bien en Excel).
     formato=xlsx -> archivo .xlsx con cabecera coloreada y columnas autoajustadas.
     """
-    movimientos = _build_query(db, insumo, tipo, fecha_desde, fecha_hasta).all()
+    movimientos = _build_query(
+        db, insumo, tipo, subtipo, fecha_desde, fecha_hasta
+    ).all()
     filas = [
         [
             m.tipo.value if hasattr(m.tipo, "value") else m.tipo,
+            m.subtipo.value if m.subtipo and hasattr(m.subtipo, "value")
+            else (m.subtipo or ""),
             m.insumo.nombre if m.insumo else "Desconocido",
-            m.insumo.sala.nombre if m.insumo and m.insumo.sala else "",
+            m.sala.nombre if m.sala else "",
             m.cantidad,
             m.motivo or "",
             m.fecha.strftime("%d/%m/%Y %H:%M") if m.fecha else "",
@@ -117,14 +172,16 @@ def exportar_movimientos(
         ]
         for m in movimientos
     ]
-    cabecera = ["Tipo", "Insumo", "Sala", "Cantidad", "Motivo", "Fecha", "Usuario"]
+    cabecera = [
+        "Tipo", "Subtipo", "Insumo", "Sala",
+        "Cantidad", "Motivo", "Fecha", "Usuario",
+    ]
 
     if formato == "xlsx":
         wb = Workbook()
         ws = wb.active
         ws.title = "Movimientos"
 
-        # Cabecera con estilo
         header_fill = PatternFill("solid", fgColor="0F766E")  # teal-700
         header_font = Font(color="FFFFFF", bold=True)
         for col_idx, titulo in enumerate(cabecera, 1):
@@ -133,16 +190,16 @@ def exportar_movimientos(
             cell.font = header_font
             cell.alignment = Alignment(horizontal="center")
 
-        # Datos
         for fila in filas:
             ws.append(fila)
 
-        # Autoajustar ancho de columnas
         for col_idx, _ in enumerate(cabecera, 1):
             col_letter = get_column_letter(col_idx)
             max_len = max(
-                (len(str(ws.cell(row=r, column=col_idx).value or ""))
-                 for r in range(1, ws.max_row + 1)),
+                (
+                    len(str(ws.cell(row=r, column=col_idx).value or ""))
+                    for r in range(1, ws.max_row + 1)
+                ),
                 default=10,
             )
             ws.column_dimensions[col_letter].width = min(max_len + 4, 50)
@@ -152,11 +209,16 @@ def exportar_movimientos(
         buf.seek(0)
         return StreamingResponse(
             buf,
-            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            headers={"Content-Disposition": "attachment; filename=movimientos_hestia.xlsx"},
+            media_type=(
+                "application/vnd.openxmlformats-officedocument"
+                ".spreadsheetml.sheet"
+            ),
+            headers={
+                "Content-Disposition":
+                    "attachment; filename=movimientos_hestia.xlsx"
+            },
         )
 
-    # Por defecto: CSV con BOM UTF-8 para compatibilidad con Excel
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow(cabecera)
@@ -165,7 +227,10 @@ def exportar_movimientos(
     return StreamingResponse(
         io.BytesIO(output.getvalue().encode("utf-8-sig")),
         media_type="text/csv",
-        headers={"Content-Disposition": "attachment; filename=movimientos_hestia.csv"},
+        headers={
+            "Content-Disposition":
+                "attachment; filename=movimientos_hestia.csv"
+        },
     )
 
 
@@ -178,36 +243,29 @@ def entrega_directa(
 ):
     """Operador registra una entrega inmediata a un docente presente.
 
-    No requiere solicitud previa del docente. Replica exactamente la logica
-    de completar_solicitud: descuenta stock con SELECT FOR UPDATE, crea
-    Movimiento(salida) por cada item y RetornoImplemento(pendiente) para
-    los items de tipo implemento.
-
-    El docente es obligatorio para conservar la trazabilidad de quien
-    retiro cada insumo.
+    Usa subtipo=prestamo_implemento para implementos y
+    subtipo=consumo_taller para insumos desechables.
     """
-    # Validar sala
     sala = db.query(Sala).filter(Sala.id == datos.sala_id).first()
     if not sala:
         raise HTTPException(status_code=404, detail="Sala no encontrada")
 
-    # Validar docente: debe existir, estar activo y tener rol docente
     docente = db.query(Usuario).filter(
         Usuario.id == datos.docente_id,
         Usuario.activo.is_(True),
     ).first()
-    if not docente or docente.rol != RolUsuario.docente:
+    if not docente:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="El usuario indicado no existe o no tiene rol de docente",
+            detail="El usuario indicado no existe o esta inactivo",
         )
 
-    # Acumular cantidades por insumo (por si vienen duplicados)
     cantidades: dict[int, int] = {}
     for item in datos.items:
-        cantidades[item.insumo_id] = cantidades.get(item.insumo_id, 0) + item.cantidad
+        cantidades[item.insumo_id] = (
+            cantidades.get(item.insumo_id, 0) + item.cantidad
+        )
 
-    # Bloquear y validar todos los insumos antes de modificar nada
     insumos_bloqueados: dict[int, Insumo] = {}
     for insumo_id, cantidad in cantidades.items():
         insumo = (
@@ -227,7 +285,8 @@ def entrega_directa(
                 status_code=status.HTTP_409_CONFLICT,
                 detail=(
                     f"Stock insuficiente para '{insumo.nombre}'. "
-                    f"Disponible: {insumo.stock_actual}, solicitado: {cantidad}."
+                    f"Disponible: {insumo.stock_actual}, "
+                    f"solicitado: {cantidad}."
                 ),
             )
         insumos_bloqueados[insumo_id] = insumo
@@ -239,11 +298,19 @@ def entrega_directa(
     for insumo_id, cantidad in cantidades.items():
         insumo = insumos_bloqueados[insumo_id]
         insumo.stock_actual -= cantidad
+
+        subtipo = (
+            SubtipoMovimiento.prestamo_implemento
+            if insumo.tipo == TipoInsumo.implemento
+            else SubtipoMovimiento.consumo_taller
+        )
         db.add(Movimiento(
             tipo=TipoMovimiento.salida,
+            subtipo=subtipo,
             cantidad=cantidad,
             insumo_id=insumo_id,
             usuario_id=usuario.id,
+            sala_id=datos.sala_id,
             motivo=motivo,
         ))
         if insumo.tipo == TipoInsumo.implemento:
@@ -283,15 +350,16 @@ def listar_movimientos(
     limit: int = 20,
     insumo: Optional[str] = None,
     tipo: Optional[str] = None,
+    subtipo: Optional[str] = None,
     fecha_desde: Optional[date] = None,
     fecha_hasta: Optional[date] = None,
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(get_usuario_actual),
 ):
     """Lista movimientos con filtros opcionales: insumo (texto), tipo,
-    fecha_desde y fecha_hasta. Todos los filtros son acumulables.
+    subtipo, fecha_desde y fecha_hasta. Todos los filtros son acumulables.
     """
-    q = _build_query(db, insumo, tipo, fecha_desde, fecha_hasta)
+    q = _build_query(db, insumo, tipo, subtipo, fecha_desde, fecha_hasta)
     total = q.count()
     movimientos = q.offset(skip).limit(limit).all()
     return {
@@ -309,7 +377,21 @@ def registrar_movimiento(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(require_operador),
 ):
-    insumo = db.query(Insumo).filter(Insumo.id == mov.insumo_id).with_for_update().first()
+    """Registra un movimiento validando la coherencia tipo<->subtipo.
+
+    Regla de stock:
+    - ENTRADA: aumenta stock_actual
+    - SALIDA:  reduce stock_actual (valida suficiencia)
+    - INTERNO: no toca stock (solo trazabilidad de estado)
+    """
+    _validar_tipo_subtipo(mov.tipo, mov.subtipo)
+
+    insumo = (
+        db.query(Insumo)
+        .filter(Insumo.id == mov.insumo_id)
+        .with_for_update()
+        .first()
+    )
     if not insumo:
         raise HTTPException(status_code=404, detail="Insumo no encontrado")
 
@@ -329,10 +411,14 @@ def registrar_movimiento(
                 detail=f"Stock insuficiente. Disponible: {insumo.stock_actual}",
             )
         insumo.stock_actual -= mov.cantidad
-    else:
+    elif mov.tipo == TipoMovimiento.entrada:
         insumo.stock_actual += mov.cantidad
+    # interno: sin cambio de stock
 
-    nuevo_mov = Movimiento(**mov.model_dump(), usuario_id=usuario.id)
+    nuevo_mov = Movimiento(
+        **mov.model_dump(),
+        usuario_id=usuario.id,
+    )
     db.add(nuevo_mov)
     db.commit()
     db.refresh(nuevo_mov)
@@ -342,7 +428,10 @@ def registrar_movimiento(
         usuario=usuario,
         entidad="movimiento",
         entidad_id=nuevo_mov.id,
-        detalle=f"{mov.tipo.value} {mov.cantidad}x {insumo.nombre}",
+        detalle=(
+            f"{mov.tipo.value}/{mov.subtipo.value} "
+            f"{mov.cantidad}x {insumo.nombre}"
+        ),
         ip=get_ip(request),
     )
     return nuevo_mov
@@ -358,14 +447,18 @@ def historial_por_insumo(
 ):
     if not db.query(Insumo).filter(Insumo.id == insumo_id).first():
         raise HTTPException(status_code=404, detail="Insumo no encontrado")
-    total = db.query(Movimiento).filter(Movimiento.insumo_id == insumo_id).count()
+    total = db.query(Movimiento).filter(
+        Movimiento.insumo_id == insumo_id
+    ).count()
     movimientos = (
         _build_query(db)
         .filter(Movimiento.insumo_id == insumo_id)
         .offset(skip).limit(limit).all()
     )
-    return {"total": total, "skip": skip, "limit": limit,
-            "data": [_enriquecer(m) for m in movimientos]}
+    return {
+        "total": total, "skip": skip, "limit": limit,
+        "data": [_enriquecer(m) for m in movimientos],
+    }
 
 
 @router.get("/sala/{sala_id}", response_model=PaginatedResponse[MovimientoEnriquecido])
@@ -380,15 +473,15 @@ def historial_por_sala(
         raise HTTPException(status_code=404, detail="Sala no encontrada")
     total = (
         db.query(Movimiento)
-        .join(Insumo, Movimiento.insumo_id == Insumo.id)
-        .filter(Insumo.sala_id == sala_id)
+        .filter(Movimiento.sala_id == sala_id)
         .count()
     )
     movimientos = (
         _build_query(db)
-        .join(Insumo, Movimiento.insumo_id == Insumo.id)
-        .filter(Insumo.sala_id == sala_id)
+        .filter(Movimiento.sala_id == sala_id)
         .offset(skip).limit(limit).all()
     )
-    return {"total": total, "skip": skip, "limit": limit,
-            "data": [_enriquecer(m) for m in movimientos]}
+    return {
+        "total": total, "skip": skip, "limit": limit,
+        "data": [_enriquecer(m) for m in movimientos],
+    }
