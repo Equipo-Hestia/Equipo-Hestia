@@ -21,6 +21,7 @@ import { Reportes }             from './pages/Reportes'
 import { ActivosFijos }         from './pages/ActivosFijos'
 import { UnidadesImplemento }   from './pages/UnidadesImplemento'
 import { Paquetes }             from './pages/Paquetes'
+import { PrepararTaller }       from './pages/PrepararTaller'
 import { Layout }               from './components/layout/Layout'
 import { useAuthStore }         from './store/auth'
 
@@ -71,6 +72,8 @@ export function App() {
 
           <Route path="paquetes"
             element={<ProtectedRoute roles={NO_VISOR}><Paquetes /></ProtectedRoute>} />
+          <Route path="preparar-taller"
+            element={<ProtectedRoute roles={NO_VISOR}><PrepararTaller /></ProtectedRoute>} />
 
           <Route path="asignaturas"
             element={<ProtectedRoute roles={SOLO_ADMIN}><Asignaturas /></ProtectedRoute>} />

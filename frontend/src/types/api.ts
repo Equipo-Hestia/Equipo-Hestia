@@ -331,6 +331,28 @@ export interface PaqueteItemCreate {
 }
 
 // ---------------------------------------------------------------------------
+// Checklist de preparación de taller
+// ---------------------------------------------------------------------------
+
+export interface ChecklistItemResponse {
+  item_id: number
+  insumo_id: number
+  insumo_nombre: string
+  insumo_tipo: TipoInsumo
+  cantidad_requerida: number
+  stock_actual: number
+  notas_guia: string | null
+}
+
+export interface ChecklistResponse {
+  paquete_id: number
+  taller_nombre: string
+  semestre: string
+  bloqueado: boolean
+  items: ChecklistItemResponse[]
+}
+
+// ---------------------------------------------------------------------------
 // Reportes
 // ---------------------------------------------------------------------------
 
@@ -548,4 +570,21 @@ export interface OrdenMantenimientoUpdate {
   descripcion_trabajo?: string | null
   costo?: number | null
   activo?: boolean
+}
+
+// ---------------------------------------------------------------------------
+// Vencimientos (Alertas)
+// ---------------------------------------------------------------------------
+
+export interface InsumoVencimiento {
+  id: number
+  nombre: string
+  sku: string | null
+  stock_actual: number
+  fecha_vencimiento: string
+  dias_para_vencer: number
+  vencido: boolean
+  sala: string | null
+  categoria: string | null
+  tipo: string
 }

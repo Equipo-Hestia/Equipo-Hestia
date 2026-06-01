@@ -7,7 +7,7 @@ import {
   BookOpen, GraduationCap,
   Calendar, CalendarDays, BarChart2,
   ChevronLeft, ChevronRight, Sun, Moon,
-  Sofa, FlaskConical,
+  Sofa, FlaskConical, ClipboardCheck,
 } from 'lucide-react'
 import { useAuthStore } from '../../store/auth'
 import { useThemeStore } from '../../store/theme'
@@ -31,7 +31,9 @@ const NAV_ITEMS = [
     roles: ['admin', 'operador_coordinador', 'operador', 'visor'] },
   { to: '/reportes', icon: BarChart2, label: 'Reportes',
     roles: ['admin', 'operador_coordinador', 'visor'], divider: true },
-  // Gestión académica
+  // Gestión de talleres
+  { to: '/preparar-taller', icon: ClipboardCheck, label: 'Preparar taller',
+    roles: ['admin', 'operador_coordinador', 'operador'] },
   { to: '/paquetes', icon: FlaskConical, label: 'Paquetes de insumos',
     roles: ['admin', 'operador_coordinador', 'operador'] },
   { to: '/asignaturas', icon: BookOpen, label: 'Asignaturas',
