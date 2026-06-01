@@ -1,16 +1,19 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session, joinedload
 from typing import Optional
 
 from app.database import get_db
 from app.models.paquete_insumo import PaqueteInsumo, PaqueteItem
 from app.models.taller import Taller
-from app.models.insumo import Insumo
+from app.models.insumo import Insumo, TipoInsumo
+from app.models.movimiento import Movimiento, TipoMovimiento, SubtipoMovimiento
 from app.schemas.paquete_insumo import (
     PaqueteCreate, PaqueteUpdate, PaqueteResponse, PaqueteItemResponse,
     PaqueteItemCreate, ChecklistItemResponse, ChecklistResponse,
+    ConfirmarPreparacionCreate, ConfirmarPreparacionResponse,
 )
 from app.utils.deps import get_usuario_actual, require_operador
+from app.utils.auditoria import registrar, get_ip
 from app.models.usuario import Usuario
 
 router = APIRouter(prefix="/paquetes", tags=["Paquetes de insumos"])
@@ -82,7 +85,7 @@ def listar_paquetes(
 
 
 # ---------------------------------------------------------------------------
-# Checklist de preparacion de taller — ruta estatica antes de /{paquete_id}
+# Checklist — GET estatico antes de /{paquete_id}
 # ---------------------------------------------------------------------------
 
 @router.get("/{paquete_id}/checklist", response_model=ChecklistResponse)
@@ -120,6 +123,126 @@ def obtener_checklist(
         semestre=p.semestre,
         bloqueado=p.bloqueado,
         items=items,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Confirmar preparacion — POST estatico antes de /{paquete_id}
+# ---------------------------------------------------------------------------
+
+@router.post(
+    "/{paquete_id}/confirmar-preparacion",
+    response_model=ConfirmarPreparacionResponse,
+    status_code=status.HTTP_200_OK,
+)
+def confirmar_preparacion(
+    paquete_id: int,
+    request: Request,
+    datos: ConfirmarPreparacionCreate,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(require_operador),
+):
+    """Registra los retiros de bodega al confirmar 'Sala lista'.
+
+    Solo genera movimientos para los items marcados como faltantes
+    (los que NO estaban en sala y la operadora fue a buscar a bodega).
+    Los items marcados OK no generan movimiento: ya estaban en sala y
+    Hestia no los toco.
+
+    Logica de stock:
+    - Insumo desechable -> subtipo consumo_taller  (reduce stock)
+    - Implemento        -> subtipo prestamo_implemento (reduce stock)
+
+    Si un item tiene stock insuficiente se omite el movimiento y se
+    incluye en items_sin_stock del response para que la operadora lo
+    vea. No se hace rollback total: se procesan los que tienen stock.
+    """
+    p = _cargar_paquete(db, paquete_id)
+
+    movimientos_generados = 0
+    items_sin_stock: list[str] = []
+
+    motivo_base = (
+        f"Preparacion taller: {p.taller.nombre if p.taller else ''} "
+        f"— semestre {p.semestre}"
+    )
+    if datos.notas:
+        motivo_base += f" — {datos.notas}"
+
+    for faltante in datos.faltantes:
+        # Bloquear fila para evitar race condition con otros retiros
+        insumo = (
+            db.query(Insumo)
+            .filter(
+                Insumo.id == faltante.insumo_id,
+                Insumo.activo.is_(True),
+            )
+            .with_for_update()
+            .first()
+        )
+        if not insumo:
+            continue
+
+        if insumo.stock_actual < faltante.cantidad:
+            items_sin_stock.append(
+                f"{insumo.nombre} "
+                f"(solicitado: {faltante.cantidad}, "
+                f"disponible: {insumo.stock_actual})"
+            )
+            continue
+
+        subtipo = (
+            SubtipoMovimiento.prestamo_implemento
+            if insumo.tipo == TipoInsumo.implemento
+            else SubtipoMovimiento.consumo_taller
+        )
+
+        insumo.stock_actual -= faltante.cantidad
+        db.add(Movimiento(
+            tipo=TipoMovimiento.salida,
+            subtipo=subtipo,
+            cantidad=faltante.cantidad,
+            insumo_id=insumo.id,
+            usuario_id=usuario.id,
+            paquete_id=paquete_id,
+            sala_id=datos.sala_id,
+            motivo=motivo_base,
+        ))
+        movimientos_generados += 1
+
+    db.commit()
+
+    registrar(
+        db,
+        "CONFIRMAR_PREPARACION_TALLER",
+        usuario=usuario,
+        entidad="paquete_insumo",
+        entidad_id=paquete_id,
+        detalle=(
+            f"{movimientos_generados} retiro(s) — "
+            f"{p.taller.nombre if p.taller else ''} {p.semestre}"
+            + (f" — sin stock: {len(items_sin_stock)}" if items_sin_stock else "")
+        ),
+        ip=get_ip(request),
+    )
+
+    if movimientos_generados == 0 and not datos.faltantes:
+        mensaje = "Sala lista confirmada. No hubo retiros de bodega."
+    elif items_sin_stock:
+        mensaje = (
+            f"{movimientos_generados} retiro(s) registrado(s). "
+            f"{len(items_sin_stock)} item(s) omitido(s) por stock insuficiente."
+        )
+    else:
+        mensaje = (
+            f"Sala lista confirmada. "
+            f"{movimientos_generados} retiro(s) registrado(s) desde bodega."
+        )
+
+    return ConfirmarPreparacionResponse(
+        mensaje=mensaje,
+        movimientos_generados=movimientos_generados,
+        items_sin_stock=items_sin_stock,
     )
 
 

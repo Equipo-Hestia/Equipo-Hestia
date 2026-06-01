@@ -76,3 +76,33 @@ class ChecklistResponse(BaseModel):
     semestre: str
     bloqueado: bool
     items: List[ChecklistItemResponse]
+
+
+# ---------------------------------------------------------------------------
+# Confirmacion de preparacion de taller
+# ---------------------------------------------------------------------------
+
+class ConfirmarPreparacionItem(BaseModel):
+    """Un faltante que la operadora fue a buscar a bodega."""
+    insumo_id: int
+    cantidad: int = Field(gt=0)
+
+
+class ConfirmarPreparacionCreate(BaseModel):
+    """Payload de POST /paquetes/{id}/confirmar-preparacion.
+
+    faltantes: lista de insumos que NO estaban en sala y se retiraron
+               de bodega para completar el taller. Puede ser vacia si
+               todos los items estaban OK en sala.
+    sala_id:   sala donde se preparo el taller (para trazabilidad).
+    notas:     observaciones opcionales de la operadora.
+    """
+    faltantes: List[ConfirmarPreparacionItem] = Field(default_factory=list)
+    sala_id: Optional[int] = None
+    notas: Optional[str] = None
+
+
+class ConfirmarPreparacionResponse(BaseModel):
+    mensaje: str
+    movimientos_generados: int
+    items_sin_stock: List[str]  # nombres de insumos con stock insuficiente
