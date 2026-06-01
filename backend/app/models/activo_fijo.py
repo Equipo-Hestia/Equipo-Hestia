@@ -36,20 +36,15 @@ class ActivoFijo(Base):
     nombre = Column(String, nullable=False)
     descripcion = Column(String, nullable=True)
 
-    # mueble = mobiliario clinico (camilla, carro de paro, etc.)
-    # phantoma = maniqui/simulador de fidelidad variable
     tipo = Column(
         SAEnum(TipoActivo, name="tipoactivo"),
         nullable=False,
     )
 
     # Codigo interno auto-generado al crear: MUE-XXXXX o PHN-XXXXX.
-    # Se genera con db.flush() para obtener el ID antes del commit.
     codigo_interno = Column(String(15), unique=True, nullable=True, index=True)
 
     # Codigo de barras de la etiqueta fisica pegada al activo.
-    # Para phantomas, este es el codigo que usa el proveedor para
-    # identificar el maniqui en mantenimientos preventivos/correctivos.
     codigo_barras = Column(String(100), unique=True, nullable=True, index=True)
 
     estado = Column(
@@ -59,21 +54,29 @@ class ActivoFijo(Base):
         server_default=EstadoActivo.disponible.value,
     )
 
-    # Solo relevante para phantomas: nivel de simulacion del maniqui.
-    # Nullable: los muebles no tienen fidelidad.
     fidelidad = Column(
         SAEnum(FidelidadPhantoma, name="fidelidadphantoma"),
         nullable=True,
     )
 
-    # Sala de origen: sala donde este activo debe residir normalmente.
-    # Al generar una orden de traspaso (futura Fase), este campo es
-    # la referencia para saber adonde debe regresar el activo.
     sala_id = Column(Integer, ForeignKey("salas.id"), nullable=True)
 
-    notas = Column(Text, nullable=True)
+    # Proveedor original del activo (quien lo vendio y suele hacer
+    # la mantención preventiva, especialmente para phantomas).
+    proveedor_id = Column(
+        Integer, ForeignKey("proveedores.id"), nullable=True
+    )
 
-    # Soft-delete: dado_de_baja logico sin borrar el registro.
+    notas = Column(Text, nullable=True)
     activo = Column(Boolean, default=True, nullable=False, server_default="true")
 
     sala = relationship("Sala", backref="activos_fijos")
+    proveedor = relationship(
+        "Proveedor",
+        back_populates="activos_fijos",
+        foreign_keys=[proveedor_id],
+    )
+    ordenes_mantenimiento = relationship(
+        "OrdenMantenimiento",
+        back_populates="activo_fijo",
+    )
