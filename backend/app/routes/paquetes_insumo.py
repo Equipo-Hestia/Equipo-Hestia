@@ -8,7 +8,7 @@ from app.models.taller import Taller
 from app.models.insumo import Insumo
 from app.schemas.paquete_insumo import (
     PaqueteCreate, PaqueteUpdate, PaqueteResponse, PaqueteItemResponse,
-    PaqueteItemCreate,
+    PaqueteItemCreate, ChecklistItemResponse, ChecklistResponse,
 )
 from app.utils.deps import get_usuario_actual, require_operador
 from app.models.usuario import Usuario
@@ -81,6 +81,48 @@ def listar_paquetes(
     return [_construir_response(p) for p in q.all()]
 
 
+# ---------------------------------------------------------------------------
+# Checklist de preparacion de taller — ruta estatica antes de /{paquete_id}
+# ---------------------------------------------------------------------------
+
+@router.get("/{paquete_id}/checklist", response_model=ChecklistResponse)
+def obtener_checklist(
+    paquete_id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_usuario_actual),
+):
+    """Devuelve los items del paquete enriquecidos con stock_actual.
+
+    Destinado a la vista 'Preparar taller' de la operadora. Cada item
+    incluye el stock actual del insumo para contrastar con la cantidad
+    requerida por la Guia de Taller sin llamadas adicionales.
+    """
+    p = _cargar_paquete(db, paquete_id)
+    items = [
+        ChecklistItemResponse(
+            item_id=item.id,
+            insumo_id=item.insumo_id,
+            insumo_nombre=item.insumo.nombre if item.insumo else "Desconocido",
+            insumo_tipo=(
+                item.insumo.tipo.value if item.insumo else "insumo"
+            ),
+            cantidad_requerida=item.cantidad_requerida,
+            stock_actual=(
+                item.insumo.stock_actual if item.insumo else 0
+            ),
+            notas_guia=item.notas,
+        )
+        for item in p.items
+    ]
+    return ChecklistResponse(
+        paquete_id=p.id,
+        taller_nombre=p.taller.nombre if p.taller else "Desconocido",
+        semestre=p.semestre,
+        bloqueado=p.bloqueado,
+        items=items,
+    )
+
+
 @router.get("/{paquete_id}", response_model=PaqueteResponse)
 def obtener_paquete(
     paquete_id: int,
@@ -106,7 +148,6 @@ def crear_paquete(
     if not taller:
         raise HTTPException(status_code=404, detail="Taller no encontrado o inactivo")
 
-    # Unicidad taller + semestre
     existente = db.query(PaqueteInsumo).filter(
         PaqueteInsumo.taller_id == datos.taller_id,
         PaqueteInsumo.semestre == datos.semestre,
@@ -120,7 +161,6 @@ def crear_paquete(
             ),
         )
 
-    # Validar insumos
     for item_data in datos.items:
         insumo = db.query(Insumo).filter(
             Insumo.id == item_data.insumo_id, Insumo.activo.is_(True)
@@ -209,7 +249,6 @@ def agregar_item(
             detail=f"Insumo con id {datos.insumo_id} no encontrado o inactivo.",
         )
 
-    # Upsert: si ya existe, actualizar cantidad
     item_existente = next(
         (i for i in p.items if i.insumo_id == datos.insumo_id), None
     )
