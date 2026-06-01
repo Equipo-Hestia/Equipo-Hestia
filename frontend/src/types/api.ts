@@ -352,6 +352,24 @@ export interface ChecklistResponse {
   items: ChecklistItemResponse[]
 }
 
+export interface ConfirmarPreparacionItem {
+  insumo_id: number
+  cantidad: number
+}
+
+export interface ConfirmarPreparacionCreate {
+  faltantes: ConfirmarPreparacionItem[]
+  sala_id?: number | null
+  notas?: string | null
+}
+
+export interface ConfirmarPreparacionResponse {
+  mensaje: string
+  movimientos_generados: number
+  /** Nombres de insumos con stock insuficiente que no pudieron retirarse */
+  items_sin_stock: string[]
+}
+
 // ---------------------------------------------------------------------------
 // Reportes
 // ---------------------------------------------------------------------------
