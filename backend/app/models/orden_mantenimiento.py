@@ -15,6 +15,12 @@ class EstadoOrden(str, enum.Enum):
     cancelado = "cancelado"       # orden anulada
 
 
+class TipoMantenimiento(str, enum.Enum):
+    preventivo = "preventivo"           # revisión periódica programada
+    correctivo = "correctivo"           # reparación por falla o daño
+    validacion_tecnica = "validacion_tecnica"  # certificación o calibración
+
+
 class OrdenMantenimiento(Base):
     """Registro de una mantención externa de un activo fijo (phantoma,
     mueble clínico o implemento).
@@ -48,8 +54,14 @@ class OrdenMantenimiento(Base):
         server_default=EstadoOrden.enviado.value,
     )
 
+    tipo_mantenimiento = Column(
+        SAEnum(TipoMantenimiento, name="tipomantenimiento"),
+        nullable=True,  # nullable para no romper ordenes existentes
+    )
+
     fecha_envio = Column(Date, nullable=False)
-    fecha_retorno = Column(Date, nullable=True)  # se completa al cerrar
+    fecha_retorno_estimada = Column(Date, nullable=True)  # cuantos dias estara fuera
+    fecha_retorno = Column(Date, nullable=True)           # se completa al cerrar
 
     descripcion_problema = Column(Text, nullable=True)
     descripcion_trabajo = Column(Text, nullable=True)  # relleno al completar
