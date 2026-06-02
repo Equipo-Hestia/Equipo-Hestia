@@ -4,7 +4,9 @@ from sqlalchemy import desc
 from typing import Optional
 
 from app.database import get_db
-from app.models.orden_mantenimiento import OrdenMantenimiento, EstadoOrden
+from app.models.orden_mantenimiento import (
+    OrdenMantenimiento, EstadoOrden, TipoMantenimiento,
+)
 from app.models.activo_fijo import ActivoFijo, EstadoActivo
 from app.models.proveedor import Proveedor
 from app.models.usuario import Usuario
@@ -41,7 +43,9 @@ def _enriquecer(o: OrdenMantenimiento) -> OrdenMantenimientoResponse:
             o.creado_por.nombre if o.creado_por else None
         ),
         estado=o.estado,
+        tipo_mantenimiento=o.tipo_mantenimiento,
         fecha_envio=o.fecha_envio,
+        fecha_retorno_estimada=o.fecha_retorno_estimada,
         fecha_retorno=o.fecha_retorno,
         descripcion_problema=o.descripcion_problema,
         descripcion_trabajo=o.descripcion_trabajo,
@@ -147,7 +151,9 @@ def crear_orden(
     orden = OrdenMantenimiento(
         activo_fijo_id=datos.activo_fijo_id,
         proveedor_id=datos.proveedor_id,
+        tipo_mantenimiento=datos.tipo_mantenimiento,
         fecha_envio=datos.fecha_envio,
+        fecha_retorno_estimada=datos.fecha_retorno_estimada,
         descripcion_problema=datos.descripcion_problema,
         creado_por_id=usuario.id,
     )
@@ -155,8 +161,6 @@ def crear_orden(
     db.add(orden)
     db.commit()
     db.refresh(orden)
-    # Recargar relaciones para el response
-    db.refresh(activo)
     registrar(
         db, "CREAR_ORDEN_MANTENIMIENTO",
         usuario=usuario, entidad="orden_mantenimiento", entidad_id=orden.id,
@@ -186,7 +190,7 @@ def actualizar_orden(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(require_operador),
 ):
-    """Actualiza estado, proveedor, costo y descripcion de trabajo.
+    """Actualiza estado, proveedor, tipo, costo y descripcion de trabajo.
 
     Transiciones de estado permitidas:
         enviado     -> en_proceso | cancelado
@@ -235,7 +239,6 @@ def actualizar_orden(
     for campo, valor in datos.model_dump(exclude_unset=True).items():
         setattr(orden, campo, valor)
 
-    # Efectos secundarios en el activo fijo
     if datos.estado == EstadoOrden.completado:
         orden.activo_fijo.estado = EstadoActivo.disponible
     elif datos.estado == EstadoOrden.cancelado:

@@ -34,10 +34,6 @@ def get_db():
 # ---------------------------------------------------------------------------
 # Mini-migraciones idempotentes
 # ---------------------------------------------------------------------------
-# Base.metadata.create_all() solo crea tablas nuevas; NO agrega columnas a
-# tablas ya existentes. Mientras el proyecto no use Alembic, declaramos aqui
-# las migraciones necesarias para evolucionar el esquema sin perder datos.
-# ---------------------------------------------------------------------------
 
 MIGRACIONES_COLUMNAS = [
     # Fase 0 - columnas de usuarios e insumos
@@ -92,13 +88,10 @@ MIGRACIONES_COLUMNAS = [
     "ALTER TABLE IF EXISTS insumos "
     "ADD COLUMN IF NOT EXISTS unidad_medida VARCHAR(60)",
     # Sala asignada por unidad fisica de implemento
-    # NULL = en Bodega; valor = sala donde esta fisicamente asignada
     "ALTER TABLE IF EXISTS unidades_implemento "
     "ADD COLUMN IF NOT EXISTS sala_id INTEGER "
     "REFERENCES salas(id) ON DELETE SET NULL",
-    # Tipo base + subtipo en movimientos (refactor trazabilidad)
-    # subtipo nullable en migracion para no romper filas historicas;
-    # las filas nuevas lo requieren a nivel de aplicacion.
+    # Tipo base + subtipo en movimientos
     (
         "DO $$ BEGIN "
         "CREATE TYPE subtipomovimiento AS ENUM ("
@@ -112,24 +105,31 @@ MIGRACIONES_COLUMNAS = [
     ),
     "ALTER TABLE IF EXISTS movimientos "
     "ADD COLUMN IF NOT EXISTS subtipo subtipomovimiento",
-    # FK al paquete de insumos que origino el movimiento (nullable)
     "ALTER TABLE IF EXISTS movimientos "
     "ADD COLUMN IF NOT EXISTS paquete_id INTEGER "
     "REFERENCES paquetes_insumo(id) ON DELETE SET NULL",
-    # FK a la sala destino/origen del movimiento (nullable)
     "ALTER TABLE IF EXISTS movimientos "
     "ADD COLUMN IF NOT EXISTS sala_id INTEGER "
     "REFERENCES salas(id) ON DELETE SET NULL",
-    # Proveedor original del activo fijo (nullable)
+    # Proveedor original del activo fijo
     "ALTER TABLE IF EXISTS activos_fijos "
     "ADD COLUMN IF NOT EXISTS proveedor_id INTEGER "
     "REFERENCES proveedores(id) ON DELETE SET NULL",
+    # TipoMantenimiento en ordenes_mantenimiento
+    (
+        "DO $$ BEGIN "
+        "CREATE TYPE tipomantenimiento AS ENUM ("
+        "'preventivo', 'correctivo', 'validacion_tecnica'"
+        "); "
+        "EXCEPTION WHEN duplicate_object THEN NULL; END $$"
+    ),
+    "ALTER TABLE IF EXISTS ordenes_mantenimiento "
+    "ADD COLUMN IF NOT EXISTS tipo_mantenimiento tipomantenimiento",
+    "ALTER TABLE IF EXISTS ordenes_mantenimiento "
+    "ADD COLUMN IF NOT EXISTS fecha_retorno_estimada DATE",
 ]
 
-# Valores requeridos en cada enum nativo de PostgreSQL.
-# El sistema agrega los que falten de forma idempotente.
 MIGRACIONES_ENUM = [
-    # (nombre_tipo_pg, [valores_requeridos])
     (
         "rolusuario",
         ["admin", "operador_coordinador", "operador", "visor"],
@@ -162,12 +162,7 @@ def aplicar_migraciones_pendientes() -> None:
 
 
 def _aplicar_migraciones_enum() -> None:
-    """Agrega valores faltantes a enums nativos de PostgreSQL.
-
-    Usa psycopg2 directamente porque ALTER TYPE ... ADD VALUE no puede
-    ejecutarse dentro de una transaccion en PostgreSQL < 12. Cada ADD VALUE
-    es idempotente gracias a IF NOT EXISTS.
-    """
+    """Agrega valores faltantes a enums nativos de PostgreSQL."""
     import psycopg2
 
     dsn = (DATABASE_URL or "").replace("postgresql+psycopg2://", "postgresql://")
