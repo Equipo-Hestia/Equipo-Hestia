@@ -494,23 +494,13 @@ function ItemChecklist({ item, estado, onMarcar }: ItemChecklistProps) {
         <div className="flex flex-col gap-2 flex-shrink-0">
           <button
             onClick={() => onMarcar(item.item_id, estado === 'ok' ? 'pendiente' : 'ok')}
-            className={`w-9 h-9 rounded-lg flex items-center justify-center transition-colors
-              ${ estado === 'ok'
-                ? 'bg-teal-600 text-white'
-                : 'bg-slate-100 dark:bg-slate-700 text-slate-400
-                   hover:bg-teal-100 hover:text-teal-700
-                   dark:hover:bg-teal-900/30 dark:hover:text-teal-400' }`}
+            className={`w-9 h-9 rounded-lg flex items-center justify-center transition-colors ${ estado === 'ok' ? 'bg-teal-600 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-400 hover:bg-teal-100 hover:text-teal-700 dark:hover:bg-teal-900/30 dark:hover:text-teal-400' }`}
             title="Marcar como OK (está en sala)">
             <CheckCircle2 size={16} />
           </button>
           <button
             onClick={() => onMarcar(item.item_id, estado === 'faltante' ? 'pendiente' : 'faltante')}
-            className={`w-9 h-9 rounded-lg flex items-center justify-center transition-colors
-              ${ estado === 'faltante'
-                ? 'bg-amber-500 text-white'
-                : 'bg-slate-100 dark:bg-slate-700 text-slate-400
-                   hover:bg-amber-100 hover:text-amber-700
-                   dark:hover:bg-amber-900/30 dark:hover:text-amber-400' }`}
+            className={`w-9 h-9 rounded-lg flex items-center justify-center transition-colors ${ estado === 'faltante' ? 'bg-amber-500 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-400 hover:bg-amber-100 hover:text-amber-700 dark:hover:bg-amber-900/30 dark:hover:text-amber-400' }`}
             title="Marcar como faltante">
             <AlertTriangle size={16} />
           </button>
