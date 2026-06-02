@@ -1,13 +1,20 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import {
-  ArrowUpCircle, ArrowDownCircle, Plus, RefreshCw, CheckCircle,
+  ArrowUpCircle, ArrowDownCircle, ArrowRightLeft,
+  Plus, RefreshCw, CheckCircle,
   Download, FileText, X, SlidersHorizontal
 } from 'lucide-react'
 import { api } from '../api/client'
 import { useAuthStore } from '../store/auth'
 import type {
   MovimientoEnriquecido, MovimientoCreate,
-  InsumoResponse, PaginatedResponse, TipoMovimiento
+  InsumoResponse, PaginatedResponse,
+  TipoMovimiento, SubtipoMovimiento,
+  SUBTIPOS_POR_TIPO,
+} from '../types/api'
+import {
+  ETIQUETA_SUBTIPO,
+  SUBTIPOS_POR_TIPO as SUBTIPOS_MAP,
 } from '../types/api'
 import { Badge } from '../components/ui/Badge'
 import { Modal } from '../components/ui/Modal'
@@ -33,6 +40,37 @@ function formatAntiguedad(fecha: Date): string {
   })}`
 }
 
+/** Badge e ícono según tipo base del movimiento */
+function TipoBadge({ tipo, subtipo }: { tipo: TipoMovimiento; subtipo: SubtipoMovimiento | null }) {
+  const icono = tipo === 'entrada'
+    ? <ArrowUpCircle size={14} className="text-teal-600" />
+    : tipo === 'salida'
+      ? <ArrowDownCircle size={14} className="text-amber-500" />
+      : <ArrowRightLeft size={14} className="text-blue-500" />
+
+  const variante = tipo === 'entrada' ? 'success'
+    : tipo === 'salida' ? 'warning'
+    : 'info'
+
+  const etiquetaSubtipo = subtipo ? ETIQUETA_SUBTIPO[subtipo] : null
+
+  return (
+    <div className="flex flex-col gap-0.5">
+      <div className="flex items-center gap-1.5">
+        {icono}
+        <Badge variant={variante}>
+          {tipo === 'entrada' ? 'Entrada' : tipo === 'salida' ? 'Salida' : 'Interno'}
+        </Badge>
+      </div>
+      {etiquetaSubtipo && (
+        <span className="text-xs text-slate-400 dark:text-slate-500 pl-0.5">
+          {etiquetaSubtipo}
+        </span>
+      )}
+    </div>
+  )
+}
+
 interface Filtros {
   insumo: string
   tipo: TipoMovimiento | 'todos'
@@ -45,6 +83,7 @@ const FILTROS_VACIOS: Filtros = { insumo: '', tipo: 'todos', fecha_desde: '', fe
 export function Movimientos() {
   const { user } = useAuthStore()
   const puedeRegistrar = user?.rol === 'admin' || user?.rol === 'operador'
+    || user?.rol === 'operador_coordinador'
 
   const [movimientos, setMovimientos] = useState<MovimientoEnriquecido[]>([])
   const [total, setTotal]             = useState(0)
@@ -60,17 +99,24 @@ export function Movimientos() {
   const [exporting, setExporting]           = useState(false)
   const exportRef                           = useRef<HTMLDivElement>(null)
 
-  const [showModal, setShowModal] = useState(false)
-  const [insumos, setInsumos]     = useState<InsumoResponse[]>([])
-  const [tipo, setTipo]           = useState<TipoMovimiento>('entrada')
-  const [insumoId, setInsumoId]   = useState('')
-  const [cantidad, setCantidad]   = useState('')
-  const [motivo, setMotivo]       = useState('')
-  const [saving, setSaving]       = useState(false)
-  const [formError, setFormError] = useState<string | null>(null)
-  const [toast, setToast]         = useState<string | null>(null)
+  const [showModal, setShowModal]   = useState(false)
+  const [insumos, setInsumos]       = useState<InsumoResponse[]>([])
+  const [tipo, setTipo]             = useState<TipoMovimiento>('entrada')
+  const [subtipo, setSubtipo]       = useState<SubtipoMovimiento>('compra')
+  const [insumoId, setInsumoId]     = useState('')
+  const [cantidad, setCantidad]     = useState('')
+  const [motivo, setMotivo]         = useState('')
+  const [saving, setSaving]         = useState(false)
+  const [formError, setFormError]   = useState<string | null>(null)
+  const [toast, setToast]           = useState<string | null>(null)
 
   function showToast(msg: string) { setToast(msg); setTimeout(() => setToast(null), 3000) }
+
+  // Cuando cambia el tipo, resetear subtipo al primer valor válido
+  useEffect(() => {
+    const opciones = SUBTIPOS_MAP[tipo]
+    if (opciones.length > 0) setSubtipo(opciones[0])
+  }, [tipo])
 
   useEffect(() => {
     function handler(e: MouseEvent) {
@@ -86,10 +132,10 @@ export function Movimientos() {
     setLoading(true)
     try {
       const params: Record<string, string | number> = { skip, limit: PAGE_SIZE }
-      if (f.insumo)           params.insumo      = f.insumo
-      if (f.tipo !== 'todos') params.tipo         = f.tipo
-      if (f.fecha_desde)      params.fecha_desde  = f.fecha_desde
-      if (f.fecha_hasta)      params.fecha_hasta  = f.fecha_hasta
+      if (f.insumo)           params.insumo     = f.insumo
+      if (f.tipo !== 'todos') params.tipo        = f.tipo
+      if (f.fecha_desde)      params.fecha_desde = f.fecha_desde
+      if (f.fecha_hasta)      params.fecha_hasta = f.fecha_hasta
       const { data } = await api.get<PaginatedResponse<MovimientoEnriquecido>>(
         '/movimientos/', { params }
       )
@@ -103,11 +149,9 @@ export function Movimientos() {
   function aplicarBusqueda(val: string) {
     setFiltros(f => ({ ...f, insumo: val })); setPage(0)
   }
-
   function setFiltro<K extends keyof Filtros>(key: K, value: Filtros[K]) {
     setFiltros(f => ({ ...f, [key]: value })); setPage(0)
   }
-
   function limpiarFiltros() {
     setFiltros(FILTROS_VACIOS); setSearchInput(''); setPage(0)
   }
@@ -116,17 +160,16 @@ export function Movimientos() {
     setExporting(true); setShowExportMenu(false)
     try {
       const params: Record<string, string> = { formato }
-      if (filtros.insumo)           params.insumo      = filtros.insumo
-      if (filtros.tipo !== 'todos') params.tipo         = filtros.tipo
-      if (filtros.fecha_desde)      params.fecha_desde  = filtros.fecha_desde
-      if (filtros.fecha_hasta)      params.fecha_hasta  = filtros.fecha_hasta
+      if (filtros.insumo)           params.insumo     = filtros.insumo
+      if (filtros.tipo !== 'todos') params.tipo        = filtros.tipo
+      if (filtros.fecha_desde)      params.fecha_desde = filtros.fecha_desde
+      if (filtros.fecha_hasta)      params.fecha_hasta = filtros.fecha_hasta
       const res = await api.get('/movimientos/exportar', { params, responseType: 'blob' })
       const ext  = formato === 'xlsx' ? 'xlsx' : 'csv'
       const mime = formato === 'xlsx'
-        ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-        : 'text/csv'
+        ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' : 'text/csv'
       const url = URL.createObjectURL(new Blob([res.data], { type: mime }))
-      const a   = document.createElement('a')
+      const a = document.createElement('a')
       a.href = url; a.download = `movimientos_hestia.${ext}`; a.click()
       URL.revokeObjectURL(url)
       showToast(`Exportado como ${ext.toUpperCase()}`)
@@ -134,8 +177,8 @@ export function Movimientos() {
   }
 
   async function abrirModal() {
-    setTipo('entrada'); setInsumoId(''); setCantidad(''); setMotivo('')
-    setFormError(null)
+    setTipo('entrada'); setSubtipo('compra'); setInsumoId('')
+    setCantidad(''); setMotivo(''); setFormError(null)
     if (insumos.length === 0) {
       const { data } = await api.get<PaginatedResponse<InsumoResponse>>(
         '/insumos/', { params: { limit: 200 } }
@@ -148,8 +191,10 @@ export function Movimientos() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault(); setSaving(true); setFormError(null)
     const payload: MovimientoCreate = {
-      tipo, insumo_id: parseInt(insumoId),
-      cantidad: parseInt(cantidad), motivo: motivo.trim() || null
+      tipo, subtipo,
+      insumo_id: parseInt(insumoId),
+      cantidad: parseInt(cantidad),
+      motivo: motivo.trim() || null,
     }
     try {
       await api.post('/movimientos/', payload)
@@ -181,8 +226,8 @@ export function Movimientos() {
 
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-black text-slate-900">Movimientos</h1>
-          <p className="text-slate-500 text-sm mt-0.5">
+          <h1 className="text-2xl font-black text-slate-900 dark:text-slate-50">Movimientos</h1>
+          <p className="text-slate-500 dark:text-slate-400 text-sm mt-0.5">
             {loading ? '...' : `${total} movimientos`}{hasFilters && ' (filtrado)'}
           </p>
           {lastUpdated && (
@@ -195,7 +240,6 @@ export function Movimientos() {
                        text-slate-500 hover:bg-slate-50 text-sm transition-colors">
             <RefreshCw size={14} /> Actualizar
           </button>
-
           <div className="relative" ref={exportRef}>
             <button onClick={() => setShowExportMenu(v => !v)} disabled={exporting}
               className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200
@@ -219,7 +263,6 @@ export function Movimientos() {
               </div>
             )}
           </div>
-
           {puedeRegistrar && (
             <button onClick={abrirModal}
               className="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white
@@ -230,8 +273,9 @@ export function Movimientos() {
         </div>
       </div>
 
-      {/* Panel de filtros */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 mb-5">
+      {/* Filtros */}
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200
+                      dark:border-slate-700 shadow-sm p-4 mb-5">
         <div className="flex gap-2 mb-3">
           <SearchWithSuggestions
             value={searchInput}
@@ -240,18 +284,20 @@ export function Movimientos() {
             placeholder="Buscar por nombre de insumo..."
           />
         </div>
-
         <div className="flex flex-wrap items-center gap-3">
           <SlidersHorizontal size={14} className="text-slate-400" />
           <div className="flex gap-1">
-            {(['todos', 'entrada', 'salida'] as const).map(f => (
+            {(['todos', 'entrada', 'salida', 'interno'] as const).map(f => (
               <button key={f} onClick={() => setFiltro('tipo', f)}
                 className={`px-3 py-1 rounded-full text-xs font-bold transition-colors ${
                   filtros.tipo === f
-                    ? 'bg-slate-900 text-white'
-                    : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                    ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900'
+                    : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-200'
                 }`}>
-                {f === 'todos' ? 'Todos' : f === 'entrada' ? 'Entradas' : 'Salidas'}
+                {f === 'todos' ? 'Todos'
+                  : f === 'entrada' ? 'Entradas'
+                  : f === 'salida' ? 'Salidas'
+                  : 'Internos'}
               </button>
             ))}
           </div>
@@ -276,20 +322,22 @@ export function Movimientos() {
       </div>
 
       {/* Tabla */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
-        <table className="w-full min-w-[720px] text-sm">
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200
+                      dark:border-slate-700 shadow-sm overflow-x-auto">
+        <table className="w-full min-w-[780px] text-sm">
           <thead>
-            <tr className="border-b border-slate-200 bg-slate-50">
-              <th className="text-left px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Tipo</th>
-              <th className="text-left px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Insumo</th>
-              <th className="text-left px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Sala</th>
-              <th className="text-center px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Cantidad</th>
-              <th className="text-left px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Motivo</th>
-              <th className="text-left px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide whitespace-nowrap">Fecha</th>
-              <th className="text-left px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Usuario</th>
+            <tr className="border-b border-slate-200 dark:border-slate-700
+                           bg-slate-50 dark:bg-slate-900/50">
+              {['Tipo / Subtipo', 'Insumo', 'Sala', 'Cantidad', 'Motivo', 'Fecha', 'Usuario']
+                .map(col => (
+                  <th key={col} className="text-left px-4 py-3 text-xs font-bold
+                                           text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+                    {col}
+                  </th>
+                ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
             {loading ? (
               Array.from({ length: 10 }).map((_, i) => <TableRowSkeleton key={i} cols={7} />)
             ) : movimientos.length === 0 ? (
@@ -303,38 +351,45 @@ export function Movimientos() {
                 )}
               </td></tr>
             ) : movimientos.map(m => (
-              <tr key={m.id} className="hover:bg-slate-50 transition-colors">
+              <tr key={m.id}
+                className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
                 <td className="px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    {m.tipo === 'entrada'
-                      ? <ArrowUpCircle size={15} className="text-teal-600" />
-                      : <ArrowDownCircle size={15} className="text-amber-500" />
-                    }
-                    <Badge variant={m.tipo === 'entrada' ? 'success' : 'warning'}>{m.tipo}</Badge>
-                  </div>
+                  <TipoBadge tipo={m.tipo} subtipo={m.subtipo} />
                 </td>
-                <td className="px-4 py-3 font-semibold text-slate-900 max-w-xs truncate">{m.insumo}</td>
-                <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
-                  {m.sala ?? <span className="text-slate-300">—</span>}
+                <td className="px-4 py-3 font-semibold text-slate-900 dark:text-slate-50
+                               max-w-xs truncate">{m.insumo}</td>
+                <td className="px-4 py-3 text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                  {m.sala ?? <span className="text-slate-300 dark:text-slate-600">—</span>}
                 </td>
                 <td className="px-4 py-3 text-center">
                   <span className={`font-bold ${
-                    m.tipo === 'entrada' ? 'text-teal-600' : 'text-amber-600'
-                  }`}>{m.tipo === 'entrada' ? '+' : '-'}{m.cantidad}</span>
+                    m.tipo === 'entrada' ? 'text-teal-600 dark:text-teal-400'
+                      : m.tipo === 'salida' ? 'text-amber-600 dark:text-amber-400'
+                      : 'text-blue-600 dark:text-blue-400'
+                  }`}>
+                    {m.tipo === 'entrada' ? '+' : m.tipo === 'salida' ? '-' : '⇄'}{m.cantidad}
+                  </span>
                 </td>
-                <td className="px-4 py-3 text-slate-500 max-w-xs truncate">
-                  {m.motivo ?? <span className="text-slate-300">—</span>}
+                <td className="px-4 py-3 text-slate-500 dark:text-slate-400 max-w-xs truncate">
+                  {m.motivo ?? <span className="text-slate-300 dark:text-slate-600">—</span>}
                 </td>
-                <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{formatFecha(m.fecha)}</td>
-                <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{m.usuario}</td>
+                <td className="px-4 py-3 text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                  {formatFecha(m.fecha)}
+                </td>
+                <td className="px-4 py-3 text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                  {m.usuario}
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
 
         {!loading && totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200">
-            <p className="text-xs text-slate-500">Página {page + 1} de {totalPages}</p>
+          <div className="flex items-center justify-between px-4 py-3 border-t
+                          border-slate-200 dark:border-slate-700">
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Página {page + 1} de {totalPages}
+            </p>
             <div className="flex gap-1">
               <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}
                 className="px-3 py-1 text-xs rounded-lg border border-slate-200
@@ -354,30 +409,46 @@ export function Movimientos() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className={labelCls}>Tipo *</label>
-              <div className="grid grid-cols-2 gap-3">
-                {(['entrada', 'salida'] as TipoMovimiento[]).map(t => (
+              <div className="grid grid-cols-3 gap-2">
+                {(['entrada', 'salida', 'interno'] as TipoMovimiento[]).map(t => (
                   <button key={t} type="button" onClick={() => setTipo(t)}
-                    className={`py-3 rounded-xl border-2 font-bold text-sm
-                                flex items-center justify-center gap-2 transition-all ${
+                    className={`py-2.5 rounded-xl border-2 font-bold text-sm
+                                flex items-center justify-center gap-1.5 transition-all ${
                       tipo === t
                         ? t === 'entrada'
                           ? 'border-teal-500 bg-teal-50 text-teal-700'
-                          : 'border-amber-500 bg-amber-50 text-amber-700'
+                          : t === 'salida'
+                            ? 'border-amber-500 bg-amber-50 text-amber-700'
+                            : 'border-blue-500 bg-blue-50 text-blue-700'
                         : 'border-slate-200 text-slate-500 hover:border-slate-300'
                     }`}>
-                    {t === 'entrada' ? <ArrowUpCircle size={16} /> : <ArrowDownCircle size={16} />}
+                    {t === 'entrada' ? <ArrowUpCircle size={14} />
+                      : t === 'salida' ? <ArrowDownCircle size={14} />
+                      : <ArrowRightLeft size={14} />}
                     {t.charAt(0).toUpperCase() + t.slice(1)}
                   </button>
                 ))}
               </div>
             </div>
             <div>
-              <label className={labelCls}>Insumo *</label>
-              <select required value={insumoId} onChange={e => setInsumoId(e.target.value)}
+              <label className={labelCls}>Subtipo *</label>
+              <select required value={subtipo}
+                onChange={e => setSubtipo(e.target.value as SubtipoMovimiento)}
                 className={inputCls}>
+                {SUBTIPOS_MAP[tipo].map(s => (
+                  <option key={s} value={s}>{ETIQUETA_SUBTIPO[s]}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className={labelCls}>Insumo *</label>
+              <select required value={insumoId}
+                onChange={e => setInsumoId(e.target.value)} className={inputCls}>
                 <option value="">Seleccionar insumo...</option>
                 {insumos.map(i => (
-                  <option key={i.id} value={i.id}>{i.nombre} (stock: {i.stock_actual})</option>
+                  <option key={i.id} value={i.id}>
+                    {i.nombre} (stock: {i.stock_actual})
+                  </option>
                 ))}
               </select>
             </div>
@@ -390,7 +461,7 @@ export function Movimientos() {
               <label className={labelCls}>Motivo</label>
               <input type="text" value={motivo} onChange={e => setMotivo(e.target.value)}
                 className={inputCls}
-                placeholder="Ej: Reposicion mensual, Uso en practica clinica..." />
+                placeholder="Ej: Reposición mensual, Uso en práctica clínica..." />
             </div>
             {formError && (
               <p className="text-rose-600 text-sm bg-rose-50 border border-rose-200

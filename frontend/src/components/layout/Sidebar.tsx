@@ -7,7 +7,7 @@ import {
   BookOpen, GraduationCap,
   Calendar, CalendarDays, BarChart2,
   ChevronLeft, ChevronRight, Sun, Moon,
-  Sofa, FlaskConical, ClipboardCheck,
+  Sofa, FlaskConical, ClipboardCheck, Wrench,
 } from 'lucide-react'
 import { useAuthStore } from '../../store/auth'
 import { useThemeStore } from '../../store/theme'
@@ -23,6 +23,8 @@ const NAV_ITEMS = [
     roles: ['admin', 'operador_coordinador', 'operador', 'visor'] },
   { to: '/activos-fijos', icon: Sofa, label: 'Activos Fijos',
     roles: ['admin', 'operador_coordinador', 'operador', 'visor'] },
+  { to: '/mantenimiento', icon: Wrench, label: 'Mantenimiento',
+    roles: ['admin', 'operador_coordinador', 'operador'] },
   { to: '/movimientos', icon: ArrowLeftRight, label: 'Movimientos',
     roles: ['admin', 'operador_coordinador', 'operador', 'visor'] },
   { to: '/salas', icon: DoorOpen, label: 'Salas',
@@ -31,7 +33,6 @@ const NAV_ITEMS = [
     roles: ['admin', 'operador_coordinador', 'operador', 'visor'] },
   { to: '/reportes', icon: BarChart2, label: 'Reportes',
     roles: ['admin', 'operador_coordinador', 'visor'], divider: true },
-  // Gestión de talleres
   { to: '/preparar-taller', icon: ClipboardCheck, label: 'Preparar taller',
     roles: ['admin', 'operador_coordinador', 'operador'] },
   { to: '/paquetes', icon: FlaskConical, label: 'Paquetes de insumos',
@@ -44,7 +45,6 @@ const NAV_ITEMS = [
     roles: ['admin'] },
   { to: '/importar-horario', icon: Calendar, label: 'Importar Horario',
     roles: ['admin'] },
-  // Administración
   { to: '/importar', icon: Upload, label: 'Importar Insumos',
     roles: ['admin'], divider: true },
   { to: '/usuarios', icon: Users, label: 'Usuarios',

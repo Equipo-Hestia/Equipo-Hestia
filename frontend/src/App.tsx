@@ -1,29 +1,30 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { ReactNode } from 'react'
-import { Login }                from './pages/Login'
-import { ResetPassword }        from './pages/ResetPassword'
-import { Dashboard }            from './pages/Dashboard'
-import { Alertas }              from './pages/Alertas'
-import { Insumos }              from './pages/Insumos'
-import { Movimientos }          from './pages/Movimientos'
-import { Salas }                from './pages/Salas'
-import { Categorias }           from './pages/Categorias'
-import { Configuracion2FA }     from './pages/Configuracion2FA'
-import { ImportarInsumos }      from './pages/ImportarInsumos'
-import { ImportarHorario }      from './pages/ImportarHorario'
-import { VerHorario }           from './pages/VerHorario'
-import { Perfil }               from './pages/Perfil'
-import { Usuarios }             from './pages/Usuarios'
-import { AuditLog }             from './pages/AuditLog'
-import { Asignaturas }          from './pages/Asignaturas'
-import { ClasesDocente }        from './pages/ClasesDocente'
-import { Reportes }             from './pages/Reportes'
-import { ActivosFijos }         from './pages/ActivosFijos'
-import { UnidadesImplemento }   from './pages/UnidadesImplemento'
-import { Paquetes }             from './pages/Paquetes'
-import { PrepararTaller }       from './pages/PrepararTaller'
-import { Layout }               from './components/layout/Layout'
-import { useAuthStore }         from './store/auth'
+import { Login }                  from './pages/Login'
+import { ResetPassword }          from './pages/ResetPassword'
+import { Dashboard }              from './pages/Dashboard'
+import { Alertas }                from './pages/Alertas'
+import { Insumos }                from './pages/Insumos'
+import { Movimientos }            from './pages/Movimientos'
+import { Salas }                  from './pages/Salas'
+import { Categorias }             from './pages/Categorias'
+import { Configuracion2FA }       from './pages/Configuracion2FA'
+import { ImportarInsumos }        from './pages/ImportarInsumos'
+import { ImportarHorario }        from './pages/ImportarHorario'
+import { VerHorario }             from './pages/VerHorario'
+import { Perfil }                 from './pages/Perfil'
+import { Usuarios }               from './pages/Usuarios'
+import { AuditLog }               from './pages/AuditLog'
+import { Asignaturas }            from './pages/Asignaturas'
+import { ClasesDocente }          from './pages/ClasesDocente'
+import { Reportes }               from './pages/Reportes'
+import { ActivosFijos }           from './pages/ActivosFijos'
+import { UnidadesImplemento }     from './pages/UnidadesImplemento'
+import { Paquetes }               from './pages/Paquetes'
+import { PrepararTaller }         from './pages/PrepararTaller'
+import { OrdenesMantenimiento }   from './pages/OrdenesMantenimiento'
+import { Layout }                 from './components/layout/Layout'
+import { useAuthStore }           from './store/auth'
 
 const TODOS          = ['admin', 'operador_coordinador', 'operador', 'visor']
 const NO_VISOR       = ['admin', 'operador_coordinador', 'operador']
@@ -54,7 +55,6 @@ export function App() {
             element={<ProtectedRoute roles={TODOS}><Insumos /></ProtectedRoute>} />
           <Route path="insumos/:implemento_id/unidades"
             element={<ProtectedRoute roles={TODOS}><UnidadesImplemento /></ProtectedRoute>} />
-
           <Route path="dashboard"
             element={<ProtectedRoute roles={TODOS}><Dashboard /></ProtectedRoute>} />
           <Route path="alertas"
@@ -67,14 +67,14 @@ export function App() {
             element={<ProtectedRoute roles={TODOS}><Categorias /></ProtectedRoute>} />
           <Route path="activos-fijos"
             element={<ProtectedRoute roles={TODOS}><ActivosFijos /></ProtectedRoute>} />
+          <Route path="mantenimiento"
+            element={<ProtectedRoute roles={NO_VISOR}><OrdenesMantenimiento /></ProtectedRoute>} />
           <Route path="reportes"
             element={<ProtectedRoute roles={ROLES_REPORTES}><Reportes /></ProtectedRoute>} />
-
           <Route path="paquetes"
             element={<ProtectedRoute roles={NO_VISOR}><Paquetes /></ProtectedRoute>} />
           <Route path="preparar-taller"
             element={<ProtectedRoute roles={NO_VISOR}><PrepararTaller /></ProtectedRoute>} />
-
           <Route path="asignaturas"
             element={<ProtectedRoute roles={SOLO_ADMIN}><Asignaturas /></ProtectedRoute>} />
           <Route path="clases-docente"
