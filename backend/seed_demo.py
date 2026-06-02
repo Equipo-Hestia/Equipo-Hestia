@@ -11,8 +11,10 @@ Genera:
     - 20 asignaturas representativas de las 5 carreras (mallas 2024-2025)
     - 88 insumos/implementos en Bodega (sin sala asignada)
     - Unidades fisicas de implementos: algunas asignadas a salas demo
-    - ~560 movimientos en los ultimos 60 dias
+    - ~560 movimientos en los ultimos 60 dias (con tipo y subtipo)
     - 6 activos fijos: 3 muebles clinicos + 3 phantomas de simulacion
+    - 2 proveedores: Laerdal Chile (phantomas) y MedSupply SpA (insumos)
+    - 1 orden de mantenimiento demo (SimMan 3G en proceso)
     - 10 talleres + 10 paquetes de insumos cubriendo las 5 carreras
 
 Credenciales:
@@ -27,14 +29,14 @@ import re
 import sys
 import os
 import random
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from app.database import SessionLocal
 from app.models.sala import Sala
 from app.models.insumo import Insumo, TipoInsumo
-from app.models.movimiento import Movimiento, TipoMovimiento
+from app.models.movimiento import Movimiento, TipoMovimiento, SubtipoMovimiento
 from app.models.usuario import Usuario, RolUsuario
 from app.models.audit_log import AuditLog
 from app.models.solicitud import SolicitudRetiro, SolicitudItem, EstadoSolicitud
@@ -51,6 +53,8 @@ from app.models.unidad_implemento import UnidadImplemento, EstadoUnidad
 # SQLAlchemy lanza InvalidRequestError con KeyError: 'Taller'.
 from app.models.taller import Taller
 from app.models.paquete_insumo import PaqueteInsumo, PaqueteItem
+from app.models.proveedor import Proveedor
+from app.models.orden_mantenimiento import OrdenMantenimiento, EstadoOrden
 from app.utils.security import hashear_password
 
 try:
@@ -247,27 +251,35 @@ INSUMOS = [
     ("Gasas con clorhexidina CHG", "Sobre", 40, 15, 9, IN, 1200),
 ]
 
+# Formato: (nombre, descripcion, tipo, sala_idx, fidelidad, notas,
+#            proveedor_key)
+# proveedor_key: 'laerdal' | 'medsupply' | None
 ACTIVOS_FIJOS_DEMO = [
     ("Camilla articulada con barandas",
      "Camilla electrica 3 secciones, barandas abatibles",
-     TipoActivo.mueble, 0, None, "Revision anual programada marzo 2027"),
+     TipoActivo.mueble, 0, None,
+     "Revision anual programada marzo 2027", None),
     ("Carro de paro de emergencia",
      "Carro equipado con desfibrilador y medicamentos de emergencia",
-     TipoActivo.mueble, 3, None, "Revision mensual de contenido obligatoria"),
+     TipoActivo.mueble, 3, None,
+     "Revision mensual de contenido obligatoria", None),
     ("Mesa de procedimientos Mayo",
      "Mesa auxiliar acero inoxidable con ruedas",
-     TipoActivo.mueble, 2, None, None),
+     TipoActivo.mueble, 2, None, None, None),
     ("SimMan 3G",
      "Maniqui de alta fidelidad adulto Laerdal",
      TipoActivo.phantoma, 0, FidelidadPhantoma.alta,
-     "Mantenimiento preventivo semestral por Laerdal Chile"),
+     "Mantenimiento preventivo semestral por Laerdal Chile",
+     "laerdal"),
     ("Nursing Anne",
      "Maniqui para entrenamiento de enfermeria Laerdal",
-     TipoActivo.phantoma, 1, FidelidadPhantoma.media, None),
+     TipoActivo.phantoma, 1, FidelidadPhantoma.media,
+     None, "laerdal"),
     ("ALS Simulator neonatal",
      "Maniqui neonatal de soporte vital avanzado",
      TipoActivo.phantoma, 6, FidelidadPhantoma.alta,
-     "Solo para clase de Obstetricia y Ginecologia"),
+     "Solo para clase de Obstetricia y Ginecologia",
+     "laerdal"),
 ]
 
 MOTIVOS_SALIDA = [
@@ -443,7 +455,9 @@ def main():
         db.query(PaqueteInsumo).delete()
         db.query(Taller).delete()
         db.query(UnidadImplemento).delete()
+        db.query(OrdenMantenimiento).delete()
         db.query(ActivoFijo).delete()
+        db.query(Proveedor).delete()
         db.query(RetornoImplemento).delete()
         db.query(AuditLog).delete()
         db.query(SolicitudItem).delete()
@@ -491,6 +505,38 @@ def main():
         db.flush()
         operadores = [u for u in usuarios if u.rol == RolUsuario.operador]
         print(f"  {len(usuarios)} usuarios")
+
+        # --- Proveedores ---
+        print("Insertando proveedores...")
+        prov_laerdal = Proveedor(
+            nombre="Laerdal Medical Chile SpA",
+            rut="76.543.210-K",
+            contacto_nombre="Roberto Salas",
+            contacto_email="rsalas@laerdal.cl",
+            telefono="+56 2 2345 6789",
+            url_seneg="https://www.senegocia.com/proveedor/laerdal-chile",
+            notas=(
+                "Proveedor oficial de phantomas Laerdal. "
+                "Mantenimiento preventivo semestral incluido en contrato."
+            ),
+        )
+        prov_medsupply = Proveedor(
+            nombre="MedSupply SpA",
+            rut="76.111.222-3",
+            contacto_nombre="Patricia Vega",
+            contacto_email="pvega@medsupply.cl",
+            telefono="+56 9 8765 4321",
+            url_seneg=None,
+            notas="Proveedor general de insumos medicos desechables.",
+        )
+        db.add(prov_laerdal)
+        db.add(prov_medsupply)
+        db.flush()
+        proveedores_map = {
+            "laerdal": prov_laerdal.id,
+            "medsupply": prov_medsupply.id,
+        }
+        print(f"  2 proveedores (Laerdal Chile, MedSupply SpA)")
 
         # --- Asignaturas ---
         print("Insertando asignaturas...")
@@ -579,11 +625,14 @@ def main():
         # --- Activos Fijos ---
         print("Insertando activos fijos...")
         activos_db = []
-        for nombre, desc, tipo, sala_idx, fidelidad, notas in ACTIVOS_FIJOS_DEMO:
+        for (nombre, desc, tipo, sala_idx,
+             fidelidad, notas, prov_key) in ACTIVOS_FIJOS_DEMO:
+            prov_id = proveedores_map.get(prov_key) if prov_key else None
             af = ActivoFijo(
                 nombre=nombre, descripcion=desc, tipo=tipo,
                 sala_id=salas[sala_idx].id, fidelidad=fidelidad,
                 estado=EstadoActivo.disponible, notas=notas,
+                proveedor_id=prov_id,
             )
             db.add(af)
             activos_db.append(af)
@@ -595,10 +644,39 @@ def main():
         n_phantomas = len(ACTIVOS_FIJOS_DEMO) - n_muebles
         print(
             f"  {len(activos_db)} activos fijos "
-            f"({n_muebles} muebles, {n_phantomas} phantomas)"
+            f"({n_muebles} muebles, {n_phantomas} phantomas con proveedor Laerdal)"
+        )
+
+        # --- Orden de mantenimiento demo ---
+        # SimMan 3G (activos_db[3]) en mantenimiento con Laerdal
+        print("Insertando orden de mantenimiento demo...")
+        simman = activos_db[3]
+        simman.estado = EstadoActivo.en_mantenimiento
+        orden_demo = OrdenMantenimiento(
+            activo_fijo_id=simman.id,
+            proveedor_id=prov_laerdal.id,
+            creado_por_id=usuarios[1].id,   # mgonzalez
+            estado=EstadoOrden.en_proceso,
+            fecha_envio=date.today() - timedelta(days=12),
+            descripcion_problema=(
+                "Falla en modulo de sonidos respiratorios. "
+                "El SimMan no reproduce correctamente los ruidos pulmonares "
+                "durante la simulacion de insuficiencia respiratoria."
+            ),
+            descripcion_trabajo=None,
+            costo=None,
+        )
+        db.add(orden_demo)
+        db.commit()
+        print(
+            f"  1 orden: SimMan 3G \u2192 Laerdal Chile "
+            f"(en_proceso, {orden_demo.fecha_envio})"
         )
 
         # --- Movimientos ---
+        # Usa los nuevos tipos: subtipo obligatorio.
+        # Entradas historicas -> compra
+        # Salidas historicas -> consumo_taller (insumos) / prestamo_implemento
         print("Insertando movimientos...")
         total_movs = 0
         for insumo in insumos_db:
@@ -607,9 +685,17 @@ def main():
             ns = random.randint(5, 9) if en_alerta else random.randint(3, 7)
             rne = (40, 60) if en_alerta else (3, 50)
             rns = (0, 25) if en_alerta else (0, 50)
+
+            subtipo_salida = (
+                SubtipoMovimiento.prestamo_implemento
+                if insumo.tipo == TipoInsumo.implemento
+                else SubtipoMovimiento.consumo_taller
+            )
+
             for _ in range(ne):
                 db.add(Movimiento(
                     tipo=TipoMovimiento.entrada,
+                    subtipo=SubtipoMovimiento.compra,
                     cantidad=random.randint(30, 150),
                     motivo=random.choice(MOTIVOS_ENTRADA),
                     fecha=fecha_aleatoria(*rne),
@@ -620,6 +706,7 @@ def main():
             for _ in range(ns):
                 db.add(Movimiento(
                     tipo=TipoMovimiento.salida,
+                    subtipo=subtipo_salida,
                     cantidad=random.randint(1, 8),
                     motivo=random.choice(MOTIVOS_SALIDA),
                     fecha=fecha_aleatoria(*rns),
@@ -628,7 +715,7 @@ def main():
                 ))
                 total_movs += 1
         db.commit()
-        print(f"  {total_movs} movimientos")
+        print(f"  {total_movs} movimientos (con tipo + subtipo)")
 
         # --- Talleres ---
         print("Insertando talleres...")
@@ -665,26 +752,28 @@ def main():
         alertas = sum(1 for _, _, s, m, *_ in INSUMOS if s <= m)
         print("\n" + "=" * 40)
         print("Demo cargada exitosamente.")
-        print(f"  Salas:         {len(salas)}")
-        print(f"  Categorias:    {len(cats)}")
-        print(f"  Usuarios:      {len(usuarios)}")
-        print(f"  Asignaturas:   {len(asignaturas)} (5 carreras)")
-        print(f"  Clases:        {len(clases)}")
+        print(f"  Salas:             {len(salas)}")
+        print(f"  Categorias:        {len(cats)}")
+        print(f"  Usuarios:          {len(usuarios)}")
+        print(f"  Proveedores:       2 (Laerdal Chile, MedSupply SpA)")
+        print(f"  Asignaturas:       {len(asignaturas)} (5 carreras)")
+        print(f"  Clases:            {len(clases)}")
         print(
-            f"  Insumos:       {len(insumos_db)} "
-            f"({alertas} en alerta) — todos en Bodega"
+            f"  Insumos:           {len(insumos_db)} "
+            f"({alertas} en alerta) \u2014 todos en Bodega"
         )
         print(
-            f"  Implementos:   {len(implementos_list)} "
+            f"  Implementos:       {len(implementos_list)} "
             f"con {total_unidades} unidades fisicas"
         )
         print(
-            f"  Activos fijos: {len(activos_db)} "
+            f"  Activos fijos:     {len(activos_db)} "
             f"({n_muebles} muebles, {n_phantomas} phantomas)"
         )
-        print(f"  Movimientos:   {total_movs}")
-        print(f"  Talleres:      {len(talleres_db)}")
-        print(f"  Paquetes:      {total_paquetes}")
+        print(f"  Ordenes mant.:     1 (SimMan 3G en proceso con Laerdal)")
+        print(f"  Movimientos:       {total_movs} (tipo + subtipo)")
+        print(f"  Talleres:          {len(talleres_db)}")
+        print(f"  Paquetes:          {total_paquetes}")
         print("\nCredenciales:")
         for _, email, pwd, rol in USUARIOS:
             print(f"  {email:38} | {pwd:12} | {rol.value}")
