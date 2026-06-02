@@ -611,9 +611,7 @@ function ItemChecklist({ item, estado, onMarcar }: ItemChecklistProps) {
               transition-colors
               ${ estado === 'ok'
                 ? 'bg-teal-600 text-white'
-                : 'bg-slate-100 dark:bg-slate-700 text-slate-400
-                   hover:bg-teal-100 hover:text-teal-700
-                   dark:hover:bg-teal-900/30 dark:hover:text-teal-400'
+                : 'bg-slate-100 dark:bg-slate-700 text-slate-400 hover:bg-teal-100 hover:text-teal-700 dark:hover:bg-teal-900/30 dark:hover:text-teal-400'
               }
             `}
             title="Marcar como OK (está en sala)"
@@ -629,9 +627,7 @@ function ItemChecklist({ item, estado, onMarcar }: ItemChecklistProps) {
               transition-colors
               ${ estado === 'faltante'
                 ? 'bg-amber-500 text-white'
-                : 'bg-slate-100 dark:bg-slate-700 text-slate-400
-                   hover:bg-amber-100 hover:text-amber-700
-                   dark:hover:bg-amber-900/30 dark:hover:text-amber-400'
+                : 'bg-slate-100 dark:bg-slate-700 text-slate-400 hover:bg-amber-100 hover:text-amber-700 dark:hover:bg-amber-900/30 dark:hover:text-amber-400'
               }
             `}
             title="Marcar como faltante (hay que buscar en bodega)"
