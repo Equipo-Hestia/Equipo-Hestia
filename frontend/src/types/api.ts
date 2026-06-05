@@ -144,10 +144,10 @@ export interface CategoriaCreate {
   nombre: string
 }
 
-// Tipo base del movimiento: dirección del flujo
+// Tipo base del movimiento: direcci\u00f3n del flujo
 export type TipoMovimiento = 'entrada' | 'salida' | 'interno'
 
-// Subtipo: motivo específico que detalla el tipo base
+// Subtipo: motivo espec\u00edfico que detalla el tipo base
 export type SubtipoMovimiento =
   // Entradas
   | 'compra'
@@ -164,7 +164,7 @@ export type SubtipoMovimiento =
   | 'reingreso_disponible'
   | 'devolucion_interna'
 
-/** Mapa de subtipos válidos por tipo base. Útil para poblar selects. */
+/** Mapa de subtipos v\u00e1lidos por tipo base. \u00datil para poblar selects. */
 export const SUBTIPOS_POR_TIPO: Record<TipoMovimiento, SubtipoMovimiento[]> = {
   entrada: ['compra', 'devolucion_proveedor_entrada', 'ajuste_entrada'],
   salida: [
@@ -177,19 +177,19 @@ export const SUBTIPOS_POR_TIPO: Record<TipoMovimiento, SubtipoMovimiento[]> = {
   interno: ['enviado_mantenimiento', 'reingreso_disponible', 'devolucion_interna'],
 }
 
-/** Etiquetas en español para mostrar en la UI */
+/** Etiquetas en espa\u00f1ol para mostrar en la UI */
 export const ETIQUETA_SUBTIPO: Record<SubtipoMovimiento, string> = {
   compra: 'Compra a proveedor',
-  devolucion_proveedor_entrada: 'Devolución de proveedor (reingreso)',
+  devolucion_proveedor_entrada: 'Devoluci\u00f3n de proveedor (reingreso)',
   ajuste_entrada: 'Ajuste de inventario (sobrante)',
   consumo_taller: 'Consumo en taller',
-  prestamo_implemento: 'Préstamo de implemento',
-  devolucion_proveedor_salida: 'Devolución a proveedor',
+  prestamo_implemento: 'Pr\u00e9stamo de implemento',
+  devolucion_proveedor_salida: 'Devoluci\u00f3n a proveedor',
   baja: 'Baja definitiva',
   ajuste_salida: 'Ajuste de inventario (faltante)',
   enviado_mantenimiento: 'Enviado a mantenimiento',
   reingreso_disponible: 'Reingreso tras mantenimiento',
-  devolucion_interna: 'Devolución interna a bodega',
+  devolucion_interna: 'Devoluci\u00f3n interna a bodega',
 }
 
 export interface MovimientoCreate {
@@ -270,7 +270,7 @@ export interface ClaseDocenteResponse {
 }
 
 // ---------------------------------------------------------------------------
-// Talleres y Paquetes de insumos (Guía de Taller)
+// Talleres y Paquetes de insumos (Gu\u00eda de Taller)
 // ---------------------------------------------------------------------------
 
 export interface TallerResponse {
@@ -301,6 +301,10 @@ export interface PaqueteItemResponse {
   insumo_id: number
   insumo_nombre: string
   insumo_tipo: TipoInsumo
+  /** Unidad de medida registrada en el insumo (ej: 'caja x100', 'frasco 500 mL') */
+  insumo_unidad_medida: string | null
+  /** Costo unitario del insumo para calcular el costo estimado del paquete */
+  insumo_costo_unitario: number | null
   cantidad_requerida: number
   notas: string | null
 }
@@ -331,7 +335,7 @@ export interface PaqueteItemCreate {
 }
 
 // ---------------------------------------------------------------------------
-// Checklist de preparación de taller
+// Checklist de preparaci\u00f3n de taller
 // ---------------------------------------------------------------------------
 
 export interface ChecklistItemResponse {
@@ -544,7 +548,7 @@ export interface ProveedorUpdate {
 }
 
 // ---------------------------------------------------------------------------
-// Órdenes de Mantenimiento
+// \u00d3rdenes de Mantenimiento
 // ---------------------------------------------------------------------------
 
 export type EstadoOrden = 'enviado' | 'en_proceso' | 'completado' | 'cancelado'
