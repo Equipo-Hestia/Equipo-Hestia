@@ -343,12 +343,12 @@ export function Paquetes() {
                           className={`
                             p-2 rounded-lg transition-colors
                             ${ p.bloqueado
-                              ? 'text-slate-400 hover:bg-emerald-50
+                              ? `text-slate-400 hover:bg-emerald-50
                                  dark:hover:bg-emerald-900/30
-                                 hover:text-emerald-600 dark:hover:text-emerald-400'
-                              : 'text-slate-400 hover:bg-amber-50
+                                 hover:text-emerald-600 dark:hover:text-emerald-400`
+                              : `text-slate-400 hover:bg-amber-50
                                  dark:hover:bg-amber-900/30
-                                 hover:text-amber-600 dark:hover:text-amber-400'
+                                 hover:text-amber-600 dark:hover:text-amber-400`
                             }
                           `}
                         >
