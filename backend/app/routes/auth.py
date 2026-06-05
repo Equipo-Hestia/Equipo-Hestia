@@ -311,7 +311,11 @@ def logout(
 def completar_login_2fa(
     datos: Completar2FARequest, db: Session = Depends(get_db)
 ):
-    """Paso 2 con codigo TOTP. Devuelve JWT completo."""
+    """Paso 2 con codigo TOTP. Devuelve JWT completo.
+
+    Devuelve 403 (no 401) si el codigo es incorrecto para que el interceptor
+    de Axios no fuerce un logout automatico al usuario.
+    """
     payload = verificar_token(datos.pre_token)
     if payload is None or payload.get("tipo") != "pre_auth":
         raise HTTPException(
@@ -340,8 +344,11 @@ def completar_login_2fa(
     totp = pyotp.TOTP(usuario.totp_secret)
     if not totp.verify(datos.codigo, valid_window=TOTP_VALID_WINDOW):
         registrar_fallo(usuario.email)
+        # 403 en lugar de 401: el usuario esta autenticado con credenciales validas;
+        # solo el segundo factor es incorrecto. Un 401 dispararía el interceptor
+        # de Axios y cerraría la sesion de forma incorrecta.
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=status.HTTP_403_FORBIDDEN,
             detail="Codigo 2FA incorrecto",
         )
     limpiar(usuario.email)
@@ -438,7 +445,7 @@ def activar_2fa(
     totp = pyotp.TOTP(usuario.totp_secret)
     if not totp.verify(datos.codigo, valid_window=TOTP_VALID_WINDOW):
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=status.HTTP_403_FORBIDDEN,
             detail="Codigo incorrecto. Asegurate de haber escaneado el QR.",
         )
     codigos_planos, json_hashes = _generar_recovery_codes()
@@ -521,6 +528,11 @@ def activar_2fa_inicial(
 
     Finaliza el flujo de configuracion inicial obligatoria: el usuario pasa
     directamente a estar autenticado tras configurar correctamente el 2FA.
+
+    Devuelve 403 (no 401) si el codigo es incorrecto para preservar el estado
+    del setup en el frontend y evitar que el interceptor de Axios cierre la
+    sesion. Esto permite al usuario corregir el codigo sin perder el QR ya
+    escaneado ni tener que reiniciar el flujo desde el login.
     """
     payload = verificar_token(datos.setup_token)
     if payload is None or payload.get("tipo") != "setup_2fa":
@@ -550,8 +562,12 @@ def activar_2fa_inicial(
         )
     totp = pyotp.TOTP(usuario.totp_secret)
     if not totp.verify(datos.codigo, valid_window=TOTP_VALID_WINDOW):
+        # 403 en lugar de 401: el usuario llego hasta aqui con credenciales
+        # validas y un QR ya escaneado. Un 401 dispararía el interceptor de
+        # Axios, destruiría el estado del componente Login y forzaría un nuevo
+        # QR al reiniciar sesion, invalidando la cuenta TOTP ya vinculada.
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=status.HTTP_403_FORBIDDEN,
             detail="Codigo incorrecto. Asegurate de haber escaneado el QR.",
         )
     codigos_planos, json_hashes = _generar_recovery_codes()
