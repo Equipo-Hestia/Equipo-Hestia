@@ -228,7 +228,7 @@ export function Paquetes() {
                                uppercase tracking-wide whitespace-nowrap">Semestre</th>
                 <th className="text-center px-4 py-3 text-xs font-bold
                                text-slate-500 dark:text-slate-400
-                               uppercase tracking-wide">\u00cdtems</th>
+                               uppercase tracking-wide">Ítems</th>
                 <th className="text-center px-4 py-3 text-xs font-bold
                                text-slate-500 dark:text-slate-400
                                uppercase tracking-wide">Estado</th>
@@ -249,7 +249,7 @@ export function Paquetes() {
                     <Package size={32} className="mx-auto mb-2 opacity-30" />
                     <p className="font-semibold">Sin paquetes que mostrar</p>
                     <p className="text-xs mt-1">
-                      Crea talleres y asigna paquetes de insumos para verlos aqu\u00ed.
+                      Crea talleres y asigna paquetes de insumos para verlos aquí.
                     </p>
                   </td>
                 </tr>
@@ -258,7 +258,7 @@ export function Paquetes() {
                 const asig = asignaturas.find(a => a.id === taller?.asignatura_id)
                 const estaExpandido = expandido === p.id
 
-                // Costo total del paquete (solo items con costo registrado)
+                // Costo total del paquete (solo ítems con costo registrado)
                 const costoTotal = p.items.reduce((acc, item) => {
                   if (item.insumo_costo_unitario == null) return acc
                   return acc + Number(item.insumo_costo_unitario) * item.cantidad_requerida
@@ -369,7 +369,7 @@ export function Paquetes() {
                           {p.items.length === 0 ? (
                             <p className="text-slate-400 dark:text-slate-500
                                           text-sm italic">
-                              Este paquete no tiene \u00edtems a\u00fan.
+                              Este paquete no tiene ítems aún.
                             </p>
                           ) : (
                             <>
@@ -487,7 +487,7 @@ export function Paquetes() {
                                     </span>
                                     <span className="text-xs
                                                      text-slate-400 dark:text-slate-500">
-                                      (solo \u00edtems con costo registrado)
+                                      (solo ítems con costo registrado)
                                     </span>
                                   </div>
                                 )}
