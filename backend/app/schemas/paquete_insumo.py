@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime
+from decimal import Decimal
 
 
 # ---------------------------------------------------------------------------
@@ -18,6 +19,8 @@ class PaqueteItemResponse(BaseModel):
     insumo_id: int
     insumo_nombre: str
     insumo_tipo: str
+    insumo_unidad_medida: Optional[str] = None
+    insumo_costo_unitario: Optional[Decimal] = None
     cantidad_requerida: int
     notas: Optional[str] = None
 

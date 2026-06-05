@@ -42,6 +42,12 @@ def _construir_response(p: PaqueteInsumo) -> PaqueteResponse:
             insumo_id=item.insumo_id,
             insumo_nombre=item.insumo.nombre if item.insumo else "Desconocido",
             insumo_tipo=item.insumo.tipo.value if item.insumo else "",
+            insumo_unidad_medida=(
+                item.insumo.unidad_medida if item.insumo else None
+            ),
+            insumo_costo_unitario=(
+                item.insumo.costo_unitario if item.insumo else None
+            ),
             cantidad_requerida=item.cantidad_requerida,
             notas=item.notas,
         )
@@ -164,10 +170,10 @@ def confirmar_preparacion(
 
     motivo_base = (
         f"Preparacion taller: {p.taller.nombre if p.taller else ''} "
-        f"— semestre {p.semestre}"
+        f"\u2014 semestre {p.semestre}"
     )
     if datos.notas:
-        motivo_base += f" — {datos.notas}"
+        motivo_base += f" \u2014 {datos.notas}"
 
     for faltante in datos.faltantes:
         # Bloquear fila para evitar race condition con otros retiros
@@ -219,9 +225,9 @@ def confirmar_preparacion(
         entidad="paquete_insumo",
         entidad_id=paquete_id,
         detalle=(
-            f"{movimientos_generados} retiro(s) — "
+            f"{movimientos_generados} retiro(s) \u2014 "
             f"{p.taller.nombre if p.taller else ''} {p.semestre}"
-            + (f" — sin stock: {len(items_sin_stock)}" if items_sin_stock else "")
+            + (f" \u2014 sin stock: {len(items_sin_stock)}" if items_sin_stock else "")
         ),
         ip=get_ip(request),
     )
@@ -322,13 +328,28 @@ def actualizar_paquete(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(require_operador),
 ):
-    """Actualiza notas y estado de bloqueo de un paquete."""
+    """Actualiza notas y estado de bloqueo de un paquete.
+
+    Cuando el paquete esta bloqueado, solo se permite cambiar el campo
+    'bloqueado' (desbloquear). Modificar 'notas' con el paquete bloqueado
+    sigue siendo rechazado con 409.
+    """
     p = _cargar_paquete(db, paquete_id)
-    if p.bloqueado:
+
+    # Determinar si el unico cambio solicitado es desbloquear el paquete.
+    # En ese caso se permite aunque este bloqueado (es la accion inversa).
+    solo_desbloqueo = (
+        datos.bloqueado is not None
+        and not datos.bloqueado
+        and datos.notas is None
+    )
+
+    if p.bloqueado and not solo_desbloqueo:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="El paquete esta bloqueado y no puede modificarse.",
         )
+
     if datos.notas is not None:
         p.notas = datos.notas
     if datos.bloqueado is not None:
