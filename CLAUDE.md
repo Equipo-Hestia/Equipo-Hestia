@@ -12,7 +12,7 @@ Sistema web de gestión de stock de insumos médicos para la Escuela de Salud de
 - Backend: Python 3.11 · FastAPI · PostgreSQL 16 · SQLAlchemy 2.0 · Pydantic v2
 - Frontend: React 19 · Vite · TypeScript · Tailwind CSS · Zustand · Axios · lucide-react ^0.396 · @zxing/browser ^0.1.4
 - Tipografía: Nunito (Google Fonts)
-- Infra: Docker Compose (3 servicios: `db`, `api`, `frontend`)
+- Infra: Docker Compose (5 servicios: `db`, `api`, `frontend`, `nginx`, `backup`)
 - Auth: JWT (python-jose) · bcrypt · TOTP 2FA (pyotp + QR)
 - CI: GitHub Actions con flake8 en push/PR a `main` y `develop`
 
@@ -21,18 +21,22 @@ Sistema web de gestión de stock de insumos médicos para la Escuela de Salud de
 ## 2. Arquitectura Docker
 
 ```
-[Navegador] → :3000 (frontend/Vite) → proxy → :8000 (api/FastAPI) → db:5432 (PostgreSQL)
+[Navegador LAN] → nginx :443/:80 → frontend :3000 (Vite) → api :8000 (FastAPI) → db :5432
 ```
 
 **Servicios en `docker-compose.yml`:**
 
-| Servicio | Imagen | Puerto expuesto | Volumen |
+| Servicio | Imagen | Puerto expuesto al host | Alcanzable desde LAN |
 |---|---|---|---|
-| `db` | postgres:16 | ninguno (solo red interna) | `postgres_data` (named) |
-| `api` | Dockerfile propio | 8000 | `./backend:/app` (bind mount dev) |
-| `frontend` | Dockerfile propio | 3000 | `./frontend:/app` + `/app/node_modules` |
+| `db` | postgres:16 | ninguno | ❌ solo red Docker interna |
+| `api` | Dockerfile propio | 127.0.0.1:8000 | ❌ solo localhost del servidor |
+| `frontend` | Dockerfile propio | 127.0.0.1:3000 | ❌ solo localhost del servidor |
+| `nginx` | Dockerfile propio | 0.0.0.0:80, 0.0.0.0:443 | ✅ punto de entrada LAN |
+| `backup` | Dockerfile propio | ninguno | ❌ solo red Docker interna |
 
-**Regla crítica:** el puerto 5432 de la BD NO está expuesto al host ni a la LAN.
+**Regla crítica de puertos:** los puertos 5432, 8000 y 3000 NO están expuestos a la LAN.
+Todo el tráfico externo entra únicamente por nginx (443/80). Los bindings `127.0.0.1:8000:8000`
+y `127.0.0.1:3000:3000` garantizan que solo el propio servidor puede acceder a esos puertos.
 
 **Comandos de ciclo de vida:**
 ```bash
@@ -346,7 +350,8 @@ Variantes disponibles: `default` | `warning` | `danger` | `success` | `info` | `
 5. **Rutas estáticas antes que dinámicas.** `/alertas`, `/exportar`, `/mis-clases` van ANTES de `/{id}`.
 6. **Try/catch en fetches del frontend.**
 7. **Sincronizar tipos.** Al modificar un schema Pydantic, actualizar `frontend/src/types/api.ts`.
-8. **No exponer el puerto 5432.**
+8. **No exponer puertos 5432, 8000 ni 3000 a la LAN.** Los puertos 8000 y 3000 usan binding
+   `127.0.0.1` en docker-compose.yml. Solo nginx (443/80) es accesible desde la red.
 9. **`hashear_password()` de `security.py`.**
 10. **`registrar()` tiene commit propio.**
 11. **SKU auto-generado.** `db.flush()` para obtener ID, luego `sku = f"HST-{id:05d}"`.
@@ -372,6 +377,12 @@ Variantes disponibles: `default` | `warning` | `danger` | `success` | `info` | `
     - **`Insumo.sala_id`** es un campo legado conservado en BD. No usarlo en nueva UI/lógica.
     - El filtro por sala fue eliminado de la página Insumos. Para saber dónde está un
       implemento específico, usar la página de Unidades Físicas (`/insumos/:id/unidades`).
+24. **HTTP 403 para segundo factor incorrecto (CRÍTICO):**
+    Los endpoints `/auth/2fa/completar-login`, `/auth/2fa/activar-inicial` y `/auth/2fa/activar`
+    devuelven **403** (no 401) cuando el código TOTP es incorrecto. Usar 401 dispararía el
+    interceptor de Axios en `client.ts`, que haría logout automático y destruiría el estado
+    del flujo de setup. 403 = "credencial de segundo factor incorrecta, la sesión sigue viva".
+    El interceptor también excluye URLs que contienen `/auth/2fa/` como defensa en profundidad.
 
 ---
 
@@ -395,6 +406,8 @@ Variantes disponibles: `default` | `warning` | `danger` | `success` | `info` | `
 | Académico | Clases (asig+sección+semestre) | ✅ |
 | Académico | Importar horario CSV | ✅ |
 | Auth | Login + JWT + TOTP 2FA | ✅ |
+| Auth | Bug TOTP setup: código incorrecto ya no reinicia el flujo | ✅ junio 2026 |
+| Seguridad | Puertos 8000/3000 restringidos a localhost (no LAN) | ✅ junio 2026 |
 | Usuarios | RBAC admin/operador_coordinador/operador/visor | ✅ |
 | Usuarios | Rol docente eliminado | ✅ |
 | Solicitudes | Página y rutas eliminadas del frontend | ✅ mayo 2026 |
@@ -416,3 +429,4 @@ Variantes disponibles: `default` | `warning` | `danger` | `success` | `info` | `
 | Reportes exportables en Excel con filtros | Media |
 | Dark mode en páginas internas | Media |
 | Permisos diferenciados del operador_coordinador | Baja |
+| Fijar versiones de dependencias con hashes SHA-256 (pip-tools) | Baja |
