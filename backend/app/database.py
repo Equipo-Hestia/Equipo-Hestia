@@ -164,31 +164,6 @@ MIGRACIONES_COLUMNAS = [
         "  costo                  NUMERIC(12,2)"
         ")"
     ),
-    # ── Migrar columna estado al nuevo enum estadoordenitem ─────────────
-    # La columna estado era de tipo estadoorden (enviado/en_proceso/etc.).
-    # El nuevo modelo usa estadoordenitem (en_curso/cerrada/cancelada).
-    # Primero se limpian los datos de demo para poder cambiar el tipo,
-    # luego se convierte la columna con USING cast explicito.
-    (
-        "DO $$ BEGIN "
-        "IF EXISTS ("
-        "  SELECT 1 FROM information_schema.columns "
-        "  WHERE table_name = 'ordenes_mantenimiento' "
-        "  AND column_name = 'estado' "
-        "  AND udt_name = 'estadoorden'"
-        ") THEN "
-        "  DELETE FROM orden_mantenimiento_items; "
-        "  DELETE FROM ordenes_mantenimiento; "
-        "  ALTER TABLE ordenes_mantenimiento "
-        "    ALTER COLUMN estado DROP DEFAULT; "
-        "  ALTER TABLE ordenes_mantenimiento "
-        "    ALTER COLUMN estado TYPE estadoordenitem "
-        "    USING 'en_curso'::estadoordenitem; "
-        "  ALTER TABLE ordenes_mantenimiento "
-        "    ALTER COLUMN estado SET DEFAULT 'en_curso'::estadoordenitem; "
-        "END IF; "
-        "END $$"
-    ),
     # Eliminar FK huerfana activo_fijo_id si aun existe en la cabecera
     (
         "DO $$ BEGIN "
@@ -244,7 +219,12 @@ def aplicar_migraciones_pendientes() -> None:
 
 
 def _aplicar_migraciones_enum() -> None:
-    """Agrega valores faltantes a enums nativos de PostgreSQL."""
+    """Agrega valores faltantes a enums nativos de PostgreSQL.
+
+    Incluye la migracion de ordenes_mantenimiento.estado desde el
+    enum antiguo (estadoorden) al nuevo (estadoordenitem). Se detecta
+    verificando si la columna aun usa el tipo 'estadoorden' via pg_attribute.
+    """
     import psycopg2
 
     dsn = (DATABASE_URL or "").replace("postgresql+psycopg2://", "postgresql://")
@@ -253,6 +233,8 @@ def _aplicar_migraciones_enum() -> None:
     conn.autocommit = True
     try:
         cur = conn.cursor()
+
+        # -- Agregar valores faltantes a enums existentes --
         for tipo_enum, valores in MIGRACIONES_ENUM:
             cur.execute(
                 "SELECT 1 FROM pg_type WHERE typname = %s", (tipo_enum,)
@@ -284,6 +266,55 @@ def _aplicar_migraciones_enum() -> None:
                         "[Hestia] '%s' ya existe en enum '%s'.",
                         valor, tipo_enum,
                     )
+
+        # -- Migrar ordenes_mantenimiento.estado al nuevo enum --
+        # Detecta si la columna sigue usando el tipo 'estadoorden' (el viejo).
+        cur.execute(
+            "SELECT t.typname "
+            "FROM pg_attribute a "
+            "JOIN pg_class c ON a.attrelid = c.oid "
+            "JOIN pg_type t ON a.atttypid = t.oid "
+            "WHERE c.relname = 'ordenes_mantenimiento' "
+            "AND a.attname = 'estado' "
+            "AND a.attnum > 0"
+        )
+        row = cur.fetchone()
+        tipo_actual = row[0] if row else None
+        log.info(
+            "[Hestia] ordenes_mantenimiento.estado tipo actual: %s",
+            tipo_actual,
+        )
+
+        if tipo_actual and tipo_actual != "estadoordenitem":
+            log.info(
+                "[Hestia] Migrando columna estado de '%s' a estadoordenitem...",
+                tipo_actual,
+            )
+            # Datos de demo: se borran para poder cambiar el tipo.
+            # En produccion esta tabla estara vacia en este punto.
+            cur.execute("DELETE FROM orden_mantenimiento_items")
+            cur.execute("DELETE FROM ordenes_mantenimiento")
+            cur.execute(
+                "ALTER TABLE ordenes_mantenimiento "
+                "ALTER COLUMN estado DROP DEFAULT"
+            )
+            cur.execute(
+                "ALTER TABLE ordenes_mantenimiento "
+                "ALTER COLUMN estado TYPE estadoordenitem "
+                "USING 'en_curso'::estadoordenitem"
+            )
+            cur.execute(
+                "ALTER TABLE ordenes_mantenimiento "
+                "ALTER COLUMN estado SET DEFAULT 'en_curso'::estadoordenitem"
+            )
+            log.info(
+                "[Hestia] Columna estado migrada a estadoordenitem correctamente."
+            )
+        else:
+            log.info(
+                "[Hestia] Columna estado ya es estadoordenitem, sin cambios."
+            )
+
         cur.close()
         log.info("[Hestia] Migracion de enums completada.")
     finally:
