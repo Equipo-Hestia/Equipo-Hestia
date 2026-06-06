@@ -23,6 +23,7 @@ import { UnidadesImplemento }     from './pages/UnidadesImplemento'
 import { Paquetes }               from './pages/Paquetes'
 import { PrepararTaller }         from './pages/PrepararTaller'
 import { OrdenesMantenimiento }   from './pages/OrdenesMantenimiento'
+import { Proveedores }            from './pages/Proveedores'
 import { Layout }                 from './components/layout/Layout'
 import { useAuthStore }           from './store/auth'
 
@@ -30,6 +31,7 @@ const TODOS          = ['admin', 'operador_coordinador', 'operador', 'visor']
 const NO_VISOR       = ['admin', 'operador_coordinador', 'operador']
 const SOLO_ADMIN     = ['admin']
 const ROLES_REPORTES = ['admin', 'operador_coordinador', 'visor']
+const COORD_ADMIN    = ['admin', 'operador_coordinador']
 
 function ProtectedRoute({ roles, children }: { roles: string[]; children: ReactNode }) {
   const { user } = useAuthStore()
@@ -75,6 +77,8 @@ export function App() {
             element={<ProtectedRoute roles={NO_VISOR}><Paquetes /></ProtectedRoute>} />
           <Route path="preparar-taller"
             element={<ProtectedRoute roles={NO_VISOR}><PrepararTaller /></ProtectedRoute>} />
+          <Route path="proveedores"
+            element={<ProtectedRoute roles={COORD_ADMIN}><Proveedores /></ProtectedRoute>} />
           <Route path="asignaturas"
             element={<ProtectedRoute roles={SOLO_ADMIN}><Asignaturas /></ProtectedRoute>} />
           <Route path="clases-docente"
