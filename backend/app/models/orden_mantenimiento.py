@@ -9,16 +9,16 @@ import enum
 
 
 class EstadoOrden(str, enum.Enum):
-    en_curso  = "en_curso"   # orden abierta, técnicos trabajando
-    cerrada   = "cerrada"    # Maritza cerró la orden tras el cierre
+    en_curso = "en_curso"  # orden abierta, técnicos trabajando
+    cerrada = "cerrada"  # Maritza cerró la orden tras el cierre
     cancelada = "cancelada"  # orden anulada antes de iniciar
 
 
 class ResultadoItem(str, enum.Enum):
-    pendiente    = "pendiente"     # sin resultado aún (orden abierta)
-    ok           = "ok"            # revisado, queda operativo
-    sale_a_taller = "sale_a_taller" # debe salir a reparación externa
-    dar_de_baja  = "dar_de_baja"   # equipo irrecuperable / a reemplazar
+    pendiente = "pendiente"  # sin resultado aún (orden abierta)
+    ok = "ok"  # revisado, queda operativo
+    sale_a_taller = "sale_a_taller"  # debe salir a reparación externa
+    dar_de_baja = "dar_de_baja"  # equipo irrecuperable / a reemplazar
 
 
 class OrdenMantenimiento(Base):
@@ -58,9 +58,9 @@ class OrdenMantenimiento(Base):
         Boolean, default=True, nullable=False, server_default="true"
     )
 
-    proveedor  = relationship("Proveedor", back_populates="ordenes_mantenimiento")
+    proveedor = relationship("Proveedor", back_populates="ordenes_mantenimiento")
     creado_por = relationship("Usuario", backref="ordenes_mantenimiento")
-    items      = relationship(
+    items = relationship(
         "OrdenMantenimientoItem",
         back_populates="orden",
         cascade="all, delete-orphan",
@@ -94,16 +94,16 @@ class OrdenMantenimientoItem(Base):
     )
 
     # Campos relevantes solo si resultado = sale_a_taller
-    fecha_envio            = Column(Date, nullable=True)
+    fecha_envio = Column(Date, nullable=True)
     fecha_retorno_estimada = Column(Date, nullable=True)
-    fecha_retorno          = Column(Date, nullable=True)  # se completa al volver
+    fecha_retorno = Column(Date, nullable=True)  # se completa al volver
 
     # Descripción del problema (sale_a_taller o dar_de_baja)
     descripcion_problema = Column(Text, nullable=True)
     # Trabajo realizado por el proveedor
-    descripcion_trabajo  = Column(Text, nullable=True)
+    descripcion_trabajo = Column(Text, nullable=True)
     # Costo de esta reparación/servicio individual
     costo = Column(Numeric(12, 2), nullable=True)
 
-    orden      = relationship("OrdenMantenimiento", back_populates="items")
+    orden = relationship("OrdenMantenimiento", back_populates="items")
     activo_fijo = relationship("ActivoFijo")
