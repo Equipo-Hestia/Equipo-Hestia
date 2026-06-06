@@ -7,7 +7,7 @@ import type { LoginResponse, Setup2FAResponse } from '../types/api'
 
 // ─── Constantes ────────────────────────────────────────────────────────────────
 
-type Modo2FA  = 'totp' | 'recovery'
+type Modo2FA   = 'totp' | 'recovery'
 type SetupStep = 'qr' | 'code' | 'recovery'
 
 const SOPORTE_EMAIL = 'hestia.soporte.cc@gmail.com'
@@ -40,12 +40,287 @@ const TEMAS = [
   'Otro',
 ]
 
-// Métricas estáticas del sistema — datos estructurales, no operacionales
 const SYSTEM_STATS = [
   { value: '18',   label: 'salas clínicas' },
   { value: '5',    label: 'carreras' },
   { value: '100+', label: 'insumos' },
 ]
+
+// Letras de HESTIA — una por dígito TOTP
+const TOTP_LETTERS = ['H', 'E', 'S', 'T', 'I', 'A']
+
+// ─── TotpInput — input animado con letras HESTIA ───────────────────────────────
+//
+// Mecánica:
+//   1. Al escribir un dígito: aparece brevemente el número (digitPop)
+//      → se va (digitExit) → aparece la letra HESTIA correspondiente (letterReveal)
+//   2. Al confirmar: todas las slot-letter se ocultan, se crean clones
+//      "fly-letter" en document.body (position:fixed) que viajan físicamente
+//      hacia el centro del wrapper → logo aparece → limpia.
+//
+// Los clones se adjuntan a document.body para evitar que overflow:hidden
+// del wrapper los corte durante el viaje.
+
+const TOTP_ANIM_STYLE_ID = 'hestia-totp-anim'
+
+function ensureTotpStyle() {
+  if (document.getElementById(TOTP_ANIM_STYLE_ID)) return
+  const s = document.createElement('style')
+  s.id = TOTP_ANIM_STYLE_ID
+  s.textContent = `
+    @keyframes h-digit-pop {
+      0%   { opacity:0; transform:scale(0.55) translateY(6px); }
+      65%  { opacity:1; transform:scale(1.07) translateY(-2px); }
+      100% { opacity:1; transform:scale(1) translateY(0); }
+    }
+    @keyframes h-digit-exit {
+      0%   { opacity:1; transform:scale(1); }
+      100% { opacity:0; transform:scale(0.4) translateY(-4px); }
+    }
+    @keyframes h-letter-reveal {
+      0%   { opacity:0; transform:scale(0.5) translateY(6px); }
+      65%  { opacity:1; transform:scale(1.1) translateY(-2px); }
+      100% { opacity:1; transform:scale(1) translateY(0); }
+    }
+    @keyframes h-logo-pop {
+      0%   { opacity:0; transform:translate(-50%,-50%) scale(0.15); }
+      55%  { opacity:1; transform:translate(-50%,-50%) scale(1.1); }
+      100% { opacity:1; transform:translate(-50%,-50%) scale(1); }
+    }
+    @keyframes h-logo-fade { 0%{opacity:1} 100%{opacity:0} }
+    .h-fly-letter {
+      position: fixed;
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      color: #3a4a5c;
+      user-select: none;
+      pointer-events: none;
+      z-index: 9999;
+      transform-origin: center center;
+      will-change: transform, opacity;
+    }
+  `
+  document.head.appendChild(s)
+}
+
+interface TotpInputProps {
+  value:        string
+  onChange:     (v: string) => void
+  onConfirm:    () => void
+  isAnimating:  boolean
+  setAnimating: (v: boolean) => void
+  disabled?:    boolean
+}
+
+function TotpInput({
+  value, onChange, onConfirm, isAnimating, setAnimating, disabled = false,
+}: TotpInputProps) {
+  useEffect(() => { ensureTotpStyle() }, [])
+
+  const wrapperRef = useRef<HTMLDivElement>(null)
+  const inputRef   = useRef<HTMLInputElement>(null)
+  const digitRefs  = useRef<(HTMLSpanElement | null)[]>([])
+  const letterRefs = useRef<(HTMLSpanElement | null)[]>([])
+  const prevValue  = useRef('')
+
+  const isComplete = value.length === 6
+
+  // Foco automático al montar
+  useEffect(() => {
+    setTimeout(() => inputRef.current?.focus(), 80)
+  }, [])
+
+  function resetSlot(i: number) {
+    const d = digitRefs.current[i]
+    const l = letterRefs.current[i]
+    if (d) { d.style.cssText = 'position:absolute;font-size:26px;font-weight:700;font-family:monospace;color:#f1f5f9;opacity:0;'; d.textContent = '' }
+    if (l) { l.style.cssText = 'position:absolute;font-size:22px;font-weight:700;letter-spacing:0.05em;color:#3a4a5c;opacity:0;user-select:none;' }
+  }
+
+  function animateIn(i: number, digit: string) {
+    const d = digitRefs.current[i]
+    const l = letterRefs.current[i]
+    if (!d || !l) return
+    resetSlot(i)
+    d.textContent = digit
+    void d.offsetWidth
+    d.style.animation = 'h-digit-pop 0.22s cubic-bezier(0.34,1.56,0.64,1) forwards'
+    setTimeout(() => {
+      d.style.animation = 'h-digit-exit 0.2s ease forwards'
+      setTimeout(() => {
+        d.style.opacity = '0'
+        void l.offsetWidth
+        l.style.animation = 'h-letter-reveal 0.26s cubic-bezier(0.34,1.56,0.64,1) forwards'
+      }, 180)
+    }, 300)
+  }
+
+  useEffect(() => {
+    const prev = prevValue.current
+    const next = value
+    if (next.length > prev.length) {
+      for (let i = prev.length; i < next.length; i++) animateIn(i, next[i])
+    } else if (next.length < prev.length) {
+      for (let i = next.length; i < prev.length; i++) resetSlot(i)
+    }
+    prevValue.current = next
+  }, [value])
+
+  function handleInput(e: React.ChangeEvent<HTMLInputElement>) {
+    if (isAnimating) return
+    const v = e.target.value.replace(/\D/g, '').slice(0, 6)
+    e.target.value = v
+    onChange(v)
+  }
+
+  function runConfirmAnimation() {
+    const wrapper = wrapperRef.current
+    if (!wrapper) return
+    setAnimating(true)
+    const wRect  = wrapper.getBoundingClientRect()
+    const destX  = wRect.left + wRect.width  / 2
+    const destY  = wRect.top  + wRect.height / 2
+    const TRAVEL  = 520
+    const STAGGER = 55
+    const flyEls: HTMLElement[] = []
+
+    letterRefs.current.forEach((lEl, i) => {
+      if (!lEl) return
+      const lRect = lEl.getBoundingClientRect()
+      const srcX  = lRect.left + lRect.width  / 2
+      const srcY  = lRect.top  + lRect.height / 2
+      lEl.style.opacity = '0'
+      lEl.style.animation = 'none'
+      const fly = document.createElement('span')
+      fly.className   = 'h-fly-letter'
+      fly.textContent = TOTP_LETTERS[i]
+      fly.style.left  = `${srcX}px`
+      fly.style.top   = `${srcY}px`
+      fly.style.transform  = 'translate(-50%,-50%)'
+      fly.style.opacity    = '1'
+      document.body.appendChild(fly)
+      flyEls.push(fly)
+      const dx = destX - srcX
+      const dy = destY - srcY
+      setTimeout(() => {
+        fly.style.transition = `
+          transform ${TRAVEL}ms cubic-bezier(0.4,0,0.2,1),
+          opacity   ${Math.round(TRAVEL * 0.28)}ms ease ${Math.round(TRAVEL * 0.72)}ms
+        `
+        fly.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(0.4)`
+        fly.style.opacity   = '0'
+      }, i * STAGGER + 20)
+    })
+
+    const allArrived = 5 * STAGGER + TRAVEL + 130
+    setTimeout(() => {
+      flyEls.forEach(el => el.remove())
+      const logoWrap = document.createElement('div')
+      logoWrap.style.cssText = `
+        position:absolute;left:50%;top:50%;
+        transform:translate(-50%,-50%) scale(0);
+        pointer-events:none;z-index:6;
+        display:flex;align-items:center;justify-content:center;
+      `
+      const img = document.createElement('img')
+      img.src    = '/logo_hestia_circular.ico'
+      img.alt    = 'Hestia'
+      img.style.cssText = 'width:48px;height:48px;border-radius:50%;'
+      logoWrap.appendChild(img)
+      wrapper.appendChild(logoWrap)
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        logoWrap.style.animation = 'h-logo-pop 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards'
+      }))
+      setTimeout(() => {
+        onConfirm()
+        setTimeout(() => {
+          logoWrap.style.animation = 'h-logo-fade 0.4s ease forwards'
+          setTimeout(() => {
+            logoWrap.remove()
+            for (let i = 0; i < 6; i++) resetSlot(i)
+            onChange('')
+            setAnimating(false)
+          }, 400)
+        }, 900)
+      }, 440)
+    }, allArrived)
+  }
+
+  const borderColor = isAnimating
+    ? '#5dcaa5'
+    : isComplete
+      ? '#1d9e75'
+      : '#2a3444'
+
+  return (
+    <div
+      ref={wrapperRef}
+      onClick={() => !isAnimating && inputRef.current?.focus()}
+      style={{
+        position:    'relative',
+        width:       '100%',
+        height:      '76px',
+        borderRadius: '10px',
+        background:  '#1e2530',
+        border:      `1px solid ${borderColor}`,
+        display:     'flex',
+        alignItems:  'center',
+        justifyContent: 'center',
+        overflow:    'hidden',
+        transition:  'border-color 0.3s',
+        cursor:      'text',
+      }}
+    >
+      <input
+        ref={inputRef}
+        type="text"
+        inputMode="numeric"
+        maxLength={6}
+        autoComplete="one-time-code"
+        value={value}
+        onChange={handleInput}
+        onKeyDown={e => {
+          if (e.key === 'Enter' && isComplete && !isAnimating) runConfirmAnimation()
+        }}
+        aria-label="Código TOTP de 6 dígitos"
+        style={{
+          position: 'absolute', inset: 0, opacity: 0, cursor: 'text',
+          zIndex: 10, fontSize: '1px', background: 'transparent',
+          border: 'none', outline: 'none', color: 'transparent',
+          caretColor: 'transparent',
+        }}
+      />
+      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', pointerEvents: 'none', zIndex: 2 }}>
+        {TOTP_LETTERS.map((letter, i) => (
+          <div
+            key={letter}
+            style={{ width: '40px', height: '52px', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}
+          >
+            <span
+              ref={el => { digitRefs.current[i] = el }}
+              style={{ position: 'absolute', fontSize: '26px', fontWeight: 700, fontFamily: 'monospace', color: '#f1f5f9', opacity: 0 }}
+            />
+            <span
+              ref={el => { letterRefs.current[i] = el }}
+              style={{ position: 'absolute', fontSize: '22px', fontWeight: 700, letterSpacing: '0.05em', color: '#3a4a5c', opacity: 0, userSelect: 'none' }}
+            >
+              {letter}
+            </span>
+          </div>
+        ))}
+      </div>
+      {/* Botón confirm accesible con Enter — runConfirmAnimation lo dispara */}
+      <button
+        type="button"
+        onClick={() => { if (isComplete && !isAnimating) runConfirmAnimation() }}
+        style={{ position: 'absolute', opacity: 0, pointerEvents: 'none' }}
+        tabIndex={-1}
+        aria-hidden
+      />
+    </div>
+  )
+}
 
 // ─── Componentes de modales ─────────────────────────────────────────────────────
 
@@ -67,7 +342,6 @@ function ModalAcercaDe({ onClose }: { onClose: () => void }) {
                      text-xl leading-none transition-colors"
           aria-label="Cerrar"
         >×</button>
-
         <div className="flex flex-col items-center mb-6">
           <Logo className="w-16 h-16 mb-3" />
           <h2 className="text-xl font-bold text-h-primary tracking-tight">Hestia</h2>
@@ -75,7 +349,6 @@ function ModalAcercaDe({ onClose }: { onClose: () => void }) {
             Sistema de gestión de insumos médicos
           </p>
         </div>
-
         <div className="space-y-3 text-xs text-h-secondary">
           <div className="bg-h-elevated rounded-xl border border-h-subtle px-4 py-3 space-y-2">
             {[
@@ -104,7 +377,6 @@ function ModalAcercaDe({ onClose }: { onClose: () => void }) {
             </div>
           </div>
         </div>
-
         <p className="text-center text-h-tertiary text-[10px] mt-5">
           <strong className="text-h-secondary">H</strong>ospitalidad·
           <strong className="text-h-secondary">E</strong>ficacia·
@@ -138,10 +410,8 @@ function ModalSoporte({ onClose }: { onClose: () => void }) {
   const inputCls = `
     w-full px-3 py-2.5 rounded-lg text-h-primary text-sm
     focus:outline-none placeholder:text-h-tertiary transition-all
-    bg-h-elevated border border-h-visible
-    focus:border-h-strong
+    bg-h-elevated border border-h-visible focus:border-h-strong
   `
-  // FIX: backtick en lugar de comilla simple para permitir el salto de línea
   const labelCls = `block text-[10px] font-semibold text-h-tertiary mb-1.5
                     uppercase tracking-widest`
 
@@ -169,17 +439,13 @@ function ModalSoporte({ onClose }: { onClose: () => void }) {
             aria-label="Cerrar"
           >×</button>
         </div>
-
         <div className="overflow-y-auto flex-1 px-7 py-5 space-y-6">
           {enviado ? (
             <div className="text-center py-4">
               <div
                 className="w-12 h-12 rounded-full flex items-center justify-center
                            mx-auto mb-4 text-xl border"
-                style={{
-                  background:  'var(--h-sem-success-bg)',
-                  borderColor: 'var(--h-sem-success-border)',
-                }}
+                style={{ background: 'var(--h-sem-success-bg)', borderColor: 'var(--h-sem-success-border)' }}
               >✉️</div>
               <h3 className="text-base font-semibold text-h-primary mb-2">Ticket enviado</h3>
               <p className="text-h-secondary text-xs mb-4">
@@ -202,56 +468,41 @@ function ModalSoporte({ onClose }: { onClose: () => void }) {
               <form onSubmit={handleEnviar} className="space-y-3">
                 <div>
                   <label className={labelCls}>Nombre (opcional)</label>
-                  <input
-                    type="text" value={nombre}
-                    onChange={e => setNombre(e.target.value)}
-                    className={inputCls} placeholder="Tu nombre o usuario"
-                  />
+                  <input type="text" value={nombre} onChange={e => setNombre(e.target.value)}
+                    className={inputCls} placeholder="Tu nombre o usuario" />
                 </div>
                 <div>
                   <label className={labelCls}>Tipo de problema *</label>
-                  <select
-                    required value={tema}
-                    onChange={e => setTema(e.target.value)}
-                    className={inputCls + ' cursor-pointer'}
-                  >
+                  <select required value={tema} onChange={e => setTema(e.target.value)}
+                    className={inputCls + ' cursor-pointer'}>
                     {TEMAS.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className={labelCls}>Descripción *</label>
-                  <textarea
-                    required rows={4} value={mensaje}
+                  <textarea required rows={4} value={mensaje}
                     onChange={e => setMensaje(e.target.value)}
                     className={inputCls + ' resize-none'}
-                    placeholder="Describe el problema con el mayor detalle posible..."
-                  />
+                    placeholder="Describe el problema con el mayor detalle posible..." />
                 </div>
-                <button
-                  type="submit" disabled={!mensaje.trim()}
+                <button type="submit" disabled={!mensaje.trim()}
                   className="w-full text-white font-semibold py-2.5 rounded-lg
-                             transition-colors disabled:opacity-50
-                             disabled:cursor-not-allowed text-sm"
-                  style={{ background: 'var(--h-teal-rest)' }}
-                >
+                             transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                  style={{ background: 'var(--h-teal-rest)' }}>
                   Abrir cliente de correo
                 </button>
               </form>
             </div>
           )}
-
           <div>
             <h3 className="text-sm font-medium text-h-primary mb-3">Preguntas frecuentes</h3>
             <div className="space-y-1.5">
               {FAQ_ITEMS.map((item, i) => (
                 <div key={i} className="rounded-xl border border-h-subtle overflow-hidden">
-                  <button
-                    type="button"
+                  <button type="button"
                     onClick={() => setExpandFaq(expandFaq === i ? null : i)}
                     className="w-full flex items-center justify-between gap-3
-                               px-4 py-3 text-left hover:bg-h-elevated
-                               transition-colors"
-                  >
+                               px-4 py-3 text-left hover:bg-h-elevated transition-colors">
                     <span className="text-xs font-medium text-h-secondary">{item.q}</span>
                     <span className="text-h-tertiary flex-shrink-0 text-sm">
                       {expandFaq === i ? '−' : '+'}
@@ -273,17 +524,24 @@ function ModalSoporte({ onClose }: { onClose: () => void }) {
 }
 
 // ─── Panel izquierdo: identidad + métricas + orbes parallax ─────────────────────
+//
+// Fix del glow: la transition se desactiva mientras el glow está aparcado
+// fuera de pantalla (left < 0). Se reactiva solo tras el primer mousemove
+// que lo posiciona cerca del cursor, eliminando el "teleport" visible
+// al re-entrar al panel desde el lado derecho.
 
 function PanelIzquierdo() {
-  const panelRef = useRef<HTMLDivElement>(null)
-  const orb1Ref  = useRef<HTMLDivElement>(null)
-  const orb2Ref  = useRef<HTMLDivElement>(null)
-  const orb3Ref  = useRef<HTMLDivElement>(null)
-  const glowRef  = useRef<HTMLDivElement>(null)
+  const panelRef    = useRef<HTMLDivElement>(null)
+  const orb1Ref     = useRef<HTMLDivElement>(null)
+  const orb2Ref     = useRef<HTMLDivElement>(null)
+  const orb3Ref     = useRef<HTMLDivElement>(null)
+  const glowRef     = useRef<HTMLDivElement>(null)
+  const glowReady   = useRef(false)
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
     const panel = panelRef.current
-    if (!panel) return
+    const glow  = glowRef.current
+    if (!panel || !glow) return
     const rect = panel.getBoundingClientRect()
     const x    = e.clientX - rect.left
     const y    = e.clientY - rect.top
@@ -292,10 +550,20 @@ function PanelIzquierdo() {
     const dx   = (x - cx) / cx
     const dy   = (y - cy) / cy
 
-    if (glowRef.current) {
-      glowRef.current.style.left = `${x}px`
-      glowRef.current.style.top  = `${y}px`
+    if (!glowReady.current) {
+      // Primera entrada: posicionar sin transición para evitar el salto
+      glow.style.transition = 'none'
+      glow.style.left = `${x}px`
+      glow.style.top  = `${y}px`
+      // Forzar reflow y luego activar la transición suave
+      void glow.offsetWidth
+      glow.style.transition = 'left 0.07s ease-out, top 0.07s ease-out'
+      glowReady.current = true
+    } else {
+      glow.style.left = `${x}px`
+      glow.style.top  = `${y}px`
     }
+
     if (orb1Ref.current)
       orb1Ref.current.style.transform = `translate(${dx * 22}px, ${dy * 16}px)`
     if (orb2Ref.current)
@@ -306,14 +574,17 @@ function PanelIzquierdo() {
   }, [])
 
   const handleMouseLeave = useCallback(() => {
-    if (glowRef.current) {
-      glowRef.current.style.left = '-999px'
-      glowRef.current.style.top  = '-999px'
+    const glow = glowRef.current
+    if (glow) {
+      // Apagar transición antes de aparcar — así no se ve el viaje al -999px
+      glow.style.transition = 'none'
+      glow.style.left = '-999px'
+      glow.style.top  = '-999px'
     }
+    glowReady.current = false
     if (orb1Ref.current) orb1Ref.current.style.transform = 'translate(0,0)'
     if (orb2Ref.current) orb2Ref.current.style.transform = 'translate(0,0)'
-    if (orb3Ref.current)
-      orb3Ref.current.style.transform = 'translate(-50%,-50%)'
+    if (orb3Ref.current) orb3Ref.current.style.transform = 'translate(-50%,-50%)'
   }, [])
 
   useEffect(() => {
@@ -334,78 +605,39 @@ function PanelIzquierdo() {
                  border-r border-h-subtle"
       style={{ width: '52%', background: 'var(--h-bg-surface)' }}
     >
-      {/* Grilla de puntos */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
-          backgroundImage:
-            'radial-gradient(circle, var(--h-border-subtle) 1px, transparent 1px)',
+          backgroundImage: 'radial-gradient(circle, var(--h-border-subtle) 1px, transparent 1px)',
           backgroundSize: '28px 28px',
         }}
       />
+      <div ref={orb1Ref} className="absolute pointer-events-none" style={{
+        width: '420px', height: '420px', top: '-120px', left: '-80px',
+        borderRadius: '50%',
+        background: 'radial-gradient(circle, rgba(29,158,117,0.22) 0%, transparent 68%)',
+        filter: 'blur(55px)', transition: 'transform 0.15s ease-out',
+      }} />
+      <div ref={orb2Ref} className="absolute pointer-events-none" style={{
+        width: '340px', height: '340px', bottom: '-80px', right: '-60px',
+        borderRadius: '50%',
+        background: 'radial-gradient(circle, rgba(15,110,86,0.18) 0%, transparent 68%)',
+        filter: 'blur(50px)', transition: 'transform 0.15s ease-out',
+      }} />
+      <div ref={orb3Ref} className="absolute pointer-events-none" style={{
+        width: '280px', height: '280px', top: '50%', left: '50%',
+        transform: 'translate(-50%,-50%)', borderRadius: '50%',
+        background: 'radial-gradient(circle, rgba(93,202,165,0.10) 0%, transparent 68%)',
+        filter: 'blur(40px)', transition: 'transform 0.15s ease-out',
+      }} />
+      <div ref={glowRef} className="absolute pointer-events-none" style={{
+        width: '320px', height: '320px', left: '-999px', top: '-999px',
+        borderRadius: '50%',
+        background: 'radial-gradient(circle, rgba(29,158,117,0.10) 0%, transparent 65%)',
+        filter: 'blur(10px)', transform: 'translate(-50%,-50%)',
+      }} />
 
-      {/* Orbes parallax */}
-      <div
-        ref={orb1Ref}
-        className="absolute pointer-events-none"
-        style={{
-          width: '420px', height: '420px',
-          top: '-120px', left: '-80px',
-          borderRadius: '50%',
-          background:
-            'radial-gradient(circle, rgba(29,158,117,0.22) 0%, transparent 68%)',
-          filter: 'blur(55px)',
-          transition: 'transform 0.15s ease-out',
-        }}
-      />
-      <div
-        ref={orb2Ref}
-        className="absolute pointer-events-none"
-        style={{
-          width: '340px', height: '340px',
-          bottom: '-80px', right: '-60px',
-          borderRadius: '50%',
-          background:
-            'radial-gradient(circle, rgba(15,110,86,0.18) 0%, transparent 68%)',
-          filter: 'blur(50px)',
-          transition: 'transform 0.15s ease-out',
-        }}
-      />
-      <div
-        ref={orb3Ref}
-        className="absolute pointer-events-none"
-        style={{
-          width: '280px', height: '280px',
-          top: '50%', left: '50%',
-          transform: 'translate(-50%,-50%)',
-          borderRadius: '50%',
-          background:
-            'radial-gradient(circle, rgba(93,202,165,0.10) 0%, transparent 68%)',
-          filter: 'blur(40px)',
-          transition: 'transform 0.15s ease-out',
-        }}
-      />
-
-      {/* Glow del cursor */}
-      <div
-        ref={glowRef}
-        className="absolute pointer-events-none"
-        style={{
-          width: '320px', height: '320px',
-          left: '-999px', top: '-999px',
-          borderRadius: '50%',
-          background:
-            'radial-gradient(circle, rgba(29,158,117,0.10) 0%, transparent 65%)',
-          filter: 'blur(10px)',
-          transform: 'translate(-50%,-50%)',
-          transition: 'left 0.07s ease-out, top 0.07s ease-out',
-        }}
-      />
-
-      {/* Contenido del panel */}
       <div className="relative z-10 flex flex-col justify-between h-full p-10">
-
-        {/* Logo + nombre */}
         <div className="flex items-center gap-3">
           <Logo className="w-10 h-10" />
           <div>
@@ -413,8 +645,6 @@ function PanelIzquierdo() {
             <p className="text-h-tertiary text-xs leading-tight">Escuela de Salud</p>
           </div>
         </div>
-
-        {/* Tagline central */}
         <div>
           <h1 className="text-3xl font-bold text-h-primary leading-tight mb-3">
             Gestión de insumos<br />
@@ -426,25 +656,16 @@ function PanelIzquierdo() {
             la Escuela de Salud de DuocUC.
           </p>
         </div>
-
-        {/* Métricas estructurales */}
         <div className="grid grid-cols-3 gap-3">
           {SYSTEM_STATS.map(({ value, label }) => (
-            <div
-              key={label}
-              className="rounded-xl border border-h-subtle p-4"
-              style={{ background: 'rgba(30,37,48,0.6)' }}
-            >
-              <p
-                className="text-2xl font-bold mb-0.5"
-                style={{ color: 'var(--h-teal-hover)' }}
-              >{value}</p>
+            <div key={label} className="rounded-xl border border-h-subtle p-4"
+              style={{ background: 'rgba(30,37,48,0.6)' }}>
+              <p className="text-2xl font-bold mb-0.5"
+                style={{ color: 'var(--h-teal-hover)' }}>{value}</p>
               <p className="text-[11px] text-h-tertiary leading-tight">{label}</p>
             </div>
           ))}
         </div>
-
-        {/* Firma institucional */}
         <p className="text-[11px] text-h-tertiary">
           DuocUC San Bernardo · Informática Biomédica · 2024–2025
         </p>
@@ -454,36 +675,27 @@ function PanelIzquierdo() {
 }
 
 // ─── Shimmer button ──────────────────────────────────────────────────────────────
-// Efecto conic-gradient animado con @property CSS Houdini.
-// Soportado en Chrome 85+, Edge 85+, Safari 17.2+, Firefox 128+.
-// El estilo del keyframe se inyecta una sola vez en el <head>.
 
 const SHIMMER_STYLE_ID = 'hestia-shimmer-style'
 
 function ensureShimmerStyle() {
   if (document.getElementById(SHIMMER_STYLE_ID)) return
   const style = document.createElement('style')
-  style.id   = SHIMMER_STYLE_ID
+  style.id = SHIMMER_STYLE_ID
   style.textContent = `
     @property --h-angle {
       syntax: '<angle>';
       initial-value: 0deg;
       inherits: false;
     }
-    @keyframes h-spin-border {
-      to { --h-angle: 360deg; }
-    }
+    @keyframes h-spin-border { to { --h-angle: 360deg; } }
     .h-shimmer-border {
       animation: h-spin-border 2.8s linear infinite;
       background: conic-gradient(
         from var(--h-angle),
-        transparent 0deg,
-        transparent 55deg,
-        #5dcaa5 110deg,
-        #9fe1cb 170deg,
-        #5dcaa5 230deg,
-        transparent 290deg,
-        transparent 360deg
+        transparent 0deg, transparent 55deg,
+        #5dcaa5 110deg, #9fe1cb 170deg, #5dcaa5 230deg,
+        transparent 290deg, transparent 360deg
       );
     }
   `
@@ -497,55 +709,22 @@ interface ShimmerButtonProps {
   onClick?:  () => void
 }
 
-function ShimmerButton({
-  children, type = 'button', disabled = false, onClick,
-}: ShimmerButtonProps) {
+function ShimmerButton({ children, type = 'button', disabled = false, onClick }: ShimmerButtonProps) {
   useEffect(() => { ensureShimmerStyle() }, [])
-
   return (
-    <div
-      className="relative w-full"
-      style={{ borderRadius: '8px', padding: '2px' }}
-    >
-      {/* Borde animado */}
-      <div
-        className="h-shimmer-border absolute inset-0 pointer-events-none"
-        style={{ borderRadius: '10px' }}
-        aria-hidden
-      />
-      {/* Fondo interior que tapa el conic-gradient excepto el borde de 2px */}
-      <div
-        className="absolute inset-[2px] pointer-events-none"
-        style={{
-          borderRadius: '7px',
-          background: disabled ? '#1e2530' : 'var(--h-teal-rest)',
-          transition: 'background 0.2s',
-        }}
-        aria-hidden
-      />
-      <button
-        type={type}
-        disabled={disabled}
-        onClick={onClick}
+    <div className="relative w-full" style={{ borderRadius: '8px', padding: '2px' }}>
+      <div className="h-shimmer-border absolute inset-0 pointer-events-none"
+        style={{ borderRadius: '10px' }} aria-hidden />
+      <div className="absolute inset-[2px] pointer-events-none"
+        style={{ borderRadius: '7px', background: disabled ? '#1e2530' : 'var(--h-teal-rest)', transition: 'background 0.2s' }}
+        aria-hidden />
+      <button type={type} disabled={disabled} onClick={onClick}
         className="relative z-10 w-full py-2.5 rounded-lg text-sm font-semibold
                    transition-colors duration-200 disabled:cursor-not-allowed"
-        style={{
-          background: 'transparent',
-          color:      disabled ? 'var(--h-text-tertiary)' : '#e1f5ee',
-        }}
-        onMouseEnter={e => {
-          if (!disabled)
-            (e.currentTarget.previousElementSibling as HTMLElement)
-              .style.background = 'var(--h-teal-hover)'
-        }}
-        onMouseLeave={e => {
-          if (!disabled)
-            (e.currentTarget.previousElementSibling as HTMLElement)
-              .style.background = 'var(--h-teal-rest)'
-        }}
-      >
-        {children}
-      </button>
+        style={{ background: 'transparent', color: disabled ? 'var(--h-text-tertiary)' : '#e1f5ee' }}
+        onMouseEnter={e => { if (!disabled) (e.currentTarget.previousElementSibling as HTMLElement).style.background = 'var(--h-teal-hover)' }}
+        onMouseLeave={e => { if (!disabled) (e.currentTarget.previousElementSibling as HTMLElement).style.background = 'var(--h-teal-rest)' }}
+      >{children}</button>
     </div>
   )
 }
@@ -561,10 +740,11 @@ export function Login() {
   const [loading,  setLoading]  = useState(false)
   const [error,    setError]    = useState<string | null>(null)
 
-  const [preToken, setPreToken] = useState<string | null>(null)
-  const [totp,     setTotp]     = useState('')
-  const [recovery, setRecovery] = useState('')
-  const [modo2FA,  setModo2FA]  = useState<Modo2FA>('totp')
+  const [preToken,  setPreToken]  = useState<string | null>(null)
+  const [totpValue, setTotpValue] = useState('')
+  const [totpAnim,  setTotpAnim]  = useState(false)
+  const [recovery,  setRecovery]  = useState('')
+  const [modo2FA,   setModo2FA]   = useState<Modo2FA>('totp')
 
   const [isSetup2FA,   setIsSetup2FA]   = useState(false)
   const [setupToken,   setSetupToken]   = useState<string | null>(null)
@@ -593,165 +773,122 @@ export function Login() {
   }
 
   async function iniciarSetup2FA(token: string) {
-    setSetupLoading(true)
-    setError(null)
+    setSetupLoading(true); setError(null)
     try {
-      const { data } = await api.post<Setup2FAResponse>('/auth/2fa/setup-inicial', {
-        setup_token: token,
-      })
-      setSetupQR(data)
-      setSetupStep('qr')
+      const { data } = await api.post<Setup2FAResponse>('/auth/2fa/setup-inicial', { setup_token: token })
+      setSetupQR(data); setSetupStep('qr')
     } catch {
       setError('No fue posible cargar el QR. Intenta iniciar sesión de nuevo.')
       setIsSetup2FA(false)
-    } finally {
-      setSetupLoading(false)
-    }
+    } finally { setSetupLoading(false) }
   }
 
   async function handleLogin(e: React.FormEvent) {
-    e.preventDefault()
-    setLoading(true)
+    e.preventDefault(); setLoading(true)
     try {
       const form = new URLSearchParams()
-      form.append('username', email)
-      form.append('password', password)
+      form.append('username', email); form.append('password', password)
       const { data } = await api.post<LoginResponse>('/auth/login', form, {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       })
       if (data.requires_2fa_setup && data.pre_token) {
-        setSetupToken(data.pre_token)
-        setIsSetup2FA(true)
-        setError(null)
+        setSetupToken(data.pre_token); setIsSetup2FA(true); setError(null)
         await iniciarSetup2FA(data.pre_token)
       } else if (data.requires_2fa && data.pre_token) {
-        setPreToken(data.pre_token)
-        setModo2FA('totp')
-        setError(null)
+        setPreToken(data.pre_token); setModo2FA('totp'); setError(null)
       } else if (data.access_token) {
         setAuth(data.access_token, { nombre: data.usuario!, rol: data.rol! })
         navigate('/dashboard')
       }
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { detail?: string } } })
-        .response?.data?.detail
+      const msg = (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
       setError(msg ?? 'Error al iniciar sesión')
-    } finally {
-      setLoading(false)
-    }
+    } finally { setLoading(false) }
   }
 
-  async function handleTotp(e: React.FormEvent) {
-    e.preventDefault()
+  // Llamado por TotpInput al completar la animación de convergencia
+  async function handleTotp() {
     setLoading(true)
     try {
       const { data } = await api.post<LoginResponse>('/auth/2fa/completar-login', {
-        pre_token: preToken,
-        codigo:    totp,
+        pre_token: preToken, codigo: totpValue,
       })
       if (data.access_token) {
         setAuth(data.access_token, { nombre: data.usuario!, rol: data.rol! })
         navigate('/dashboard')
       }
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { detail?: string } } })
-        .response?.data?.detail
+      const msg = (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
       setError(msg ?? 'Código incorrecto')
-    } finally {
-      setLoading(false)
-    }
+      setTotpAnim(false)
+    } finally { setLoading(false) }
   }
 
   async function handleRecovery(e: React.FormEvent) {
-    e.preventDefault()
-    setLoading(true)
+    e.preventDefault(); setLoading(true)
     try {
       const { data } = await api.post<LoginResponse>('/auth/2fa/recuperar-acceso', {
-        pre_token:     preToken,
-        recovery_code: recovery,
+        pre_token: preToken, recovery_code: recovery,
       })
       if (data.requires_2fa_setup && data.pre_token) {
-        setPreToken(null)
-        setSetupToken(data.pre_token)
-        setIsSetup2FA(true)
-        setError(null)
+        setPreToken(null); setSetupToken(data.pre_token); setIsSetup2FA(true); setError(null)
         await iniciarSetup2FA(data.pre_token)
       } else if (data.access_token) {
         setAuth(data.access_token, { nombre: data.usuario!, rol: data.rol! })
         navigate('/dashboard')
       }
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { detail?: string } } })
-        .response?.data?.detail
+      const msg = (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
       setError(msg ?? 'Código de recuperación inválido')
-    } finally {
-      setLoading(false)
-    }
+    } finally { setLoading(false) }
   }
 
   async function handleSetupActivar(e: React.FormEvent) {
-    e.preventDefault()
-    setLoading(true)
+    e.preventDefault(); setLoading(true)
     try {
       const { data } = await api.post<LoginResponse>('/auth/2fa/activar-inicial', {
-        setup_token: setupToken,
-        codigo:      setupTotp,
+        setup_token: setupToken, codigo: setupTotp,
       })
       if (data.access_token && data.recovery_codes) {
         setAuth(data.access_token, { nombre: data.usuario!, rol: data.rol! })
-        setSetupCodes(data.recovery_codes)
-        setSetupStep('recovery')
-        setError(null)
+        setSetupCodes(data.recovery_codes); setSetupStep('recovery'); setError(null)
       }
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { detail?: string } } })
-        .response?.data?.detail
+      const msg = (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
       setError(msg ?? 'Código incorrecto. Verifica que la app esté sincronizada.')
-    } finally {
-      setLoading(false)
-    }
+    } finally { setLoading(false) }
   }
 
   function handleSetupFinalizar() { navigate('/dashboard') }
 
   function copiarCodigos() {
     navigator.clipboard.writeText(setupCodes.join('\n'))
-    setCopiado(true)
-    setTimeout(() => setCopiado(false), 2500)
+    setCopiado(true); setTimeout(() => setCopiado(false), 2500)
   }
 
   async function handleForgot(e: React.FormEvent) {
-    e.preventDefault()
-    setForgotLoading(true)
-    setForgotError(null)
+    e.preventDefault(); setForgotLoading(true); setForgotError(null)
     try {
       await api.post('/auth/recuperar-password', { email: forgotEmail })
       setForgotOk(true)
-    } catch {
-      setForgotError('No fue posible procesar la solicitud. Intenta de nuevo.')
-    } finally {
-      setForgotLoading(false)
-    }
+    } catch { setForgotError('No fue posible procesar la solicitud. Intenta de nuevo.')
+    } finally { setForgotLoading(false) }
   }
 
   function volverAlLogin() {
-    setPreToken(null); setError(null); setTotp(''); setRecovery('')
+    setPreToken(null); setError(null); setTotpValue(''); setRecovery(''); setTotpAnim(false)
   }
   function abrirForgot() {
-    setIsForgot(true); setForgotEmail(email)
-    setForgotError(null); setForgotOk(false)
+    setIsForgot(true); setForgotEmail(email); setForgotError(null); setForgotOk(false)
   }
   function cerrarForgot() {
-    setIsForgot(false); setForgotEmail('')
-    setForgotError(null); setForgotOk(false)
+    setIsForgot(false); setForgotEmail(''); setForgotError(null); setForgotOk(false)
   }
 
-  // Estilos reutilizables — FIX: todos usan backticks, nunca comilla simple multilínea
   const inputCls = `
     w-full px-3.5 py-2.5 rounded-lg text-h-primary text-sm
     focus:outline-none placeholder:text-h-tertiary transition-all
-    bg-h-elevated border border-h-visible
-    focus:border-h-strong
+    bg-h-elevated border border-h-visible focus:border-h-strong
   `
   const labelCls = `block text-[10px] font-semibold text-h-tertiary mb-1.5
                     uppercase tracking-widest`
@@ -766,74 +903,47 @@ export function Login() {
   `
   const stdBtnCls = `
     w-full text-white font-semibold py-2.5 rounded-lg
-    transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed
-    text-sm
+    transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed text-sm
   `
 
   return (
     <div className="min-h-screen flex bg-h-base">
-
-      {/* ── Panel izquierdo (solo ≥ lg) ── */}
       <PanelIzquierdo />
 
-      {/* ── Panel derecho: formulario ── */}
-      <div
-        className="flex-1 flex flex-col items-center justify-center
-                   p-6 relative overflow-hidden"
-      >
-        {/* Orbe sutil de fondo en el panel derecho */}
-        <div
-          className="absolute pointer-events-none"
-          style={{
-            width: '380px', height: '380px',
-            top: '-60px', right: '-80px',
-            borderRadius: '50%',
-            background:
-              'radial-gradient(circle, rgba(29,158,117,0.08) 0%, transparent 65%)',
-            filter: 'blur(50px)',
-          }}
-        />
+      <div className="flex-1 flex flex-col items-center justify-center p-6 relative overflow-hidden">
+        <div className="absolute pointer-events-none" style={{
+          width: '380px', height: '380px', top: '-60px', right: '-80px',
+          borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(29,158,117,0.08) 0%, transparent 65%)',
+          filter: 'blur(50px)',
+        }} />
 
-        {/* Logo visible solo en mobile */}
         <div className="lg:hidden flex flex-col items-center mb-8">
           <Logo className="w-14 h-14 mb-3" />
           <h1 className="text-2xl font-bold text-h-primary">Hestia</h1>
           <p className="text-h-tertiary text-xs mt-1">Escuela de Salud · DuocUC</p>
         </div>
 
-        {/* Modales */}
         {showAbout   && <ModalAcercaDe onClose={() => setShowAbout(false)} />}
         {showSoporte && <ModalSoporte  onClose={() => setShowSoporte(false)} />}
 
-        {/* Card del formulario */}
-        <div
-          className="relative z-10 w-full max-w-sm
-                     bg-h-surface border border-h-subtle rounded-2xl p-7"
-        >
+        <div className="relative z-10 w-full max-w-sm bg-h-surface border border-h-subtle rounded-2xl p-7">
 
           {/* ────── Setup 2FA obligatorio ────── */}
           {isSetup2FA ? (
             setupLoading ? (
               <div className="text-center py-8">
-                <div
-                  className="w-10 h-10 border-4 border-t-transparent rounded-full
-                             animate-spin mx-auto mb-4"
-                  style={{ borderColor: 'var(--h-teal-hover) transparent transparent transparent' }}
-                />
+                <div className="w-10 h-10 border-4 border-t-transparent rounded-full animate-spin mx-auto mb-4"
+                  style={{ borderColor: 'var(--h-teal-hover) transparent transparent transparent' }} />
                 <p className="text-h-secondary text-sm">Generando código QR...</p>
               </div>
 
             ) : setupStep === 'qr' ? (
               <>
                 <div className="flex items-center gap-2 mb-3">
-                  <span
-                    className="w-6 h-6 rounded-full text-white text-xs font-bold
-                               flex items-center justify-center flex-shrink-0"
-                    style={{ background: 'var(--h-teal-rest)' }}
-                  >1</span>
-                  <h2 className="text-base font-semibold text-h-primary">
-                    Configura la verificación en dos pasos
-                  </h2>
+                  <span className="w-6 h-6 rounded-full text-white text-xs font-bold flex items-center justify-center flex-shrink-0"
+                    style={{ background: 'var(--h-teal-rest)' }}>1</span>
+                  <h2 className="text-base font-semibold text-h-primary">Configura la verificación en dos pasos</h2>
                 </div>
                 <p className="text-h-secondary text-xs mb-4 leading-relaxed">
                   El 2FA es obligatorio en Hestia. Abre{' '}
@@ -847,85 +957,49 @@ export function Login() {
                     </div>
                   </div>
                 )}
-                <button
-                  type="button"
-                  onClick={() => setShowSecret(!showSecret)}
+                <button type="button" onClick={() => setShowSecret(!showSecret)}
                   className="text-xs text-h-tertiary hover:text-h-accent font-medium
-                             transition-colors flex items-center gap-1 mb-3"
-                >
+                             transition-colors flex items-center gap-1 mb-3">
                   {showSecret ? '▲' : '▼'} Ingresar clave manual en la app
                 </button>
                 {showSecret && setupQR && (
-                  <div
-                    className="mb-4 rounded-lg border border-h-subtle
-                               px-3 py-2 flex items-center justify-between gap-2"
-                    style={{ background: 'var(--h-bg-base)' }}
-                  >
-                    <code
-                      className="font-mono text-xs tracking-wider break-all"
-                      style={{ color: 'var(--h-teal-hover)' }}
-                    >
-                      {setupQR.secret}
-                    </code>
-                    <button
-                      type="button"
-                      onClick={() => navigator.clipboard.writeText(setupQR.secret)}
-                      className="text-xs text-h-tertiary hover:text-h-secondary
-                                 flex-shrink-0 transition-colors"
-                      title="Copiar clave"
-                    >📋</button>
+                  <div className="mb-4 rounded-lg border border-h-subtle px-3 py-2 flex items-center justify-between gap-2"
+                    style={{ background: 'var(--h-bg-base)' }}>
+                    <code className="font-mono text-xs tracking-wider break-all"
+                      style={{ color: 'var(--h-teal-hover)' }}>{setupQR.secret}</code>
+                    <button type="button" onClick={() => navigator.clipboard.writeText(setupQR.secret)}
+                      className="text-xs text-h-tertiary hover:text-h-secondary flex-shrink-0 transition-colors"
+                      title="Copiar clave">📋</button>
                   </div>
                 )}
                 {error && <p className={errorCls() + ' mb-3'}>{error}</p>}
-                <button
-                  type="button"
-                  onClick={() => { setSetupStep('code'); setError(null) }}
-                  disabled={!setupQR}
-                  className={stdBtnCls}
-                  style={{ background: 'var(--h-teal-rest)' }}
-                >
+                <button type="button" onClick={() => { setSetupStep('code'); setError(null) }}
+                  disabled={!setupQR} className={stdBtnCls} style={{ background: 'var(--h-teal-rest)' }}>
                   Ya escaneé el QR →
                 </button>
               </>
 
             ) : setupStep === 'code' ? (
               <>
-                <button
-                  type="button"
-                  onClick={() => { setSetupStep('qr'); setError(null) }}
-                  className={backBtnCls}
-                >← Volver al QR</button>
+                <button type="button" onClick={() => { setSetupStep('qr'); setError(null) }} className={backBtnCls}>← Volver al QR</button>
                 <div className="flex items-center gap-2 mb-3">
-                  <span
-                    className="w-6 h-6 rounded-full text-white text-xs font-bold
-                               flex items-center justify-center flex-shrink-0"
-                    style={{ background: 'var(--h-teal-rest)' }}
-                  >2</span>
+                  <span className="w-6 h-6 rounded-full text-white text-xs font-bold flex items-center justify-center flex-shrink-0"
+                    style={{ background: 'var(--h-teal-rest)' }}>2</span>
                   <h2 className="text-base font-semibold text-h-primary">Confirma el código</h2>
                 </div>
                 <p className="text-h-secondary text-xs mb-5">
                   Ingresa el código de 6 dígitos que muestra Google Authenticator ahora.
                 </p>
                 <form onSubmit={handleSetupActivar} className="space-y-4">
-                  <input
-                    type="text" inputMode="numeric" pattern="[0-9]{6}"
+                  <input type="text" inputMode="numeric" pattern="[0-9]{6}"
                     maxLength={6} value={setupTotp}
-                    onChange={e => {
-                      setSetupTotp(e.target.value.replace(/\D/g, ''))
-                      setError(null)
-                    }}
-                    className="w-full px-4 py-4 rounded-lg text-h-primary
-                               text-3xl text-center font-bold tracking-[0.6em]
-                               focus:outline-none placeholder:text-h-tertiary
-                               bg-h-elevated border border-h-visible
+                    onChange={e => { setSetupTotp(e.target.value.replace(/\D/g, '')); setError(null) }}
+                    className="w-full px-4 py-4 rounded-lg text-h-primary text-3xl text-center font-bold tracking-[0.6em]
+                               focus:outline-none placeholder:text-h-tertiary bg-h-elevated border border-h-visible
                                focus:border-h-strong transition-all"
-                    placeholder="000000" autoFocus required
-                  />
+                    placeholder="000000" autoFocus required />
                   {error && <p className={errorCls()}>{error}</p>}
-                  <ShimmerButton
-                    type="submit"
-                    disabled={loading || setupTotp.length !== 6}
-                  >
+                  <ShimmerButton type="submit" disabled={loading || setupTotp.length !== 6}>
                     {loading ? 'Activando...' : 'Activar verificación en dos pasos'}
                   </ShimmerButton>
                 </form>
@@ -934,41 +1008,26 @@ export function Login() {
             ) : (
               <>
                 <div className="flex items-center gap-2 mb-3">
-                  <span
-                    className="w-6 h-6 rounded-full text-white text-xs font-bold
-                               flex items-center justify-center flex-shrink-0"
-                    style={{ background: 'var(--h-teal-rest)' }}
-                  >3</span>
-                  <h2 className="text-base font-semibold text-h-primary">
-                    Guarda tus códigos de respaldo
-                  </h2>
+                  <span className="w-6 h-6 rounded-full text-white text-xs font-bold flex items-center justify-center flex-shrink-0"
+                    style={{ background: 'var(--h-teal-rest)' }}>3</span>
+                  <h2 className="text-base font-semibold text-h-primary">Guarda tus códigos de respaldo</h2>
                 </div>
                 <p className="text-h-secondary text-xs mb-4 leading-relaxed">
-                  Cada código funciona{' '}
-                  <strong className="text-h-primary">una sola vez</strong>.
-                  {' '}<strong className="text-h-primary">No podrás verlos de nuevo.</strong>
-                  {' '}Guárdalos en un lugar seguro.
+                  Cada código funciona <strong className="text-h-primary">una sola vez</strong>.{' '}
+                  <strong className="text-h-primary">No podrás verlos de nuevo.</strong>{' '}
+                  Guárdalos en un lugar seguro.
                 </p>
-                <div
-                  className="rounded-xl border border-h-subtle p-4 mb-3"
-                  style={{ background: 'var(--h-bg-base)' }}
-                >
+                <div className="rounded-xl border border-h-subtle p-4 mb-3" style={{ background: 'var(--h-bg-base)' }}>
                   <div className="grid grid-cols-2 gap-y-1.5 gap-x-3">
                     {setupCodes.map((c, i) => (
-                      <code
-                        key={i}
-                        className="font-mono text-xs tracking-wider"
-                        style={{ color: 'var(--h-teal-hover)' }}
-                      >{c}</code>
+                      <code key={i} className="font-mono text-xs tracking-wider"
+                        style={{ color: 'var(--h-teal-hover)' }}>{c}</code>
                     ))}
                   </div>
                 </div>
-                <button
-                  type="button" onClick={copiarCodigos}
-                  className="w-full mb-3 border border-h-visible
-                             text-h-secondary font-semibold py-2 rounded-lg
-                             hover:bg-h-elevated transition-colors text-sm"
-                >
+                <button type="button" onClick={copiarCodigos}
+                  className="w-full mb-3 border border-h-visible text-h-secondary font-semibold py-2
+                             rounded-lg hover:bg-h-elevated transition-colors text-sm">
                   {copiado ? '¡Copiados! ✓' : '📋 Copiar todos los códigos'}
                 </button>
                 <ShimmerButton type="button" onClick={handleSetupFinalizar}>
@@ -980,39 +1039,28 @@ export function Login() {
           /* ────── Login normal ────── */
           ) : !is2FA && !isForgot ? (
             <>
-              <h2 className="text-base font-semibold text-h-primary mb-5">
-                Iniciar sesión
-              </h2>
+              <h2 className="text-base font-semibold text-h-primary mb-5">Iniciar sesión</h2>
               <form onSubmit={handleLogin} className="space-y-4">
                 <div>
                   <label className={labelCls}>Correo electrónico</label>
-                  <input
-                    type="email" value={email}
+                  <input type="email" value={email}
                     onChange={e => { setEmail(e.target.value); setError(null) }}
-                    className={inputCls}
-                    placeholder="usuario@hestia.duoc.cl" required
-                  />
+                    className={inputCls} placeholder="usuario@hestia.duoc.cl" required />
                 </div>
                 <div>
                   <label className={labelCls}>Contraseña</label>
-                  <input
-                    type="password" value={password}
+                  <input type="password" value={password}
                     onChange={e => { setPassword(e.target.value); setError(null) }}
-                    className={inputCls} placeholder="••••••••" required
-                  />
+                    className={inputCls} placeholder="••••••••" required />
                 </div>
-                {error && (
-                  <p className={errorCls(error.includes('intento'))}>{error}</p>
-                )}
+                {error && <p className={errorCls(error.includes('intento'))}>{error}</p>}
                 <ShimmerButton type="submit" disabled={loading}>
                   {loading ? 'Verificando...' : 'Ingresar al sistema'}
                 </ShimmerButton>
               </form>
-              <button
-                type="button" onClick={abrirForgot}
+              <button type="button" onClick={abrirForgot}
                 className="w-full mt-4 text-xs text-h-tertiary hover:text-h-secondary
-                           font-medium transition-colors duration-150"
-              >
+                           font-medium transition-colors duration-150">
                 ¿Olvidaste tu contraseña?
               </button>
             </>
@@ -1023,54 +1071,31 @@ export function Login() {
               <button onClick={cerrarForgot} className={backBtnCls}>← Volver</button>
               {forgotOk ? (
                 <div className="text-center py-2">
-                  <div
-                    className="w-12 h-12 rounded-full flex items-center justify-center
-                               mx-auto mb-4 text-2xl border"
-                    style={{
-                      background:  'var(--h-sem-success-bg)',
-                      borderColor: 'var(--h-sem-success-border)',
-                    }}
-                  >✉️</div>
-                  <h2 className="text-base font-semibold text-h-primary mb-2">
-                    Revisa tu correo
-                  </h2>
+                  <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl border"
+                    style={{ background: 'var(--h-sem-success-bg)', borderColor: 'var(--h-sem-success-border)' }}>✉️</div>
+                  <h2 className="text-base font-semibold text-h-primary mb-2">Revisa tu correo</h2>
                   <p className="text-h-secondary text-xs mb-5">
                     Si el email{' '}
-                    <span className="font-semibold" style={{ color: 'var(--h-teal-hover)' }}>
-                      {forgotEmail}
-                    </span>{' '}
+                    <span className="font-semibold" style={{ color: 'var(--h-teal-hover)' }}>{forgotEmail}</span>{' '}
                     está registrado, recibirás un enlace válido por 1 hora.
                   </p>
-                  <ShimmerButton type="button" onClick={cerrarForgot}>
-                    Volver al inicio de sesión
-                  </ShimmerButton>
+                  <ShimmerButton type="button" onClick={cerrarForgot}>Volver al inicio de sesión</ShimmerButton>
                 </div>
               ) : (
                 <>
-                  <h2 className="text-base font-semibold text-h-primary mb-1">
-                    Recuperar contraseña
-                  </h2>
+                  <h2 className="text-base font-semibold text-h-primary mb-1">Recuperar contraseña</h2>
                   <p className="text-h-secondary text-xs mb-5">
-                    Ingresa tu correo y te enviaremos un enlace para crear una nueva
-                    contraseña.
+                    Ingresa tu correo y te enviaremos un enlace para crear una nueva contraseña.
                   </p>
                   <form onSubmit={handleForgot} className="space-y-4">
                     <div>
                       <label className={labelCls}>Correo electrónico</label>
-                      <input
-                        type="email" value={forgotEmail}
-                        onChange={e => {
-                          setForgotEmail(e.target.value); setForgotError(null)
-                        }}
-                        className={inputCls}
-                        placeholder="usuario@hestia.duoc.cl" required autoFocus
-                      />
+                      <input type="email" value={forgotEmail}
+                        onChange={e => { setForgotEmail(e.target.value); setForgotError(null) }}
+                        className={inputCls} placeholder="usuario@hestia.duoc.cl" required autoFocus />
                     </div>
                     {forgotError && <p className={errorCls()}>{forgotError}</p>}
-                    <ShimmerButton
-                      type="submit"
-                      disabled={forgotLoading || !forgotEmail}
-                    >
+                    <ShimmerButton type="submit" disabled={forgotLoading || !forgotEmail}>
                       {forgotLoading ? 'Enviando...' : 'Enviar enlace de recuperación'}
                     </ShimmerButton>
                   </form>
@@ -1078,38 +1103,37 @@ export function Login() {
               )}
             </>
 
-          /* ────── 2FA TOTP ────── */
+          /* ────── 2FA TOTP — con animación HESTIA ────── */
           ) : modo2FA === 'totp' ? (
             <>
               <button onClick={volverAlLogin} className={backBtnCls}>← Volver</button>
-              <h2 className="text-base font-semibold text-h-primary mb-1">
-                Verificación 2FA
-              </h2>
+              <h2 className="text-base font-semibold text-h-primary mb-1">Verificación 2FA</h2>
               <p className="text-h-secondary text-xs mb-5">
                 Ingresa el código de 6 dígitos de Google Authenticator.
               </p>
-              <form onSubmit={handleTotp} className="space-y-4">
-                <input
-                  type="text" inputMode="numeric" pattern="[0-9]{6}"
-                  maxLength={6} value={totp}
-                  onChange={e => { setTotp(e.target.value.replace(/\D/g, '')); setError(null) }}
-                  className="w-full px-4 py-4 rounded-lg text-h-primary
-                             text-3xl text-center font-bold tracking-[0.6em]
-                             focus:outline-none placeholder:text-h-tertiary
-                             bg-h-elevated border border-h-visible
-                             focus:border-h-strong transition-all"
-                  placeholder="000000" autoFocus required
+              <div className="space-y-4">
+                <TotpInput
+                  value={totpValue}
+                  onChange={v => { setTotpValue(v); setError(null) }}
+                  onConfirm={handleTotp}
+                  isAnimating={totpAnim}
+                  setAnimating={setTotpAnim}
+                  disabled={loading}
                 />
                 {error && <p className={errorCls()}>{error}</p>}
-                <ShimmerButton type="submit" disabled={loading || totp.length !== 6}>
+                <ShimmerButton
+                  type="button"
+                  disabled={totpValue.length !== 6 || totpAnim || loading}
+                  onClick={() => {
+                    if (totpValue.length === 6 && !totpAnim) setTotpAnim(true)
+                  }}
+                >
                   {loading ? 'Verificando...' : 'Confirmar código'}
                 </ShimmerButton>
-              </form>
-              <button
-                onClick={() => { setModo2FA('recovery'); setError(null) }}
+              </div>
+              <button onClick={() => { setModo2FA('recovery'); setError(null) }}
                 className="w-full mt-4 text-xs text-h-tertiary hover:text-h-secondary
-                           font-medium transition-colors duration-150"
-              >
+                           font-medium transition-colors duration-150">
                 Perdí acceso a mi app — usar código de recuperación
               </button>
             </>
@@ -1117,39 +1141,22 @@ export function Login() {
           /* ────── Código de recuperación ────── */
           ) : (
             <>
-              <button
-                onClick={() => { setModo2FA('totp'); setError(null) }}
-                className={backBtnCls}
-              >← Volver</button>
-              <h2 className="text-base font-semibold text-h-primary mb-1">
-                Código de recuperación
-              </h2>
+              <button onClick={() => { setModo2FA('totp'); setError(null) }} className={backBtnCls}>← Volver</button>
+              <h2 className="text-base font-semibold text-h-primary mb-1">Código de recuperación</h2>
               <p className="text-h-secondary text-xs mb-5">
                 Ingresa uno de tus códigos de un solo uso.{' '}
                 Formato:{' '}
-                <code className="font-mono" style={{ color: 'var(--h-teal-hover)' }}>
-                  XXXXXXXX-XXXXXXXX
-                </code>
+                <code className="font-mono" style={{ color: 'var(--h-teal-hover)' }}>XXXXXXXX-XXXXXXXX</code>
               </p>
               <form onSubmit={handleRecovery} className="space-y-4">
-                <input
-                  type="text" value={recovery}
-                  onChange={e => {
-                    setRecovery(formatRecoveryCode(e.target.value))
-                    setError(null)
-                  }}
-                  className="w-full px-4 py-4 rounded-lg text-h-primary
-                             text-lg text-center font-mono tracking-widest
-                             focus:outline-none placeholder:text-h-tertiary
-                             bg-h-elevated border border-h-visible
+                <input type="text" value={recovery}
+                  onChange={e => { setRecovery(formatRecoveryCode(e.target.value)); setError(null) }}
+                  className="w-full px-4 py-4 rounded-lg text-h-primary text-lg text-center font-mono tracking-widest
+                             focus:outline-none placeholder:text-h-tertiary bg-h-elevated border border-h-visible
                              focus:border-h-strong transition-all"
-                  placeholder="XXXXXXXX-XXXXXXXX" maxLength={17} autoFocus
-                />
+                  placeholder="XXXXXXXX-XXXXXXXX" maxLength={17} autoFocus />
                 {error && <p className={errorCls()}>{error}</p>}
-                <ShimmerButton
-                  type="submit"
-                  disabled={loading || recovery.length !== 17}
-                >
+                <ShimmerButton type="submit" disabled={loading || recovery.length !== 17}>
                   {loading ? 'Verificando...' : 'Acceder con código de recuperación'}
                 </ShimmerButton>
               </form>
@@ -1160,32 +1167,21 @@ export function Login() {
           )}
         </div>
 
-        {/* ── Footer: links secundarios al borde inferior ── */}
-        <div
-          className="absolute bottom-4 left-0 right-0
-                     flex items-center justify-center gap-4"
-        >
-          <button
-            type="button"
-            onClick={() => setShowAbout(true)}
-            className="text-[11px] text-h-tertiary hover:text-h-secondary
-                       transition-colors duration-150 px-1"
+        {/* ── Footer ── */}
+        <div className="absolute bottom-4 left-0 right-0 flex items-center justify-center gap-4">
+          <button type="button" onClick={() => setShowAbout(true)}
+            className="text-[11px] text-h-tertiary hover:text-h-secondary transition-colors duration-150 px-1"
             style={{ opacity: 0.4 }}
             onMouseEnter={e => (e.currentTarget.style.opacity = '0.75')}
-            onMouseLeave={e => (e.currentTarget.style.opacity = '0.4')}
-          >
+            onMouseLeave={e => (e.currentTarget.style.opacity = '0.4')}>
             Acerca de
           </button>
           <span className="text-h-tertiary text-[11px]" style={{ opacity: 0.25 }}>·</span>
-          <button
-            type="button"
-            onClick={() => setShowSoporte(true)}
-            className="text-[11px] text-h-tertiary hover:text-h-secondary
-                       transition-colors duration-150 px-1"
+          <button type="button" onClick={() => setShowSoporte(true)}
+            className="text-[11px] text-h-tertiary hover:text-h-secondary transition-colors duration-150 px-1"
             style={{ opacity: 0.4 }}
             onMouseEnter={e => (e.currentTarget.style.opacity = '0.75')}
-            onMouseLeave={e => (e.currentTarget.style.opacity = '0.4')}
-          >
+            onMouseLeave={e => (e.currentTarget.style.opacity = '0.4')}>
             Soporte
           </button>
         </div>
