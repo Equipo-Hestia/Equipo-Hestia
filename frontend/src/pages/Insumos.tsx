@@ -1,8 +1,8 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import {
-  Package, ChevronLeft, ChevronRight,
+  Package, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
   Plus, Pencil, Archive, ArchiveRestore, CheckCircle, ShieldAlert,
-  Download, FileText, X, SlidersHorizontal, Camera, CalendarClock, Layers
+  Download, FileText, X, SlidersHorizontal, Camera, Layers
 } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
@@ -47,17 +47,146 @@ function insumoAForm(i: InsumoResponse): FormState {
   }
 }
 
-function diasHastaVencer(fechaISO: string): number {
-  const hoy = new Date(); hoy.setHours(0, 0, 0, 0)
-  const venc = new Date(fechaISO + 'T00:00:00')
-  return Math.round((venc.getTime() - hoy.getTime()) / 86_400_000)
+// ─── Paginador con números ───────────────────────────────────────────────────
+
+interface PaginatorProps {
+  page:       number
+  totalPages: number
+  onPage:     (p: number) => void
 }
 
-function formatFechaVenc(fechaISO: string): string {
-  return new Date(fechaISO + 'T00:00:00').toLocaleDateString('es-CL', {
-    day: '2-digit', month: '2-digit', year: 'numeric'
-  })
+function Paginator({ page, totalPages, onPage }: PaginatorProps) {
+  if (totalPages <= 1) return null
+
+  // Genera array de páginas visibles: máx 7, con ellipsis
+  function pages(): (number | '...')[] {
+    if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i)
+    const result: (number | '...')[] = []
+    const left  = Math.max(1, page - 2)
+    const right = Math.min(totalPages - 2, page + 2)
+    result.push(0)
+    if (left > 1) result.push('...')
+    for (let i = left; i <= right; i++) result.push(i)
+    if (right < totalPages - 2) result.push('...')
+    result.push(totalPages - 1)
+    return result
+  }
+
+  const btnBase = `
+    min-w-[32px] h-8 flex items-center justify-center rounded-md text-xs font-medium
+    transition-colors duration-150 border
+  `
+  const btnActive = `bg-h-highlight border-h-visible text-h-primary`
+  const btnNormal = `bg-transparent border-transparent text-h-secondary
+                     hover:bg-h-elevated hover:text-h-primary`
+  const btnNav    = `bg-h-elevated border-h-subtle text-h-secondary
+                     hover:bg-h-highlight hover:text-h-primary
+                     disabled:opacity-30 disabled:cursor-not-allowed`
+
+  return (
+    <div className="flex items-center gap-1">
+      {/* Ir a primera página */}
+      <button
+        onClick={() => onPage(0)} disabled={page === 0}
+        className={`${btnBase} ${btnNav} px-1.5`}
+        title="Primera página"
+      >
+        <ChevronsLeft size={13} />
+      </button>
+
+      {/* Retroceder 10 */}
+      <button
+        onClick={() => onPage(Math.max(0, page - 10))}
+        disabled={page === 0}
+        className={`${btnBase} ${btnNav} px-1.5`}
+        title="Retroceder 10 páginas"
+      >
+        <ChevronLeft size={13} />
+        <span className="text-[10px] ml-0.5">10</span>
+      </button>
+
+      {/* Anterior */}
+      <button
+        onClick={() => onPage(page - 1)} disabled={page === 0}
+        className={`${btnBase} ${btnNav} px-1.5`}
+        title="Página anterior"
+      >
+        <ChevronLeft size={13} />
+      </button>
+
+      {/* Números */}
+      {pages().map((p, idx) =>
+        p === '...'
+          ? <span key={`e${idx}`} className="text-h-tertiary text-xs px-1">…</span>
+          : (
+            <button
+              key={p}
+              onClick={() => onPage(p as number)}
+              className={`${btnBase} px-2 ${p === page ? btnActive : btnNormal}`}
+            >
+              {(p as number) + 1}
+            </button>
+          )
+      )}
+
+      {/* Siguiente */}
+      <button
+        onClick={() => onPage(page + 1)} disabled={page >= totalPages - 1}
+        className={`${btnBase} ${btnNav} px-1.5`}
+        title="Página siguiente"
+      >
+        <ChevronRight size={13} />
+      </button>
+
+      {/* Avanzar 10 */}
+      <button
+        onClick={() => onPage(Math.min(totalPages - 1, page + 10))}
+        disabled={page >= totalPages - 1}
+        className={`${btnBase} ${btnNav} px-1.5`}
+        title="Avanzar 10 páginas"
+      >
+        <span className="text-[10px] mr-0.5">10</span>
+        <ChevronRight size={13} />
+      </button>
+
+      {/* Ir a última página */}
+      <button
+        onClick={() => onPage(totalPages - 1)} disabled={page >= totalPages - 1}
+        className={`${btnBase} ${btnNav} px-1.5`}
+        title="Última página"
+      >
+        <ChevronsRight size={13} />
+      </button>
+    </div>
+  )
 }
+
+// ─── Mini barra de stock ─────────────────────────────────────────────────────
+
+function StockBar({ actual, minimo }: { actual: number; minimo: number }) {
+  if (minimo === 0) {
+    return (
+      <div className="mt-1 h-[2px] w-full rounded-full"
+        style={{ background: 'var(--h-teal-hover)' }} />
+    )
+  }
+  const pct = Math.min(100, (actual / (minimo * 2)) * 100)
+  const color = actual === 0
+    ? 'var(--h-sem-danger-border)'
+    : actual <= minimo
+      ? '#EF9F27'
+      : 'var(--h-teal-hover)'
+  return (
+    <div className="mt-1 h-[2px] w-full rounded-full bg-h-elevated overflow-hidden">
+      <div
+        className="h-full rounded-full transition-all duration-500"
+        style={{ width: `${pct}%`, background: color }}
+      />
+    </div>
+  )
+}
+
+// ─── Página principal ────────────────────────────────────────────────────────
 
 export function Insumos() {
   const { user } = useAuthStore()
@@ -95,10 +224,24 @@ export function Insumos() {
   const [exporting, setExporting]       = useState(false)
   const [showExportMenu, setShowExportMenu] = useState(false)
   const [showScanner, setShowScanner]   = useState(false)
-  const exportRef = useRef<HTMLDivElement>(null)
+
+  // Fix hover-ghost: rastrea el id de la fila bajo el cursor
+  const [hoveredId, setHoveredId]     = useState<number | null>(null)
+  const exportRef                     = useRef<HTMLDivElement>(null)
+  const mainRef                       = useRef<HTMLDivElement>(null)
 
   function showToast(msg: string) {
     setToast(msg); setTimeout(() => setToast(null), 3000)
+  }
+
+  // Cambio de página: scroll al top instantáneo + reset hover
+  function goToPage(p: number) {
+    setPage(p)
+    setHoveredId(null)
+    if (mainRef.current) {
+      mainRef.current.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior })
+    }
+    window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior })
   }
 
   useEffect(() => {
@@ -143,13 +286,13 @@ export function Insumos() {
     load(page * PAGE_SIZE, nombreFiltro, catFiltro, bajoStock, mostrarInactivos, tipoFiltro)
   }, [page, nombreFiltro, catFiltro, bajoStock, mostrarInactivos, tipoFiltro, load])
 
-  function aplicarBusqueda(val: string) { setNombreFiltro(val); setPage(0) }
+  function aplicarBusqueda(val: string) { setNombreFiltro(val); goToPage(0) }
 
   function limpiarFiltros() {
     setSearchInput(''); setNombreFiltro('')
     setCatFiltro('')
     setBajoStock(false); setMostrar(false)
-    setTipoFiltro(''); setPage(0)
+    setTipoFiltro(''); goToPage(0)
   }
 
   async function handleExportar(formato: 'csv' | 'xlsx') {
@@ -232,7 +375,7 @@ export function Insumos() {
     if (!reactivarTarget) return
     setDeleting(true)
     try {
-      await api.put(`/insumos/${reactivarTarget.id}`, { activo: true })
+      await api.put(`/reactivarTarget.id}`, { activo: true })
       showToast(`'${reactivarTarget.nombre}' reactivado`); cerrarModal()
       load(page * PAGE_SIZE, nombreFiltro, catFiltro, bajoStock, mostrarInactivos, tipoFiltro)
     } catch (err: unknown) {
@@ -244,8 +387,6 @@ export function Insumos() {
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
   const showModal  = showCrear || editTarget !== null
-  // Columnas: Nombre | Unidad | Stock | Mínimo | Vencimiento | Estado | [Acciones]
-  const totalCols  = puedeEscribir ? 7 : 6
 
   function stockBadge(i: InsumoResponse) {
     if (i.stock_actual === 0) return <Badge variant="danger">Agotado</Badge>
@@ -253,35 +394,20 @@ export function Insumos() {
     return <Badge variant="success">OK</Badge>
   }
 
-  function vencimientoCelda(i: InsumoResponse) {
-    if (!i.fecha_vencimiento) {
-      return <span className="text-slate-300 text-xs">—</span>
-    }
-    const dias = diasHastaVencer(i.fecha_vencimiento)
-    const fecha = formatFechaVenc(i.fecha_vencimiento)
-    if (dias < 0) return <Badge variant="danger">Vencido</Badge>
-    if (dias <= 30) {
-      return (
-        <span className="inline-flex flex-col items-center gap-0.5">
-          <Badge variant="warning">{dias === 0 ? 'Hoy' : `${dias}d`}</Badge>
-          <span className="text-[10px] text-slate-400 font-mono">{fecha}</span>
-        </span>
-      )
-    }
-    return <span className="text-xs text-slate-500 font-mono">{fecha}</span>
-  }
-
-  const inputCls = `w-full px-3 py-2.5 rounded-lg border border-slate-200 text-slate-900 text-sm
-    focus:outline-none focus:ring-2 focus:ring-teal-500 bg-slate-50 focus:bg-white
-    placeholder:text-slate-400 transition-all`
-  const labelCls = "block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5"
+  const inputCls = `w-full px-3 py-2.5 rounded-lg text-h-primary text-sm
+    focus:outline-none transition-all bg-h-elevated border border-h-visible
+    focus:border-h-strong placeholder:text-h-tertiary`
+  const labelCls = `block text-[10px] font-semibold text-h-tertiary uppercase tracking-widest mb-1.5`
   const selectCls = `${inputCls} cursor-pointer`
 
   return (
-    <div className="p-8 max-w-6xl mx-auto">
+    <div ref={mainRef} className="p-8 max-w-6xl mx-auto">
+
+      {/* Toast */}
       {toast && (
-        <div className="fixed top-6 right-6 z-50 flex items-center gap-2 bg-teal-600
-                        text-white px-4 py-3 rounded-xl shadow-lg text-sm font-semibold">
+        <div className="fixed top-6 right-6 z-50 flex items-center gap-2 px-4 py-3
+                        rounded-xl shadow-lg text-sm font-semibold text-white"
+          style={{ background: 'var(--h-teal-rest)' }}>
           <CheckCircle size={16} />{toast}
         </div>
       )}
@@ -293,13 +419,12 @@ export function Insumos() {
         />
       )}
 
+      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 dark:text-slate-50">
-            Insumos e Implementos
-          </h1>
-          <p className="text-slate-500 dark:text-slate-400 text-sm mt-0.5">
-            {loading ? '...' : `${total} ítems`}{hasFilters && ' (filtrado)'}
+          <h1 className="text-2xl font-bold text-h-primary">Insumos e Implementos</h1>
+          <p className="text-h-secondary text-sm mt-0.5">
+            {loading ? '…' : `${total} ítems`}{hasFilters && ' (filtrado)'}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -308,23 +433,25 @@ export function Insumos() {
               <button
                 onClick={() => setShowExportMenu(v => !v)}
                 disabled={exporting}
-                className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200
-                           text-slate-600 hover:bg-slate-50 text-sm font-semibold
-                           transition-colors disabled:opacity-50">
-                <Download size={14} />{exporting ? 'Exportando...' : 'Exportar'}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium
+                           transition-colors duration-150 disabled:opacity-50
+                           text-h-secondary bg-h-elevated border border-h-subtle
+                           hover:bg-h-highlight hover:text-h-primary"
+              >
+                <Download size={14} />{exporting ? 'Exportando…' : 'Exportar'}
               </button>
               {showExportMenu && (
-                <div className="absolute right-0 top-full mt-1 bg-white border border-slate-200
+                <div className="absolute right-0 top-full mt-1 bg-h-surface border border-h-subtle
                                 rounded-xl shadow-lg z-20 overflow-hidden min-w-36">
                   <button onClick={() => handleExportar('csv')}
                     className="w-full flex items-center gap-2 px-4 py-2.5 text-sm
-                               text-slate-700 hover:bg-slate-50 font-semibold">
-                    <FileText size={14} className="text-slate-400" /> CSV
+                               text-h-secondary hover:bg-h-elevated font-medium">
+                    <FileText size={14} className="text-h-tertiary" /> CSV
                   </button>
                   <button onClick={() => handleExportar('xlsx')}
                     className="w-full flex items-center gap-2 px-4 py-2.5 text-sm
-                               text-slate-700 hover:bg-slate-50 font-semibold">
-                    <FileText size={14} className="text-teal-500" /> Excel (.xlsx)
+                               text-h-secondary hover:bg-h-elevated font-medium">
+                    <FileText size={14} style={{ color: 'var(--h-teal-hover)' }} /> Excel (.xlsx)
                   </button>
                 </div>
               )}
@@ -332,17 +459,20 @@ export function Insumos() {
           )}
           {puedeEscribir && (
             <button onClick={abrirCrear}
-              className="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white
-                         font-bold px-4 py-2.5 rounded-xl text-sm transition-colors">
+              className="flex items-center gap-2 text-white font-semibold
+                         px-4 py-2.5 rounded-xl text-sm transition-colors duration-150"
+              style={{ background: 'var(--h-teal-rest)' }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'var(--h-teal-hover)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'var(--h-teal-rest)')}
+            >
               <Plus size={16} /> Nuevo ítem
             </button>
           )}
         </div>
       </div>
 
-      {/* Búsqueda + Filtros */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200
-                      dark:border-slate-700 shadow-sm p-4 mb-5">
+      {/* Toolbar búsqueda + filtros */}
+      <div className="bg-h-surface rounded-xl border border-h-subtle p-4 mb-4">
         <div className="flex gap-2 mb-3">
           <SearchWithSuggestions
             value={searchInput}
@@ -352,46 +482,41 @@ export function Insumos() {
           />
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <SlidersHorizontal size={14} className="text-slate-400" />
-          <select value={catFiltro} onChange={e => { setCatFiltro(e.target.value); setPage(0) }}
-            className="flex-1 min-w-36 px-3 py-1.5 rounded-lg border border-slate-200
-                       dark:border-slate-600 text-sm text-slate-600 dark:text-slate-300
-                       bg-white dark:bg-slate-700 focus:outline-none
-                       focus:ring-2 focus:ring-teal-500 cursor-pointer">
+          <SlidersHorizontal size={14} className="text-h-tertiary" />
+          <select value={catFiltro} onChange={e => { setCatFiltro(e.target.value); goToPage(0) }}
+            className="flex-1 min-w-36 px-3 py-1.5 rounded-lg border border-h-subtle text-sm
+                       text-h-secondary bg-h-elevated focus:outline-none
+                       focus:border-h-visible cursor-pointer">
             <option value="">Todas las categorías</option>
             {categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
           </select>
-          <select value={tipoFiltro} onChange={e => { setTipoFiltro(e.target.value); setPage(0) }}
-            className="flex-1 min-w-36 px-3 py-1.5 rounded-lg border border-slate-200
-                       dark:border-slate-600 text-sm text-slate-600 dark:text-slate-300
-                       bg-white dark:bg-slate-700 focus:outline-none
-                       focus:ring-2 focus:ring-teal-500 cursor-pointer">
+          <select value={tipoFiltro} onChange={e => { setTipoFiltro(e.target.value); goToPage(0) }}
+            className="flex-1 min-w-36 px-3 py-1.5 rounded-lg border border-h-subtle text-sm
+                       text-h-secondary bg-h-elevated focus:outline-none
+                       focus:border-h-visible cursor-pointer">
             <option value="">Todos los tipos</option>
             <option value="insumo">Insumos desechables</option>
             <option value="implemento">Implementos retornables</option>
           </select>
           <label className="flex items-center gap-2 cursor-pointer select-none">
             <input type="checkbox" checked={bajoStock}
-              onChange={e => { setBajoStock(e.target.checked); setPage(0) }}
-              className="w-4 h-4 rounded accent-teal-600" />
-            <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">
-              Sólo bajo stock
-            </span>
+              onChange={e => { setBajoStock(e.target.checked); goToPage(0) }}
+              className="w-4 h-4 rounded" style={{ accentColor: 'var(--h-teal-hover)' }} />
+            <span className="text-sm font-medium text-h-secondary">Bajo stock</span>
           </label>
           {puedeEliminar && (
             <label className="flex items-center gap-2 cursor-pointer select-none">
               <input type="checkbox" checked={mostrarInactivos}
-                onChange={e => { setMostrar(e.target.checked); setPage(0) }}
-                className="w-4 h-4 rounded accent-teal-600" />
-              <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">
-                Mostrar inactivos
-              </span>
+                onChange={e => { setMostrar(e.target.checked); goToPage(0) }}
+                className="w-4 h-4 rounded" style={{ accentColor: 'var(--h-teal-hover)' }} />
+              <span className="text-sm font-medium text-h-secondary">Mostrar inactivos</span>
             </label>
           )}
           {hasFilters && (
             <button onClick={limpiarFiltros}
-              className="flex items-center gap-1 text-xs font-bold text-rose-500
-                         hover:text-rose-700 transition-colors ml-auto">
+              className="flex items-center gap-1 text-xs font-semibold ml-auto
+                         transition-colors duration-150"
+              style={{ color: 'var(--h-sem-danger-text)' }}>
               <X size={12} /> Limpiar filtros
             </button>
           )}
@@ -399,155 +524,174 @@ export function Insumos() {
       </div>
 
       {/* Tabla */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200
-                      dark:border-slate-700 shadow-sm overflow-hidden">
+      <div className="bg-h-surface rounded-xl border border-h-subtle overflow-hidden">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-slate-200 dark:border-slate-700
-                           bg-slate-50 dark:bg-slate-900/50">
-              <th className="text-left px-4 py-3 text-xs font-bold text-slate-500
-                             uppercase tracking-wide">Nombre</th>
-              <th className="text-left px-4 py-3 text-xs font-bold text-slate-500
-                             uppercase tracking-wide">Unidad de medida</th>
-              <th className="text-center px-4 py-3 text-xs font-bold text-slate-500
-                             uppercase tracking-wide">Stock</th>
-              <th className="text-center px-4 py-3 text-xs font-bold text-slate-500
-                             uppercase tracking-wide">Mínimo</th>
-              <th className="text-center px-4 py-3 text-xs font-bold text-slate-500
-                             uppercase tracking-wide">
-                <span className="flex items-center justify-center gap-1">
-                  <CalendarClock size={11} /> Vencimiento
-                </span>
-              </th>
-              <th className="text-center px-4 py-3 text-xs font-bold text-slate-500
-                             uppercase tracking-wide">Estado</th>
+            <tr className="border-b border-h-subtle bg-h-elevated">
+              <th className="text-left px-4 py-3 text-[10px] font-semibold text-h-tertiary
+                             uppercase tracking-widest">Nombre</th>
+              <th className="text-right px-4 py-3 text-[10px] font-semibold text-h-tertiary
+                             uppercase tracking-widest">Stock</th>
+              <th className="text-right px-4 py-3 text-[10px] font-semibold text-h-tertiary
+                             uppercase tracking-widest">Mínimo</th>
+              <th className="text-center px-4 py-3 text-[10px] font-semibold text-h-tertiary
+                             uppercase tracking-widest">Estado</th>
               {puedeEscribir && (
-                <th className="text-center px-4 py-3 text-xs font-bold text-slate-500
-                               uppercase tracking-wide">Acciones</th>
+                <th className="w-10 px-4 py-3" aria-label="Acciones" />
               )}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
+          <tbody>
             {loading ? (
-              Array.from({ length: PAGE_SIZE }).map((_, i) => (
-                <TableRowSkeleton key={i} cols={totalCols} />
+              Array.from({ length: PAGE_SIZE }).map((_, idx) => (
+                <TableRowSkeleton key={idx} cols={puedeEscribir ? 5 : 4} />
               ))
             ) : insumos.length === 0 ? (
               <tr>
-                <td colSpan={totalCols} className="text-center py-16 text-slate-400">
+                <td colSpan={puedeEscribir ? 5 : 4}
+                  className="text-center py-16 text-h-tertiary">
                   <Package size={32} className="mx-auto mb-2 opacity-30" />
-                  <p className="font-semibold">Sin ítems que mostrar</p>
+                  <p className="font-medium">Sin ítems que mostrar</p>
                   {hasFilters && (
-                    <button onClick={limpiarFiltros} className="text-teal-600 text-xs mt-1 font-bold">
+                    <button onClick={limpiarFiltros}
+                      className="text-xs mt-1 font-semibold"
+                      style={{ color: 'var(--h-teal-hover)' }}>
                       Limpiar filtros
                     </button>
                   )}
                 </td>
               </tr>
-            ) : insumos.map(i => (
-              <tr key={i.id}
-                className={`hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors
-                            ${i.activo ? '' : 'opacity-60'}`}>
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-semibold text-slate-900 dark:text-slate-50">
-                      {i.nombre}
-                    </span>
-                    {!i.activo && <Badge variant="danger">Inactivo</Badge>}
-                    {i.tipo === 'implemento' && <Badge variant="info">Implemento</Badge>}
-                  </div>
-                  {i.sku && (
-                    <div className="text-xs text-slate-400 font-mono mt-0.5">{i.sku}</div>
-                  )}
-                </td>
-                <td className="px-4 py-3 text-slate-500 dark:text-slate-400 text-sm">
-                  {i.unidad_medida
-                    ? i.unidad_medida
-                    : <span className="text-slate-300 dark:text-slate-600">—</span>
-                  }
-                </td>
-                <td className="px-4 py-3 text-center font-bold text-slate-900 dark:text-slate-50">
-                  {i.stock_actual}
-                </td>
-                <td className="px-4 py-3 text-center text-slate-500 dark:text-slate-400">
-                  {i.stock_minimo}
-                </td>
-                <td className="px-4 py-3 text-center">{vencimientoCelda(i)}</td>
-                <td className="px-4 py-3 text-center">{stockBadge(i)}</td>
-                {puedeEscribir && (
+            ) : insumos.map(i => {
+              const isHovered = hoveredId === i.id
+              return (
+                <tr
+                  key={i.id}
+                  onMouseEnter={() => setHoveredId(i.id)}
+                  onMouseLeave={() => setHoveredId(null)}
+                  className={`
+                    border-b border-h-subtle last:border-0 relative
+                    transition-colors duration-150
+                    ${isHovered ? 'bg-h-elevated' : ''}
+                    ${!i.activo ? 'opacity-50' : ''}
+                  `}
+                >
+                  {/* Nombre + subtexto */}
                   <td className="px-4 py-3">
-                    <div className="flex items-center justify-center gap-1.5">
-                      {i.tipo === 'implemento' && i.activo && (
-                        <button
-                          onClick={() => navigate(`/insumos/${i.id}/unidades`)}
-                          title="Ver unidades físicas y salas asignadas"
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-violet-600
-                                     hover:bg-violet-50 dark:hover:bg-violet-900/30
-                                     transition-colors">
-                          <Layers size={14} />
-                        </button>
-                      )}
-                      {i.activo ? (
-                        <>
-                          <button onClick={() => abrirEditar(i)}
-                            className="p-1.5 rounded-lg text-slate-400 hover:bg-teal-50
-                                       dark:hover:bg-teal-900/30 hover:text-teal-600
-                                       transition-colors" title="Editar">
-                            <Pencil size={14} />
-                          </button>
-                          {puedeEliminar && (
-                            <button onClick={() => abrirEliminar(i)}
-                              className="p-1.5 rounded-lg text-slate-400 hover:bg-rose-50
-                                         dark:hover:bg-rose-900/30 hover:text-rose-600
-                                         transition-colors"
-                              title="Desactivar">
-                              <Archive size={14} />
-                            </button>
-                          )}
-                        </>
-                      ) : (
-                        puedeEliminar && (
-                          <button onClick={() => abrirReactivar(i)}
-                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg
-                                       bg-emerald-50 hover:bg-emerald-100 text-emerald-700
-                                       text-xs font-bold transition-colors"
-                            title="Reactivar">
-                            <ArchiveRestore size={12} /> Reactivar
-                          </button>
-                        )
-                      )}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-medium text-h-primary">{i.nombre}</span>
+                      {!i.activo && <Badge variant="danger">Inactivo</Badge>}
+                      {i.tipo === 'implemento' && <Badge variant="info">Implemento</Badge>}
+                    </div>
+                    <div className="text-[11px] text-h-tertiary font-mono mt-0.5">
+                      {[i.sku, i.unidad_medida].filter(Boolean).join(' · ') || ''}
                     </div>
                   </td>
-                )}
-              </tr>
-            ))}
+
+                  {/* Stock + barra */}
+                  <td className="px-4 py-3 text-right">
+                    <span
+                      className="text-sm font-bold"
+                      style={{
+                        color: i.stock_actual === 0
+                          ? 'var(--h-sem-danger-text)'
+                          : i.stock_actual <= i.stock_minimo
+                            ? 'var(--h-sem-warning-text)'
+                            : 'var(--h-text-primary)',
+                      }}
+                    >
+                      {i.stock_actual}
+                    </span>
+                    <StockBar actual={i.stock_actual} minimo={i.stock_minimo} />
+                  </td>
+
+                  {/* Mínimo */}
+                  <td className="px-4 py-3 text-right text-h-tertiary text-sm">
+                    {i.stock_minimo}
+                  </td>
+
+                  {/* Estado */}
+                  <td className="px-4 py-3 text-center">{stockBadge(i)}</td>
+
+                  {/* Acciones — solo visibles en hover */}
+                  {puedeEscribir && (
+                    <td className="px-3 py-3 w-10">
+                      <div
+                        className="flex items-center justify-end gap-1 transition-opacity duration-150"
+                        style={{ opacity: isHovered ? 1 : 0 }}
+                      >
+                        {i.tipo === 'implemento' && i.activo && (
+                          <button
+                            onClick={() => navigate(`/insumos/${i.id}/unidades`)}
+                            title="Ver unidades físicas"
+                            className="p-1.5 rounded-md text-h-tertiary transition-colors duration-150
+                                       hover:bg-h-highlight hover:text-h-secondary"
+                          >
+                            <Layers size={14} />
+                          </button>
+                        )}
+                        {i.activo ? (
+                          <>
+                            <button onClick={() => abrirEditar(i)}
+                              title="Editar"
+                              className="p-1.5 rounded-md text-h-tertiary transition-colors duration-150
+                                         hover:bg-h-highlight hover:text-h-secondary">
+                              <Pencil size={14} />
+                            </button>
+                            {puedeEliminar && (
+                              <button onClick={() => abrirEliminar(i)}
+                                title="Desactivar"
+                                className="p-1.5 rounded-md text-h-tertiary transition-colors duration-150"
+                                style={{ color: 'var(--h-text-tertiary)' }}
+                                onMouseEnter={e => {
+                                  (e.currentTarget as HTMLButtonElement).style.background = 'var(--h-sem-danger-bg)'
+                                  ;(e.currentTarget as HTMLButtonElement).style.color = 'var(--h-sem-danger-text)'
+                                }}
+                                onMouseLeave={e => {
+                                  (e.currentTarget as HTMLButtonElement).style.background = ''
+                                  ;(e.currentTarget as HTMLButtonElement).style.color = 'var(--h-text-tertiary)'
+                                }}
+                              >
+                                <Archive size={14} />
+                              </button>
+                            )}
+                          </>
+                        ) : (
+                          puedeEliminar && (
+                            <button onClick={() => abrirReactivar(i)}
+                              className="flex items-center gap-1 px-2 py-1 rounded-md text-xs
+                                         font-medium transition-colors duration-150"
+                              style={{
+                                background: 'var(--h-sem-success-bg)',
+                                color: 'var(--h-sem-success-text)',
+                              }}
+                              title="Reactivar">
+                              <ArchiveRestore size={12} /> Reactivar
+                            </button>
+                          )
+                        )}
+                      </div>
+                    </td>
+                  )}
+                </tr>
+              )
+            })}
           </tbody>
         </table>
 
+        {/* Footer de paginación */}
         {!loading && totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t
-                          border-slate-200 dark:border-slate-700">
-            <p className="text-xs text-slate-500 dark:text-slate-400">
+          <div className="flex items-center justify-between px-4 py-3
+                          border-t border-h-subtle">
+            <p className="text-xs text-h-tertiary">
               Página {page + 1} de {totalPages}
+              {' '}· {total} ítems en total
             </p>
-            <div className="flex items-center gap-1">
-              <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}
-                className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700
-                           disabled:opacity-40">
-                <ChevronLeft size={16} className="text-slate-600 dark:text-slate-400" />
-              </button>
-              <button onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
-                disabled={page >= totalPages - 1}
-                className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700
-                           disabled:opacity-40">
-                <ChevronRight size={16} className="text-slate-600 dark:text-slate-400" />
-              </button>
-            </div>
+            <Paginator page={page} totalPages={totalPages} onPage={goToPage} />
           </div>
         )}
       </div>
 
-      {/* Modal crear/editar */}
+      {/* ── Modal crear/editar ── */}
       {showModal && (
         <Modal
           title={editTarget ? 'Editar ítem' : 'Nuevo insumo o implemento'}
@@ -555,37 +699,40 @@ export function Insumos() {
           size="lg"
         >
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Tipo de ítem */}
             <div>
               <label className={labelCls}>Tipo de ítem *</label>
-              <div className="flex rounded-xl border border-slate-200 overflow-hidden">
+              <div className="flex rounded-xl border border-h-subtle overflow-hidden">
                 <button type="button"
                   onClick={() => setField('tipo', 'insumo')}
-                  className={`flex-1 py-2.5 text-sm font-bold transition-colors ${
+                  className={`flex-1 py-2.5 text-sm font-semibold transition-colors ${
                     form.tipo === 'insumo'
-                      ? 'bg-teal-600 text-white'
-                      : 'text-slate-500 hover:bg-slate-50'
-                  }`}>
+                      ? 'text-white'
+                      : 'text-h-secondary hover:bg-h-elevated'
+                  }`}
+                  style={form.tipo === 'insumo'
+                    ? { background: 'var(--h-teal-rest)' } : {}}>
                   Insumo desechable
                 </button>
                 <button type="button"
                   onClick={() => setField('tipo', 'implemento')}
-                  className={`flex-1 py-2.5 text-sm font-bold transition-colors border-l border-slate-200 ${
+                  className={`flex-1 py-2.5 text-sm font-semibold border-l border-h-subtle
+                               transition-colors ${
                     form.tipo === 'implemento'
-                      ? 'bg-teal-600 text-white border-teal-600'
-                      : 'text-slate-500 hover:bg-slate-50'
-                  }`}>
+                      ? 'text-white'
+                      : 'text-h-secondary hover:bg-h-elevated'
+                  }`}
+                  style={form.tipo === 'implemento'
+                    ? { background: 'var(--h-teal-rest)', borderColor: 'var(--h-teal-rest)' } : {}}>
                   Implemento retornable
                 </button>
               </div>
-              <p className="text-xs text-slate-400 mt-1">
+              <p className="text-xs text-h-tertiary mt-1">
                 {form.tipo === 'insumo'
                   ? 'Se consume durante la clase y se descuenta del stock en bodega'
                   : 'Puede asignarse a salas clínicas; sus unidades físicas se rastrean individualmente'}
               </p>
             </div>
 
-            {/* Nombre */}
             <div>
               <label className={labelCls}>Nombre *</label>
               <input type="text" required value={form.nombre}
@@ -593,19 +740,17 @@ export function Insumos() {
                 className={inputCls} placeholder="Ej: Guantes de nitrilo talla M" />
             </div>
 
-            {/* Unidad de medida */}
             <div>
               <label className={labelCls}>Unidad de medida</label>
               <input type="text" value={form.unidad_medida}
                 onChange={e => setField('unidad_medida', e.target.value)}
                 className={inputCls}
                 placeholder="Ej: caja x100, frasco 500 mL, unidad, par, rollo 5 m" />
-              <p className="text-xs text-slate-400 mt-1">
-                Para líquidos y reactivos, indica el volumen del envase (ej: “frasco 500 mL”).
+              <p className="text-xs text-h-tertiary mt-1">
+                Para líquidos y reactivos, indica el volumen del envase (ej: "frasco 500 mL").
               </p>
             </div>
 
-            {/* SKU y código de barras */}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className={labelCls}>SKU</label>
@@ -620,9 +765,9 @@ export function Insumos() {
                     onChange={e => setField('codigo_barras', e.target.value)}
                     className={`${inputCls} flex-1`} placeholder="Escanear o escribir" />
                   <button type="button" onClick={() => setShowScanner(true)}
-                    className="flex-shrink-0 px-3 rounded-lg border border-slate-200
-                               bg-slate-50 hover:bg-teal-50 hover:border-teal-300
-                               hover:text-teal-600 text-slate-500 transition-colors"
+                    className="flex-shrink-0 px-3 rounded-lg border border-h-subtle
+                               bg-h-elevated text-h-tertiary transition-colors duration-150
+                               hover:border-h-visible hover:text-h-secondary"
                     title="Escanear con cámara">
                     <Camera size={16} />
                   </button>
@@ -630,16 +775,13 @@ export function Insumos() {
               </div>
             </div>
 
-            {/* Stock */}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className={labelCls}>Stock actual *</label>
                 <input type="number" min="0" required value={form.stock_actual}
                   onChange={e => setField('stock_actual', e.target.value)}
                   className={inputCls} />
-                <p className="text-xs text-slate-400 mt-1">
-                  Total de unidades en bodega y salas.
-                </p>
+                <p className="text-xs text-h-tertiary mt-1">Total de unidades en bodega y salas.</p>
               </div>
               <div>
                 <label className={labelCls}>Stock mínimo *</label>
@@ -649,31 +791,26 @@ export function Insumos() {
               </div>
             </div>
 
-            {/* Fecha de vencimiento */}
             <div>
               <label className={labelCls}>Fecha de vencimiento</label>
-              <input
-                type="date"
-                value={form.fecha_vencimiento}
+              <input type="date" value={form.fecha_vencimiento}
                 onChange={e => setField('fecha_vencimiento', e.target.value)}
-                className={inputCls}
-              />
-              <p className="text-xs text-slate-400 mt-1">
+                className={inputCls} />
+              <p className="text-xs text-h-tertiary mt-1">
                 Útil para reactivos, insumos de enfermería y banco de sangre.
               </p>
             </div>
 
-            {/* Categoría */}
             <div>
               <label className={labelCls}>Categoría</label>
-              <select value={form.categoria_id} onChange={e => setField('categoria_id', e.target.value)}
+              <select value={form.categoria_id}
+                onChange={e => setField('categoria_id', e.target.value)}
                 className={selectCls}>
                 <option value="">Sin categoría</option>
                 {categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
               </select>
             </div>
 
-            {/* Descripción */}
             <div>
               <label className={labelCls}>Descripción</label>
               <input type="text" value={form.descripcion}
@@ -682,100 +819,123 @@ export function Insumos() {
             </div>
 
             {formError && (
-              <p className="text-rose-600 text-sm bg-rose-50 border border-rose-200
-                            px-3 py-2 rounded-lg font-semibold">{formError}</p>
+              <p className="text-xs px-3 py-2 rounded-lg font-medium"
+                style={{
+                  background: 'var(--h-sem-danger-bg)',
+                  color: 'var(--h-sem-danger-text)',
+                  border: '1px solid var(--h-sem-danger-border)',
+                }}>{formError}</p>
             )}
             <div className="flex gap-3 pt-2">
               <button type="button" onClick={cerrarModal}
-                className="flex-1 py-2.5 rounded-xl border border-slate-200
-                           text-slate-600 font-bold hover:bg-slate-50">Cancelar</button>
+                className="flex-1 py-2.5 rounded-xl border border-h-subtle
+                           text-h-secondary font-medium hover:bg-h-elevated
+                           transition-colors duration-150">Cancelar</button>
               <button type="submit" disabled={saving}
-                className="flex-1 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700
-                           text-white font-bold disabled:opacity-50">
-                {saving ? 'Guardando...' : editTarget ? 'Guardar cambios' : 'Crear'}
+                className="flex-1 py-2.5 rounded-xl text-white font-semibold
+                           disabled:opacity-50 transition-colors duration-150"
+                style={{ background: 'var(--h-teal-rest)' }}
+                onMouseEnter={e => { if (!saving) (e.currentTarget.style.background = 'var(--h-teal-hover)') }}
+                onMouseLeave={e => { (e.currentTarget.style.background = 'var(--h-teal-rest)') }}>
+                {saving ? 'Guardando…' : editTarget ? 'Guardar cambios' : 'Crear'}
               </button>
             </div>
           </form>
         </Modal>
       )}
 
-      {/* Modal desactivar */}
+      {/* ── Modal desactivar ── */}
       {deleteTarget && (
         <Modal title="Desactivar ítem" onClose={cerrarModal} size="sm">
           {deleteStep === 'confirm' ? (
             <div className="text-center">
-              <div className="w-14 h-14 bg-rose-100 rounded-full flex items-center
-                              justify-center mx-auto mb-4">
-                <Archive size={24} className="text-rose-600" />
+              <div className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4"
+                style={{ background: 'var(--h-sem-danger-bg)' }}>
+                <Archive size={24} style={{ color: 'var(--h-sem-danger-text)' }} />
               </div>
-              <p className="font-bold text-slate-900 dark:text-slate-50 mb-1">
-                ¿Desactivar este ítem?
-              </p>
-              <p className="text-slate-500 text-sm mb-3">
+              <p className="font-semibold text-h-primary mb-1">¿Desactivar este ítem?</p>
+              <p className="text-h-secondary text-sm mb-3">
                 <strong>{deleteTarget.nombre}</strong> desaparecerá de los listados
                 y no se le podrán registrar movimientos. Su historial se conserva
                 y puede reactivarse cuando quieras.
               </p>
               {userHas2FA === false ? (
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-left">
+                <div className="rounded-xl p-4 text-left border"
+                  style={{
+                    background: 'var(--h-sem-warning-bg)',
+                    borderColor: 'var(--h-sem-warning-border)',
+                  }}>
                   <div className="flex items-start gap-2">
-                    <ShieldAlert size={16} className="text-amber-600 mt-0.5 flex-shrink-0" />
+                    <ShieldAlert size={16} className="mt-0.5 flex-shrink-0"
+                      style={{ color: 'var(--h-sem-warning-text)' }} />
                     <div>
-                      <p className="text-amber-800 font-bold text-xs">2FA requerido</p>
-                      <p className="text-amber-700 text-xs mt-0.5">
+                      <p className="font-bold text-xs"
+                        style={{ color: 'var(--h-sem-warning-text)' }}>2FA requerido</p>
+                      <p className="text-xs mt-0.5"
+                        style={{ color: 'var(--h-sem-warning-text)' }}>
                         Activa la verificación en dos pasos para desactivar ítems.
                       </p>
                     </div>
                   </div>
                   <Link to="/seguridad" onClick={cerrarModal}
                     className="mt-3 flex items-center justify-center gap-1.5
-                               bg-amber-600 hover:bg-amber-700 text-white text-xs
-                               font-bold py-2 rounded-lg transition-colors">
+                               text-white text-xs font-semibold py-2 rounded-lg
+                               transition-colors"
+                    style={{ background: 'var(--h-teal-rest)' }}>
                     Activar 2FA ahora
                   </Link>
                 </div>
               ) : (
                 <>
-                  <p className="text-slate-400 text-xs mb-5">
+                  <p className="text-h-tertiary text-xs mb-5">
                     Necesitarás tu código TOTP para confirmar.
                   </p>
                   <div className="flex gap-3">
                     <button onClick={cerrarModal}
-                      className="flex-1 py-2.5 rounded-xl border border-slate-200
-                                 text-slate-600 font-bold hover:bg-slate-50">Cancelar</button>
+                      className="flex-1 py-2.5 rounded-xl border border-h-subtle
+                                 text-h-secondary font-medium hover:bg-h-elevated
+                                 transition-colors">Cancelar</button>
                     <button onClick={() => setDeleteStep('totp')}
-                      className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700
-                                 text-white font-bold">Continuar</button>
+                      className="flex-1 py-2.5 rounded-xl text-white font-semibold
+                                 transition-colors"
+                      style={{ background: 'var(--h-sem-danger-border)' }}>
+                      Continuar
+                    </button>
                   </div>
                 </>
               )}
             </div>
           ) : (
             <div>
-              <p className="text-slate-600 text-sm mb-5 text-center">
+              <p className="text-h-secondary text-sm mb-5 text-center">
                 Ingresa tu código TOTP para confirmar la desactivación de
                 <strong> {deleteTarget.nombre}</strong>.
               </p>
               <input type="text" inputMode="numeric" maxLength={6} value={deleteTotp}
                 onChange={e => { setDeleteTotp(e.target.value.replace(/\D/g, '')); setFormError(null) }}
-                className="w-full px-4 py-4 rounded-xl border-2 border-slate-200
-                           text-slate-900 text-4xl text-center font-black tracking-[0.7em]
-                           focus:outline-none focus:border-rose-400 bg-slate-50 mb-4
-                           placeholder:text-slate-200"
-                placeholder="000000" autoFocus
-              />
+                className="w-full px-4 py-4 rounded-xl text-h-primary text-4xl text-center
+                           font-black tracking-[0.7em] focus:outline-none bg-h-elevated
+                           border border-h-visible focus:border-h-strong mb-4
+                           placeholder:text-h-tertiary transition-all"
+                placeholder="000000" autoFocus />
               {formError && (
-                <p className="text-rose-600 text-xs bg-rose-50 border border-rose-200
-                              px-3 py-2 rounded-lg font-semibold mb-4">{formError}</p>
+                <p className="text-xs px-3 py-2 rounded-lg font-medium mb-4"
+                  style={{
+                    background: 'var(--h-sem-danger-bg)',
+                    color: 'var(--h-sem-danger-text)',
+                    border: '1px solid var(--h-sem-danger-border)',
+                  }}>{formError}</p>
               )}
               <div className="flex gap-3">
                 <button onClick={() => { setDeleteStep('confirm'); setFormError(null) }}
-                  className="flex-1 py-2.5 rounded-xl border border-slate-200
-                             text-slate-600 font-bold hover:bg-slate-50">← Volver</button>
+                  className="flex-1 py-2.5 rounded-xl border border-h-subtle
+                             text-h-secondary font-medium hover:bg-h-elevated
+                             transition-colors">← Volver</button>
                 <button onClick={confirmDelete} disabled={deleting || deleteTotp.length !== 6}
-                  className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700
-                             text-white font-bold disabled:opacity-50">
-                  {deleting ? 'Desactivando...' : 'Desactivar'}
+                  className="flex-1 py-2.5 rounded-xl text-white font-semibold
+                             disabled:opacity-50 transition-colors"
+                  style={{ background: 'var(--h-sem-danger-border)' }}>
+                  {deleting ? 'Desactivando…' : 'Desactivar'}
                 </button>
               </div>
             </div>
@@ -783,33 +943,37 @@ export function Insumos() {
         </Modal>
       )}
 
-      {/* Modal reactivar */}
+      {/* ── Modal reactivar ── */}
       {reactivarTarget && (
         <Modal title="Reactivar ítem" onClose={cerrarModal} size="sm">
           <div className="text-center">
-            <div className="w-14 h-14 bg-emerald-100 rounded-full flex items-center
-                            justify-center mx-auto mb-4">
-              <ArchiveRestore size={24} className="text-emerald-600" />
+            <div className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4"
+              style={{ background: 'var(--h-sem-success-bg)' }}>
+              <ArchiveRestore size={24} style={{ color: 'var(--h-sem-success-text)' }} />
             </div>
-            <p className="font-bold text-slate-900 dark:text-slate-50 mb-1">
-              ¿Reactivar este ítem?
-            </p>
-            <p className="text-slate-500 text-sm mb-5">
+            <p className="font-semibold text-h-primary mb-1">¿Reactivar este ítem?</p>
+            <p className="text-h-secondary text-sm mb-5">
               <strong>{reactivarTarget.nombre}</strong> volverá a aparecer en
               los listados y podrá recibir movimientos de stock.
             </p>
             {formError && (
-              <p className="text-rose-600 text-xs bg-rose-50 border border-rose-200
-                            px-3 py-2 rounded-lg mb-4">{formError}</p>
+              <p className="text-xs px-3 py-2 rounded-lg mb-4"
+                style={{
+                  background: 'var(--h-sem-danger-bg)',
+                  color: 'var(--h-sem-danger-text)',
+                  border: '1px solid var(--h-sem-danger-border)',
+                }}>{formError}</p>
             )}
             <div className="flex gap-3">
               <button onClick={cerrarModal}
-                className="flex-1 py-2.5 rounded-xl border border-slate-200
-                           text-slate-600 font-bold hover:bg-slate-50">Cancelar</button>
+                className="flex-1 py-2.5 rounded-xl border border-h-subtle
+                           text-h-secondary font-medium hover:bg-h-elevated
+                           transition-colors">Cancelar</button>
               <button onClick={handleReactivar} disabled={deleting}
-                className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700
-                           text-white font-bold disabled:opacity-50">
-                {deleting ? 'Reactivando...' : 'Reactivar'}
+                className="flex-1 py-2.5 rounded-xl text-white font-semibold
+                           disabled:opacity-50 transition-colors"
+                style={{ background: 'var(--h-sem-success-border)' }}>
+                {deleting ? 'Reactivando…' : 'Reactivar'}
               </button>
             </div>
           </div>
