@@ -12,68 +12,188 @@ import {
 import { useAuthStore } from '../../store/auth'
 import { useThemeStore } from '../../store/theme'
 import { Logo } from '../ui/Logo'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 
-const NAV_ITEMS = [
-  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard',
-    roles: ['admin', 'operador_coordinador', 'operador', 'visor'] },
-  { to: '/alertas', icon: AlertTriangle, label: 'Alertas',
-    roles: ['admin', 'operador_coordinador', 'operador', 'visor'] },
-  { to: '/insumos', icon: Package, label: 'Insumos e Implementos',
-    roles: ['admin', 'operador_coordinador', 'operador', 'visor'] },
-  { to: '/activos-fijos', icon: Sofa, label: 'Activos Fijos',
-    roles: ['admin', 'operador_coordinador', 'operador', 'visor'] },
-  { to: '/mantenimiento', icon: Wrench, label: 'Mantenimiento',
-    roles: ['admin', 'operador_coordinador', 'operador'] },
-  { to: '/movimientos', icon: ArrowLeftRight, label: 'Movimientos',
-    roles: ['admin', 'operador_coordinador', 'operador', 'visor'] },
-  { to: '/salas', icon: DoorOpen, label: 'Salas',
-    roles: ['admin', 'operador_coordinador', 'operador', 'visor'], divider: true },
-  { to: '/categorias', icon: Tag, label: 'Categorías',
-    roles: ['admin', 'operador_coordinador', 'operador', 'visor'] },
-  { to: '/reportes', icon: BarChart2, label: 'Reportes',
-    roles: ['admin', 'operador_coordinador', 'visor'], divider: true },
-  { to: '/preparar-taller', icon: ClipboardCheck, label: 'Preparar taller',
-    roles: ['admin', 'operador_coordinador', 'operador'] },
-  { to: '/paquetes', icon: FlaskConical, label: 'Paquetes de insumos',
-    roles: ['admin', 'operador_coordinador', 'operador'] },
-  { to: '/asignaturas', icon: BookOpen, label: 'Asignaturas',
-    roles: ['admin'], divider: true },
-  { to: '/clases-docente', icon: GraduationCap, label: 'Clases Docentes',
-    roles: ['admin'] },
-  { to: '/horario', icon: CalendarDays, label: 'Ver Horario',
-    roles: ['admin'] },
-  { to: '/importar-horario', icon: Calendar, label: 'Importar Horario',
-    roles: ['admin'] },
-  { to: '/importar', icon: Upload, label: 'Importar Insumos',
-    roles: ['admin'], divider: true },
-  { to: '/usuarios', icon: Users, label: 'Usuarios',
-    roles: ['admin'] },
-  { to: '/audit-log', icon: ScrollText, label: 'Audit Log',
-    roles: ['admin'] },
+// ─── Tipos ──────────────────────────────────────────────────────────────────
+
+type NavSection = {
+  label: string
+  roles: string[]
+  items: NavItem[]
+}
+
+type NavItem = {
+  to: string
+  icon: React.ElementType
+  label: string
+  roles: string[]
+}
+
+// ─── Estructura de navegación agrupada por sección ──────────────────────────
+
+const NAV_SECTIONS: NavSection[] = [
+  {
+    label: 'General',
+    roles: ['admin', 'operador_coordinador', 'operador', 'visor'],
+    items: [
+      { to: '/dashboard',    icon: LayoutDashboard, label: 'Dashboard',
+        roles: ['admin', 'operador_coordinador', 'operador', 'visor'] },
+      { to: '/alertas',      icon: AlertTriangle,   label: 'Alertas',
+        roles: ['admin', 'operador_coordinador', 'operador', 'visor'] },
+      { to: '/insumos',      icon: Package,         label: 'Insumos e Implementos',
+        roles: ['admin', 'operador_coordinador', 'operador', 'visor'] },
+      { to: '/activos-fijos', icon: Sofa,           label: 'Activos Fijos',
+        roles: ['admin', 'operador_coordinador', 'operador', 'visor'] },
+      { to: '/mantenimiento', icon: Wrench,         label: 'Mantenimiento',
+        roles: ['admin', 'operador_coordinador', 'operador'] },
+      { to: '/movimientos',  icon: ArrowLeftRight,  label: 'Movimientos',
+        roles: ['admin', 'operador_coordinador', 'operador', 'visor'] },
+      { to: '/salas',        icon: DoorOpen,        label: 'Salas',
+        roles: ['admin', 'operador_coordinador', 'operador', 'visor'] },
+      { to: '/categorias',   icon: Tag,             label: 'Categorías',
+        roles: ['admin', 'operador_coordinador', 'operador', 'visor'] },
+    ],
+  },
+  {
+    label: 'Planificación',
+    roles: ['admin', 'operador_coordinador', 'operador'],
+    items: [
+      { to: '/preparar-taller', icon: ClipboardCheck, label: 'Preparar taller',
+        roles: ['admin', 'operador_coordinador', 'operador'] },
+      { to: '/paquetes',     icon: FlaskConical,    label: 'Paquetes de insumos',
+        roles: ['admin', 'operador_coordinador', 'operador'] },
+      { to: '/reportes',     icon: BarChart2,       label: 'Reportes',
+        roles: ['admin', 'operador_coordinador', 'visor'] },
+    ],
+  },
+  {
+    label: 'Administración',
+    roles: ['admin'],
+    items: [
+      { to: '/asignaturas',      icon: BookOpen,      label: 'Asignaturas',
+        roles: ['admin'] },
+      { to: '/clases-docente',   icon: GraduationCap, label: 'Clases Docentes',
+        roles: ['admin'] },
+      { to: '/horario',          icon: CalendarDays,  label: 'Ver Horario',
+        roles: ['admin'] },
+      { to: '/importar-horario', icon: Calendar,      label: 'Importar Horario',
+        roles: ['admin'] },
+      { to: '/importar',         icon: Upload,        label: 'Importar Insumos',
+        roles: ['admin'] },
+      { to: '/usuarios',         icon: Users,         label: 'Usuarios',
+        roles: ['admin'] },
+      { to: '/audit-log',        icon: ScrollText,    label: 'Audit Log',
+        roles: ['admin'] },
+    ],
+  },
 ]
 
 const ROL_LABELS: Record<string, string> = {
-  admin: 'Administrador',
+  admin:                'Administrador',
   operador_coordinador: 'Op. Coordinador',
-  operador: 'Operador',
-  visor: 'Visor',
+  operador:             'Operador',
+  visor:                'Visor',
 }
 
 const SIDEBAR_KEY = 'hestia-sidebar-collapsed'
 
-function CollapseTooltip({ label }: { label: string }) {
+// Duración en ms de cada fase de la animación Opción C
+const LABEL_OUT_MS  = 110   // fade+slide out del texto
+const WIDTH_MS      = 260   // animación del ancho
+const LABEL_IN_MS   = 140   // fade+slide in del texto al expandir
+
+// ─── Sub-componentes ────────────────────────────────────────────────────────
+
+function Tooltip({ label }: { label: string }) {
   return (
-    <span className="
-      absolute left-full ml-2 px-2.5 py-1 bg-slate-700 text-white
-      text-xs font-semibold rounded-md pointer-events-none whitespace-nowrap
-      opacity-0 group-hover:opacity-100 transition-opacity duration-150
-      top-1/2 -translate-y-1/2 z-50 shadow-lg
-    ">
+    <span
+      className="
+        absolute left-full ml-2.5 px-2.5 py-1.5
+        bg-h-elevated border border-h-visible
+        text-h-primary text-xs font-medium
+        rounded-md pointer-events-none whitespace-nowrap
+        opacity-0 group-hover:opacity-100
+        transition-opacity duration-150
+        top-1/2 -translate-y-1/2 z-50
+      "
+    >
       {label}
     </span>
   )
 }
+
+interface NavItemRowProps {
+  item:          NavItem
+  collapsed:     boolean
+  labelsVisible: boolean
+}
+
+function NavItemRow({ item, collapsed, labelsVisible }: NavItemRowProps) {
+  const { icon: Icon, to, label } = item
+
+  const baseCls = `
+    relative group flex items-center gap-2.5
+    rounded-md transition-colors duration-150 cursor-pointer
+    ${ collapsed ? 'justify-center px-0 py-2.5 w-full' : 'px-2.5 py-2 w-full' }
+  `
+
+  const activeCls = `bg-h-elevated text-h-primary`
+  const inactiveCls = `text-h-secondary hover:bg-h-elevated hover:text-h-primary`
+
+  return (
+    <NavLink
+      to={to}
+      className={({ isActive }) =>
+        `${baseCls} ${isActive ? activeCls : inactiveCls}`
+      }
+    >
+      {({ isActive }) => (
+        <>
+          {/* Barra de acento lateral — solo visible en ítem activo expandido */}
+          {!collapsed && (
+            <span
+              className="
+                absolute left-0 top-1/2 -translate-y-1/2
+                w-[2.5px] rounded-r-full
+                transition-all duration-200
+              "
+              style={{
+                height:     isActive ? '16px' : '0px',
+                background: isActive ? 'var(--h-teal-hover)' : 'transparent',
+              }}
+            />
+          )}
+
+          {/* Ícono */}
+          <Icon
+            size={16}
+            className="flex-shrink-0 transition-colors duration-150"
+            style={{ color: isActive ? 'var(--h-teal-hover)' : 'inherit' }}
+          />
+
+          {/* Label con fade+slide */}
+          {!collapsed && (
+            <span
+              className="text-[13px] font-medium truncate min-w-0 flex-1"
+              style={{
+                opacity:    labelsVisible ? 1 : 0,
+                transform:  labelsVisible ? 'translateX(0)' : 'translateX(-6px)',
+                transition: `opacity ${LABEL_IN_MS}ms ease, transform ${LABEL_IN_MS}ms ease`,
+              }}
+            >
+              {label}
+            </span>
+          )}
+
+          {/* Tooltip cuando está colapsado */}
+          {collapsed && <Tooltip label={label} />}
+        </>
+      )}
+    </NavLink>
+  )
+}
+
+// ─── Componente principal ────────────────────────────────────────────────────
 
 export function Sidebar() {
   const { logout, user } = useAuthStore()
@@ -83,155 +203,303 @@ export function Sidebar() {
   const [collapsed, setCollapsed] = useState<boolean>(
     () => localStorage.getItem(SIDEBAR_KEY) === 'true'
   )
+  // Controla la visibilidad del texto independientemente del ancho
+  const [labelsVisible, setLabelsVisible] = useState<boolean>(!collapsed)
 
   useEffect(() => {
     localStorage.setItem(SIDEBAR_KEY, String(collapsed))
   }, [collapsed])
 
+  // Animación Opción C: fade+slide secuencial
+  const handleCollapse = useCallback(() => {
+    if (!collapsed) {
+      // → Colapsar: texto sale primero, luego el ancho
+      setLabelsVisible(false)
+      setTimeout(() => setCollapsed(true), LABEL_OUT_MS)
+    } else {
+      // → Expandir: ancho primero, luego el texto entra
+      setCollapsed(false)
+      setTimeout(() => setLabelsVisible(true), WIDTH_MS)
+    }
+  }, [collapsed])
+
   function handleLogout() { logout(); navigate('/login') }
-  function handleCollapse() { setCollapsed((c) => !c) }
 
-  const navLinkCls = ({ isActive }: { isActive: boolean }) =>
-    `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold
-     transition-colors duration-150
-     ${isActive
-       ? 'bg-teal-600 text-white'
-       : 'text-slate-400 hover:bg-slate-800 hover:text-white'
-     }`
+  // Iniciales del usuario para el avatar
+  const initials = user?.nombre
+    ? user.nombre.split(' ').slice(0, 2).map((n) => n[0]).join('').toUpperCase()
+    : '?'
 
-  const collapsedLinkCls = ({ isActive }: { isActive: boolean }) =>
-    `flex items-center justify-center w-full p-2.5 rounded-lg
-     transition-colors duration-150
-     ${isActive
-       ? 'bg-teal-600 text-white'
-       : 'text-slate-400 hover:bg-slate-800 hover:text-white'
-     }`
+  const rolLabel    = user?.rol ? (ROL_LABELS[user.rol] ?? user.rol) : ''
+  const displayName = user?.nombre
+    ? user.nombre.split(' ').slice(0, 2).join(' ')
+    : 'Usuario'
 
-  const itemsVisibles = NAV_ITEMS.filter(
-    (item) => user?.rol && item.roles.includes(user.rol)
-  )
-  const rolLabel = user?.rol ? (ROL_LABELS[user.rol] ?? user.rol) : 'Escuela de Salud'
+  const sidebarW = collapsed ? 'w-[60px]' : 'w-[220px]'
 
   return (
-    <aside className={`
-      ${ collapsed ? 'w-16' : 'w-60' }
-      h-full bg-slate-900 dark:bg-slate-950 flex flex-col
-      border-r border-slate-800 dark:border-slate-900 flex-shrink-0
-      transition-all duration-300 ease-in-out overflow-hidden
-    `}>
-      <div className={`flex ${ collapsed ? 'justify-center' : 'justify-end' } px-2 pt-3 pb-1`}>
-        <button onClick={handleCollapse}
+    <aside
+      className={`
+        ${sidebarW} h-full flex flex-col flex-shrink-0
+        bg-h-surface border-r border-h-subtle
+        overflow-hidden
+      `}
+      style={{
+        transition: `width ${WIDTH_MS}ms cubic-bezier(0.4,0,0.2,1)`,
+      }}
+    >
+      {/* ── Header: logo + nombre + botón colapsar ── */}
+      <div
+        className="
+          flex items-center border-b border-h-subtle flex-shrink-0
+          px-3 py-3 gap-2
+        "
+      >
+        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+          <Logo className="w-8 h-8 flex-shrink-0" />
+          {!collapsed && (
+            <div
+              className="min-w-0"
+              style={{
+                opacity:    labelsVisible ? 1 : 0,
+                transform:  labelsVisible ? 'translateX(0)' : 'translateX(-6px)',
+                transition: `opacity ${LABEL_IN_MS}ms ease, transform ${LABEL_IN_MS}ms ease`,
+              }}
+            >
+              <p className="text-h-primary text-sm font-semibold leading-tight truncate">
+                Hestia
+              </p>
+              <p className="text-h-tertiary text-[11px] leading-tight truncate">
+                Escuela de Salud
+              </p>
+            </div>
+          )}
+        </div>
+
+        <button
+          onClick={handleCollapse}
           title={collapsed ? 'Expandir menú' : 'Colapsar menú'}
-          className="w-8 h-8 rounded-lg flex items-center justify-center
-                     text-slate-500 hover:bg-slate-800 hover:text-white
-                     transition-colors duration-150">
-          {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+          className="
+            w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0
+            text-h-tertiary hover:bg-h-elevated hover:text-h-secondary
+            transition-colors duration-150
+          "
+        >
+          {collapsed
+            ? <ChevronRight size={14} />
+            : <ChevronLeft  size={14} />}
         </button>
       </div>
 
-      <div className={`
-        ${ collapsed ? 'px-2 pb-4 flex justify-center' : 'px-5 pb-6' }
-        border-b border-slate-800 dark:border-slate-900 transition-all duration-300
-      `}>
-        {collapsed ? (
-          <Logo className="w-9 h-9" />
-        ) : (
-          <div className="flex items-center gap-3">
-            <Logo className="w-12 h-12" />
-            <div>
-              <p className="text-white font-bold text-base leading-tight">Hestia</p>
-              <p className="text-slate-400 text-xs">{rolLabel}</p>
-            </div>
-          </div>
-        )}
-      </div>
+      {/* ── Navegación principal ── */}
+      <nav className="flex-1 overflow-y-auto overflow-x-hidden py-3 px-2 space-y-4">
+        {NAV_SECTIONS.map((section) => {
+          if (!user?.rol) return null
 
-      <nav className="flex-1 px-2 py-5 space-y-1 overflow-y-auto overflow-x-hidden">
-        {itemsVisibles.map(({ to, icon: Icon, label, divider }, idx) => (
-          <div key={`${to}-${idx}`}>
-            {divider && (
-              <div className={`
-                border-t border-slate-800 dark:border-slate-700
-                ${ collapsed ? 'my-1' : 'my-2' }
-              `} />
-            )}
-            {collapsed ? (
-              <div className="relative group">
-                <NavLink to={to} className={collapsedLinkCls}>
-                  <Icon size={18} />
-                </NavLink>
-                <CollapseTooltip label={label} />
+          // Filtrar ítems visibles para el rol actual
+          const visibleItems = section.items.filter(
+            (item) => item.roles.includes(user.rol as string)
+          )
+          if (visibleItems.length === 0) return null
+
+          // Verificar si la sección completa aplica para el rol
+          const sectionVisible = section.roles.includes(user.rol as string)
+          if (!sectionVisible) return null
+
+          return (
+            <div key={section.label}>
+              {/* Label de sección — oculto cuando colapsado */}
+              {!collapsed && (
+                <p
+                  className="
+                    px-2.5 mb-1
+                    text-[10px] font-semibold uppercase tracking-widest
+                    text-h-tertiary select-none
+                  "
+                  style={{
+                    opacity:    labelsVisible ? 1 : 0,
+                    transition: `opacity ${LABEL_IN_MS}ms ease`,
+                  }}
+                >
+                  {section.label}
+                </p>
+              )}
+
+              <div className="space-y-0.5">
+                {visibleItems.map((item) => (
+                  <NavItemRow
+                    key={item.to}
+                    item={item}
+                    collapsed={collapsed}
+                    labelsVisible={labelsVisible}
+                  />
+                ))}
               </div>
-            ) : (
-              <NavLink to={to} className={navLinkCls}>
-                <Icon size={17} />
-                {label}
-              </NavLink>
-            )}
-          </div>
-        ))}
+            </div>
+          )
+        })}
       </nav>
 
-      <div className={`
-        ${ collapsed ? 'px-2' : 'px-3' }
-        pb-5 border-t border-slate-800 dark:border-slate-900 pt-4 space-y-1
-      `}>
-        {collapsed ? (
-          <>
-            <div className="relative group">
-              <NavLink to="/perfil" className={collapsedLinkCls}>
-                <UserCircle size={18} />
-              </NavLink>
-              <CollapseTooltip label="Mi perfil" />
+      {/* ── Footer: usuario + acciones ── */}
+      <div className="border-t border-h-subtle flex-shrink-0 px-2 py-3 space-y-0.5">
+
+        {/* Tarjeta de usuario */}
+        <div
+          className={`
+            flex items-center gap-2.5 rounded-md px-2 py-2 mb-1
+            ${ collapsed ? 'justify-center' : '' }
+          `}
+        >
+          {/* Avatar con iniciales */}
+          <div
+            className="
+              w-7 h-7 rounded-full flex-shrink-0
+              flex items-center justify-center
+              text-[11px] font-semibold
+              bg-h-elevated border border-h-visible
+              text-h-secondary
+            "
+          >
+            {initials}
+          </div>
+
+          {!collapsed && (
+            <div
+              className="min-w-0 flex-1"
+              style={{
+                opacity:    labelsVisible ? 1 : 0,
+                transform:  labelsVisible ? 'translateX(0)' : 'translateX(-6px)',
+                transition: `opacity ${LABEL_IN_MS}ms ease, transform ${LABEL_IN_MS}ms ease`,
+              }}
+            >
+              <p className="text-[12px] font-medium text-h-primary truncate leading-tight">
+                {displayName}
+              </p>
+              <p className="text-[10px] text-h-tertiary truncate leading-tight">
+                {rolLabel}
+              </p>
             </div>
-            <div className="relative group">
-              <NavLink to="/seguridad" className={collapsedLinkCls}>
-                <ShieldCheck size={18} />
-              </NavLink>
-              <CollapseTooltip label="Seguridad" />
-            </div>
-            <div className="relative group">
-              <button onClick={toggleTheme}
-                className="flex items-center justify-center w-full p-2.5 rounded-lg
-                           text-slate-400 hover:bg-slate-800 hover:text-amber-400
-                           transition-colors duration-150">
-                {isDark ? <Sun size={18} /> : <Moon size={18} />}
-              </button>
-              <CollapseTooltip label={isDark ? 'Modo claro' : 'Modo oscuro'} />
-            </div>
-            <div className="relative group">
-              <button onClick={handleLogout}
-                className="flex items-center justify-center w-full p-2.5 rounded-lg
-                           text-slate-400 hover:bg-slate-800 hover:text-rose-400
-                           transition-colors duration-150">
-                <LogOut size={18} />
-              </button>
-              <CollapseTooltip label="Cerrar sesión" />
-            </div>
-          </>
-        ) : (
-          <>
-            <NavLink to="/perfil" className={navLinkCls}>
-              <UserCircle size={17} /> Mi perfil
-            </NavLink>
-            <NavLink to="/seguridad" className={navLinkCls}>
-              <ShieldCheck size={17} /> Seguridad
-            </NavLink>
-            <button onClick={toggleTheme}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg
-                         text-slate-400 hover:bg-slate-800 hover:text-amber-400
-                         text-sm font-semibold transition-colors duration-150">
-              {isDark ? <Sun size={17} /> : <Moon size={17} />}
-              {isDark ? 'Modo claro' : 'Modo oscuro'}
-            </button>
-            <button onClick={handleLogout}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg
-                         text-slate-400 hover:bg-slate-800 hover:text-rose-400
-                         text-sm font-semibold transition-colors duration-150">
-              <LogOut size={17} /> Cerrar sesión
-            </button>
-          </>
-        )}
+          )}
+        </div>
+
+        <div className="h-px bg-h-subtle mx-1 mb-1" />
+
+        {/* Perfil */}
+        <div className="relative group">
+          <NavLink
+            to="/perfil"
+            className={({ isActive }) => `
+              flex items-center gap-2.5 rounded-md
+              transition-colors duration-150
+              text-h-secondary hover:bg-h-elevated hover:text-h-primary
+              ${ isActive ? 'bg-h-elevated text-h-primary' : '' }
+              ${ collapsed ? 'justify-center px-0 py-2.5 w-full' : 'px-2.5 py-2 w-full' }
+            `}
+          >
+            <UserCircle size={16} className="flex-shrink-0" />
+            {!collapsed && (
+              <span
+                className="text-[13px] font-medium truncate"
+                style={{
+                  opacity:    labelsVisible ? 1 : 0,
+                  transform:  labelsVisible ? 'translateX(0)' : 'translateX(-6px)',
+                  transition: `opacity ${LABEL_IN_MS}ms ease, transform ${LABEL_IN_MS}ms ease`,
+                }}
+              >
+                Mi perfil
+              </span>
+            )}
+          </NavLink>
+          {collapsed && <Tooltip label="Mi perfil" />}
+        </div>
+
+        {/* Seguridad */}
+        <div className="relative group">
+          <NavLink
+            to="/seguridad"
+            className={({ isActive }) => `
+              flex items-center gap-2.5 rounded-md
+              transition-colors duration-150
+              text-h-secondary hover:bg-h-elevated hover:text-h-primary
+              ${ isActive ? 'bg-h-elevated text-h-primary' : '' }
+              ${ collapsed ? 'justify-center px-0 py-2.5 w-full' : 'px-2.5 py-2 w-full' }
+            `}
+          >
+            <ShieldCheck size={16} className="flex-shrink-0" />
+            {!collapsed && (
+              <span
+                className="text-[13px] font-medium truncate"
+                style={{
+                  opacity:    labelsVisible ? 1 : 0,
+                  transform:  labelsVisible ? 'translateX(0)' : 'translateX(-6px)',
+                  transition: `opacity ${LABEL_IN_MS}ms ease, transform ${LABEL_IN_MS}ms ease`,
+                }}
+              >
+                Seguridad
+              </span>
+            )}
+          </NavLink>
+          {collapsed && <Tooltip label="Seguridad" />}
+        </div>
+
+        {/* Tema */}
+        <div className="relative group">
+          <button
+            onClick={toggleTheme}
+            title={isDark ? 'Modo claro' : 'Modo oscuro'}
+            className={`
+              flex items-center gap-2.5 rounded-md w-full
+              transition-colors duration-150
+              text-h-secondary hover:bg-h-elevated hover:text-h-primary
+              ${ collapsed ? 'justify-center px-0 py-2.5' : 'px-2.5 py-2' }
+            `}
+          >
+            {isDark
+              ? <Sun  size={16} className="flex-shrink-0" />
+              : <Moon size={16} className="flex-shrink-0" />}
+            {!collapsed && (
+              <span
+                className="text-[13px] font-medium truncate"
+                style={{
+                  opacity:    labelsVisible ? 1 : 0,
+                  transform:  labelsVisible ? 'translateX(0)' : 'translateX(-6px)',
+                  transition: `opacity ${LABEL_IN_MS}ms ease, transform ${LABEL_IN_MS}ms ease`,
+                }}
+              >
+                {isDark ? 'Modo claro' : 'Modo oscuro'}
+              </span>
+            )}
+          </button>
+          {collapsed && <Tooltip label={isDark ? 'Modo claro' : 'Modo oscuro'} />}
+        </div>
+
+        {/* Cerrar sesión */}
+        <div className="relative group">
+          <button
+            onClick={handleLogout}
+            className={`
+              flex items-center gap-2.5 rounded-md w-full
+              transition-colors duration-150
+              text-h-secondary hover:bg-h-elevated hover:text-red-400
+              ${ collapsed ? 'justify-center px-0 py-2.5' : 'px-2.5 py-2' }
+            `}
+          >
+            <LogOut size={16} className="flex-shrink-0" />
+            {!collapsed && (
+              <span
+                className="text-[13px] font-medium truncate"
+                style={{
+                  opacity:    labelsVisible ? 1 : 0,
+                  transform:  labelsVisible ? 'translateX(0)' : 'translateX(-6px)',
+                  transition: `opacity ${LABEL_IN_MS}ms ease, transform ${LABEL_IN_MS}ms ease`,
+                }}
+              >
+                Cerrar sesión
+              </span>
+            )}
+          </button>
+          {collapsed && <Tooltip label="Cerrar sesión" />}
+        </div>
       </div>
     </aside>
   )
