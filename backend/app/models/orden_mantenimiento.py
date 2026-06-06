@@ -11,7 +11,7 @@ import enum
 class EstadoOrden(str, enum.Enum):
     en_curso = "en_curso"   # orden abierta, tecnicos trabajando
     cerrada = "cerrada"     # Maritza cerro la orden tras el cierre
-    cancelada = "cancelada" # orden anulada antes de iniciar
+    cancelada = "cancelada"  # orden anulada antes de iniciar
 
 
 class ResultadoItem(str, enum.Enum):
