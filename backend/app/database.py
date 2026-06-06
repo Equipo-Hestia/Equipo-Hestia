@@ -127,8 +127,7 @@ MIGRACIONES_COLUMNAS = [
     "ADD COLUMN IF NOT EXISTS tipo_mantenimiento tipomantenimiento",
     "ALTER TABLE IF EXISTS ordenes_mantenimiento "
     "ADD COLUMN IF NOT EXISTS fecha_retorno_estimada DATE",
-    # ── Refactor mantenimiento: evento multi-Phantoma ───────────────────
-    # Nuevos enums para la cabecera refactorizada y los ítems
+    # Nuevos enums para el refactor de mantenimiento
     (
         "DO $$ BEGIN "
         "CREATE TYPE estadoordenitem AS ENUM ("
@@ -148,7 +147,7 @@ MIGRACIONES_COLUMNAS = [
     "ADD COLUMN IF NOT EXISTS fecha_visita DATE",
     "ALTER TABLE IF EXISTS ordenes_mantenimiento "
     "ADD COLUMN IF NOT EXISTS notas TEXT",
-    # Tabla de ítems: un Phantoma por fila, resultado individual
+    # Tabla de items: un Phantoma por fila, resultado individual
     (
         "CREATE TABLE IF NOT EXISTS orden_mantenimiento_items ("
         "  id                     SERIAL PRIMARY KEY,"
@@ -164,6 +163,43 @@ MIGRACIONES_COLUMNAS = [
         "  descripcion_trabajo    TEXT,"
         "  costo                  NUMERIC(12,2)"
         ")"
+    ),
+    # ── Migrar columna estado al nuevo enum estadoordenitem ─────────────
+    # La columna estado era de tipo estadoorden (enviado/en_proceso/etc.).
+    # El nuevo modelo usa estadoordenitem (en_curso/cerrada/cancelada).
+    # Primero se limpian los datos de demo para poder cambiar el tipo,
+    # luego se convierte la columna con USING cast explicito.
+    (
+        "DO $$ BEGIN "
+        "IF EXISTS ("
+        "  SELECT 1 FROM information_schema.columns "
+        "  WHERE table_name = 'ordenes_mantenimiento' "
+        "  AND column_name = 'estado' "
+        "  AND udt_name = 'estadoorden'"
+        ") THEN "
+        "  DELETE FROM orden_mantenimiento_items; "
+        "  DELETE FROM ordenes_mantenimiento; "
+        "  ALTER TABLE ordenes_mantenimiento "
+        "    ALTER COLUMN estado DROP DEFAULT; "
+        "  ALTER TABLE ordenes_mantenimiento "
+        "    ALTER COLUMN estado TYPE estadoordenitem "
+        "    USING 'en_curso'::estadoordenitem; "
+        "  ALTER TABLE ordenes_mantenimiento "
+        "    ALTER COLUMN estado SET DEFAULT 'en_curso'::estadoordenitem; "
+        "END IF; "
+        "END $$"
+    ),
+    # Eliminar FK huerfana activo_fijo_id si aun existe en la cabecera
+    (
+        "DO $$ BEGIN "
+        "IF EXISTS ("
+        "  SELECT 1 FROM information_schema.columns "
+        "  WHERE table_name = 'ordenes_mantenimiento' "
+        "  AND column_name = 'activo_fijo_id'"
+        ") THEN "
+        "  ALTER TABLE ordenes_mantenimiento DROP COLUMN activo_fijo_id; "
+        "END IF; "
+        "END $$"
     ),
 ]
 
