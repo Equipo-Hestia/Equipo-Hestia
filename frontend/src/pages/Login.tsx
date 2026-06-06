@@ -42,8 +42,8 @@ const TEMAS = [
 
 // Métricas estáticas del sistema — datos estructurales, no operacionales
 const SYSTEM_STATS = [
-  { value: '18',  label: 'salas clínicas' },
-  { value: '5',   label: 'carreras' },
+  { value: '18',   label: 'salas clínicas' },
+  { value: '5',    label: 'carreras' },
   { value: '100+', label: 'insumos' },
 ]
 
@@ -80,9 +80,9 @@ function ModalAcercaDe({ onClose }: { onClose: () => void }) {
           <div className="bg-h-elevated rounded-xl border border-h-subtle px-4 py-3 space-y-2">
             {[
               ['Institución', 'DuocUC — Sede San Bernardo'],
-              ['Escuela',      'Escuela de Salud'],
-              ['Carrera',      'Informática Biomédica'],
-              ['Tipo',         'Proyecto de Título · Ruta IE'],
+              ['Escuela',     'Escuela de Salud'],
+              ['Carrera',     'Informática Biomédica'],
+              ['Tipo',        'Proyecto de Título · Ruta IE'],
               ['Período',     '2024 – 2025'],
             ].map(([k, v]) => (
               <p key={k}>
@@ -119,11 +119,11 @@ function ModalAcercaDe({ onClose }: { onClose: () => void }) {
 }
 
 function ModalSoporte({ onClose }: { onClose: () => void }) {
-  const [nombre,     setNombre]     = useState('')
-  const [tema,       setTema]       = useState(TEMAS[0])
-  const [mensaje,    setMensaje]    = useState('')
-  const [enviado,    setEnviado]    = useState(false)
-  const [expandFaq,  setExpandFaq]  = useState<number | null>(null)
+  const [nombre,    setNombre]    = useState('')
+  const [tema,      setTema]      = useState(TEMAS[0])
+  const [mensaje,   setMensaje]   = useState('')
+  const [enviado,   setEnviado]   = useState(false)
+  const [expandFaq, setExpandFaq] = useState<number | null>(null)
 
   function handleEnviar(e: React.FormEvent) {
     e.preventDefault()
@@ -141,8 +141,9 @@ function ModalSoporte({ onClose }: { onClose: () => void }) {
     bg-h-elevated border border-h-visible
     focus:border-h-strong
   `
-  const labelCls = 'block text-[10px] font-semibold text-h-tertiary mb-1.5
-                    uppercase tracking-widest'
+  // FIX: backtick en lugar de comilla simple para permitir el salto de línea
+  const labelCls = `block text-[10px] font-semibold text-h-tertiary mb-1.5
+                    uppercase tracking-widest`
 
   return (
     <div
@@ -427,9 +428,7 @@ function PanelIzquierdo() {
         </div>
 
         {/* Métricas estructurales */}
-        <div
-          className="grid grid-cols-3 gap-3"
-        >
+        <div className="grid grid-cols-3 gap-3">
           {SYSTEM_STATS.map(({ value, label }) => (
             <div
               key={label}
@@ -454,7 +453,7 @@ function PanelIzquierdo() {
   )
 }
 
-// ─── Shimmer button ──────────────────────────────────────────────────────────────────
+// ─── Shimmer button ──────────────────────────────────────────────────────────────
 // Efecto conic-gradient animado con @property CSS Houdini.
 // Soportado en Chrome 85+, Edge 85+, Safari 17.2+, Firefox 128+.
 // El estilo del keyframe se inyecta una sola vez en el <head>.
@@ -492,8 +491,8 @@ function ensureShimmerStyle() {
 }
 
 interface ShimmerButtonProps {
-  children: React.ReactNode
-  type?:    'button' | 'submit'
+  children:  React.ReactNode
+  type?:     'button' | 'submit'
   disabled?: boolean
   onClick?:  () => void
 }
@@ -531,8 +530,8 @@ function ShimmerButton({
         className="relative z-10 w-full py-2.5 rounded-lg text-sm font-semibold
                    transition-colors duration-200 disabled:cursor-not-allowed"
         style={{
-          background:  'transparent',
-          color:       disabled ? 'var(--h-text-tertiary)' : '#e1f5ee',
+          background: 'transparent',
+          color:      disabled ? 'var(--h-text-tertiary)' : '#e1f5ee',
         }}
         onMouseEnter={e => {
           if (!disabled)
@@ -551,7 +550,7 @@ function ShimmerButton({
   )
 }
 
-// ─── Componente principal Login ────────────────────────────────────────────────────
+// ─── Componente principal Login ─────────────────────────────────────────────────
 
 export function Login() {
   const navigate = useNavigate()
@@ -747,19 +746,17 @@ export function Login() {
     setForgotError(null); setForgotOk(false)
   }
 
-  // Estilos reutilizables del formulario
+  // Estilos reutilizables — FIX: todos usan backticks, nunca comilla simple multilínea
   const inputCls = `
     w-full px-3.5 py-2.5 rounded-lg text-h-primary text-sm
     focus:outline-none placeholder:text-h-tertiary transition-all
     bg-h-elevated border border-h-visible
     focus:border-h-strong
   `
-  const labelCls = 'block text-[10px] font-semibold text-h-tertiary mb-1.5
-                    uppercase tracking-widest'
-  const backBtnCls = `
-    text-h-secondary hover:text-h-primary text-sm font-medium
-    mb-4 flex items-center gap-1 transition-colors duration-150
-  `
+  const labelCls = `block text-[10px] font-semibold text-h-tertiary mb-1.5
+                    uppercase tracking-widest`
+  const backBtnCls = `text-h-secondary hover:text-h-primary text-sm font-medium
+                      mb-4 flex items-center gap-1 transition-colors duration-150`
   const errorCls = (isWarning = false) => `
     text-xs px-3 py-2 rounded-lg font-medium
     ${ isWarning
@@ -767,8 +764,6 @@ export function Login() {
       : 'bg-h-danger  border border-h-danger  text-h-danger'
     }
   `
-
-  // Botón estándar (para acciones secundarias y flujos 2FA)
   const stdBtnCls = `
     w-full text-white font-semibold py-2.5 rounded-lg
     transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed
@@ -799,7 +794,7 @@ export function Login() {
           }}
         />
 
-        {/* Logo visible solo en mobile (panel izquierdo oculto) */}
+        {/* Logo visible solo en mobile */}
         <div className="lg:hidden flex flex-col items-center mb-8">
           <Logo className="w-14 h-14 mb-3" />
           <h1 className="text-2xl font-bold text-h-primary">Hestia</h1>
@@ -866,8 +861,10 @@ export function Login() {
                                px-3 py-2 flex items-center justify-between gap-2"
                     style={{ background: 'var(--h-bg-base)' }}
                   >
-                    <code className="font-mono text-xs tracking-wider break-all"
-                          style={{ color: 'var(--h-teal-hover)' }}>
+                    <code
+                      className="font-mono text-xs tracking-wider break-all"
+                      style={{ color: 'var(--h-teal-hover)' }}
+                    >
                       {setupQR.secret}
                     </code>
                     <button
@@ -1163,7 +1160,7 @@ export function Login() {
           )}
         </div>
 
-        {/* ── Footer: links secundarios al borde inferior ─ opción B ── */}
+        {/* ── Footer: links secundarios al borde inferior ── */}
         <div
           className="absolute bottom-4 left-0 right-0
                      flex items-center justify-center gap-4"
