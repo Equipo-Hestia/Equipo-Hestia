@@ -10,6 +10,10 @@ class TipoActivo(str, enum.Enum):
     phantoma = "phantoma"
 
 
+# Alias para compatibilidad con imports que usan TipoActivoFijo
+TipoActivoFijo = TipoActivo
+
+
 class EstadoActivo(str, enum.Enum):
     disponible = "disponible"
     en_uso = "en_uso"
@@ -62,7 +66,7 @@ class ActivoFijo(Base):
     sala_id = Column(Integer, ForeignKey("salas.id"), nullable=True)
 
     # Proveedor original del activo (quien lo vendio y suele hacer
-    # la mantención preventiva, especialmente para phantomas).
+    # la mantencion preventiva, especialmente para phantomas).
     proveedor_id = Column(
         Integer, ForeignKey("proveedores.id"), nullable=True
     )
@@ -76,7 +80,9 @@ class ActivoFijo(Base):
         back_populates="activos_fijos",
         foreign_keys=[proveedor_id],
     )
-    ordenes_mantenimiento = relationship(
-        "OrdenMantenimiento",
+    # Relacion con items de ordenes de mantenimiento (via OrdenMantenimientoItem).
+    # La FK vive en OrdenMantenimientoItem.activo_fijo_id, no en OrdenMantenimiento.
+    items_mantenimiento = relationship(
+        "OrdenMantenimientoItem",
         back_populates="activo_fijo",
     )

@@ -4,7 +4,7 @@ from typing import Optional
 
 from app.database import get_db
 from app.models.proveedor import Proveedor
-from app.models.activo_fijo import ActivoFijo
+from app.models.activo_fijo import ActivoFijo, TipoActivo, EstadoActivo
 from app.schemas.proveedor import (
     ProveedorCreate,
     ProveedorUpdate,
@@ -90,9 +90,8 @@ def listar_phantomas_de_proveedor(
 
     Usado en el formulario de nueva orden para mostrar solo los
     Phantomas del proveedor seleccionado.
-    Excluye los que ya están en_mantenimiento o dado_de_baja.
+    Excluye los que ya estan en_mantenimiento o dado_de_baja.
     """
-    from app.models.activo_fijo import EstadoActivo, TipoActivoFijo
     prov = db.query(Proveedor).filter(
         Proveedor.id == proveedor_id,
         Proveedor.activo.is_(True),
@@ -104,7 +103,7 @@ def listar_phantomas_de_proveedor(
         .filter(
             ActivoFijo.proveedor_id == proveedor_id,
             ActivoFijo.activo.is_(True),
-            ActivoFijo.tipo == TipoActivoFijo.phantoma,
+            ActivoFijo.tipo == TipoActivo.phantoma,
             ActivoFijo.estado.notin_([
                 EstadoActivo.en_mantenimiento,
                 EstadoActivo.dado_de_baja,
@@ -184,6 +183,7 @@ def desactivar_proveedor(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(require_admin),
 ):
+    """Soft-delete: desactiva el proveedor sin borrar su historial."""
     prov = db.query(Proveedor).filter(Proveedor.id == proveedor_id).first()
     if not prov:
         raise HTTPException(status_code=404, detail="Proveedor no encontrado")

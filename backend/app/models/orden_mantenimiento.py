@@ -9,22 +9,22 @@ import enum
 
 
 class EstadoOrden(str, enum.Enum):
-    en_curso = "en_curso"  # orden abierta, técnicos trabajando
-    cerrada = "cerrada"  # Maritza cerró la orden tras el cierre
-    cancelada = "cancelada"  # orden anulada antes de iniciar
+    en_curso = "en_curso"   # orden abierta, tecnicos trabajando
+    cerrada = "cerrada"     # Maritza cerro la orden tras el cierre
+    cancelada = "cancelada" # orden anulada antes de iniciar
 
 
 class ResultadoItem(str, enum.Enum):
-    pendiente = "pendiente"  # sin resultado aún (orden abierta)
-    ok = "ok"  # revisado, queda operativo
-    sale_a_taller = "sale_a_taller"  # debe salir a reparación externa
-    dar_de_baja = "dar_de_baja"  # equipo irrecuperable / a reemplazar
+    pendiente = "pendiente"          # sin resultado aun (orden abierta)
+    ok = "ok"                        # revisado, queda operativo
+    sale_a_taller = "sale_a_taller"  # debe salir a reparacion externa
+    dar_de_baja = "dar_de_baja"      # equipo irrecuperable / a reemplazar
 
 
 class OrdenMantenimiento(Base):
     """Cabecera de una visita de mantenimiento del proveedor.
 
-    Una visita puede abarcar N Phantomas (ítems). El resultado
+    Una visita puede abarcar N Phantomas (items). El resultado
     de cada Phantoma se registra en OrdenMantenimientoItem.
     Ciclo: en_curso -> cerrada | cancelada
     """
@@ -40,14 +40,13 @@ class OrdenMantenimiento(Base):
     )
 
     estado = Column(
-        SAEnum(EstadoOrden, name="estadoordenitem",
-               create_type=False),
+        SAEnum(EstadoOrden, name="estadoordenitem", create_type=False),
         nullable=False,
         default=EstadoOrden.en_curso,
         server_default=EstadoOrden.en_curso.value,
     )
 
-    # Fecha del día de la visita del proveedor
+    # Fecha del dia de la visita del proveedor
     fecha_visita = Column(Date, nullable=False)
 
     # Observaciones generales de la visita
@@ -70,8 +69,8 @@ class OrdenMantenimiento(Base):
 class OrdenMantenimientoItem(Base):
     """Resultado de un Phantoma individual dentro de una orden de visita.
 
-    Al abrir la orden todos los ítems nacen con resultado=pendiente.
-    Al cerrar la orden Maritza actualiza cada ítem con el resultado real.
+    Al abrir la orden todos los items nacen con resultado=pendiente.
+    Al cerrar la orden Maritza actualiza cada item con el resultado real.
     Si el resultado es sale_a_taller, se rellenan fecha_envio y
     fecha_retorno_estimada. Si es dar_de_baja, se rellena descripcion_problema.
     """
@@ -98,12 +97,15 @@ class OrdenMantenimientoItem(Base):
     fecha_retorno_estimada = Column(Date, nullable=True)
     fecha_retorno = Column(Date, nullable=True)  # se completa al volver
 
-    # Descripción del problema (sale_a_taller o dar_de_baja)
+    # Descripcion del problema (sale_a_taller o dar_de_baja)
     descripcion_problema = Column(Text, nullable=True)
     # Trabajo realizado por el proveedor
     descripcion_trabajo = Column(Text, nullable=True)
-    # Costo de esta reparación/servicio individual
+    # Costo de esta reparacion/servicio individual
     costo = Column(Numeric(12, 2), nullable=True)
 
     orden = relationship("OrdenMantenimiento", back_populates="items")
-    activo_fijo = relationship("ActivoFijo")
+    activo_fijo = relationship(
+        "ActivoFijo",
+        back_populates="items_mantenimiento",
+    )
