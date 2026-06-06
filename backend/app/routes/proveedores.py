@@ -4,11 +4,13 @@ from typing import Optional
 
 from app.database import get_db
 from app.models.proveedor import Proveedor
+from app.models.activo_fijo import ActivoFijo
 from app.schemas.proveedor import (
     ProveedorCreate,
     ProveedorUpdate,
     ProveedorResponse,
 )
+from app.schemas.activo_fijo import ActivoFijoResponse
 from app.schemas.comun import PaginatedResponse
 from app.utils.deps import get_usuario_actual, require_operador, require_admin
 from app.utils.auditoria import registrar, get_ip
@@ -26,10 +28,6 @@ def listar_proveedores(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(get_usuario_actual),
 ):
-    """Lista proveedores con filtro opcional por nombre.
-
-    Solo el admin puede ver proveedores inactivos.
-    """
     q = db.query(Proveedor)
     if not incluir_inactivos:
         q = q.filter(Proveedor.activo.is_(True))
@@ -45,6 +43,31 @@ def listar_proveedores(
     }
 
 
+@router.get("/buscar", response_model=list[ProveedorResponse])
+def buscar_proveedores(
+    q: str,
+    limit: int = 8,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_usuario_actual),
+):
+    """Autocomplete: retorna proveedores cuyo nombre contiene 'q'.
+
+    Usado por el frontend al escribir en el campo de proveedor
+    del formulario de nueva orden de mantenimiento.
+    """
+    resultados = (
+        db.query(Proveedor)
+        .filter(
+            Proveedor.activo.is_(True),
+            Proveedor.nombre.ilike(f"%{q}%"),
+        )
+        .order_by(Proveedor.nombre)
+        .limit(limit)
+        .all()
+    )
+    return resultados
+
+
 @router.get("/{proveedor_id}", response_model=ProveedorResponse)
 def obtener_proveedor(
     proveedor_id: int,
@@ -55,6 +78,42 @@ def obtener_proveedor(
     if not prov:
         raise HTTPException(status_code=404, detail="Proveedor no encontrado")
     return prov
+
+
+@router.get("/{proveedor_id}/phantomas", response_model=list[ActivoFijoResponse])
+def listar_phantomas_de_proveedor(
+    proveedor_id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_usuario_actual),
+):
+    """Retorna los Phantomas activos y disponibles del proveedor.
+
+    Usado en el formulario de nueva orden para mostrar solo los
+    Phantomas del proveedor seleccionado.
+    Excluye los que ya están en_mantenimiento o dado_de_baja.
+    """
+    from app.models.activo_fijo import EstadoActivo, TipoActivoFijo
+    prov = db.query(Proveedor).filter(
+        Proveedor.id == proveedor_id,
+        Proveedor.activo.is_(True),
+    ).first()
+    if not prov:
+        raise HTTPException(status_code=404, detail="Proveedor no encontrado")
+    activos = (
+        db.query(ActivoFijo)
+        .filter(
+            ActivoFijo.proveedor_id == proveedor_id,
+            ActivoFijo.activo.is_(True),
+            ActivoFijo.tipo == TipoActivoFijo.phantoma,
+            ActivoFijo.estado.notin_([
+                EstadoActivo.en_mantenimiento,
+                EstadoActivo.dado_de_baja,
+            ]),
+        )
+        .order_by(ActivoFijo.codigo_interno)
+        .all()
+    )
+    return activos
 
 
 @router.post("/", response_model=ProveedorResponse, status_code=201)
@@ -125,7 +184,6 @@ def desactivar_proveedor(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(require_admin),
 ):
-    """Soft-delete: desactiva el proveedor sin borrar su historial."""
     prov = db.query(Proveedor).filter(Proveedor.id == proveedor_id).first()
     if not prov:
         raise HTTPException(status_code=404, detail="Proveedor no encontrado")

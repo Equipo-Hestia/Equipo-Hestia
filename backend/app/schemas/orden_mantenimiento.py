@@ -1,47 +1,70 @@
+from __future__ import annotations
 from pydantic import BaseModel, Field
-from app.models.orden_mantenimiento import EstadoOrden, TipoMantenimiento
+from app.models.orden_mantenimiento import EstadoOrden, ResultadoItem
 from datetime import date
+from typing import Optional, List
 
+
+# ── Ítems ───────────────────────────────────────────────────────────────────
+
+class OrdenItemResponse(BaseModel):
+    id:                    int
+    activo_fijo_id:        int
+    activo_fijo_nombre:    str
+    activo_fijo_codigo:    Optional[str]
+    resultado:             ResultadoItem
+    fecha_envio:           Optional[date]
+    fecha_retorno_estimada: Optional[date]
+    fecha_retorno:         Optional[date]
+    descripcion_problema:  Optional[str]
+    descripcion_trabajo:   Optional[str]
+    costo:                 Optional[float]
+
+    class Config:
+        from_attributes = True
+
+
+class OrdenItemUpdate(BaseModel):
+    """Payload para actualizar el resultado de un ítem al cerrar la orden."""
+    resultado:             ResultadoItem
+    fecha_envio:           Optional[date] = None
+    fecha_retorno_estimada: Optional[date] = None
+    fecha_retorno:         Optional[date] = None
+    descripcion_problema:  Optional[str]  = None
+    descripcion_trabajo:   Optional[str]  = None
+    costo:                 Optional[float] = Field(default=None, ge=0)
+
+
+# ── Cabecera ─────────────────────────────────────────────────────────────────
 
 class OrdenMantenimientoCreate(BaseModel):
-    activo_fijo_id: int
-    proveedor_id: int | None = None
-    tipo_mantenimiento: TipoMantenimiento | None = None
-    fecha_envio: date
-    fecha_retorno_estimada: date | None = None
-    descripcion_problema: str | None = None
-    notas: str | None = None
+    """Apertura de una visita de mantenimiento.
+
+    activo_ids: lista de IDs de Phantomas a incluir (mín. 1).
+    """
+    proveedor_id:  Optional[int]       = None
+    activo_ids:    List[int]           = Field(..., min_length=1)
+    fecha_visita:  date
+    notas:         Optional[str]       = None
 
 
 class OrdenMantenimientoUpdate(BaseModel):
-    proveedor_id: int | None = None
-    tipo_mantenimiento: TipoMantenimiento | None = None
-    estado: EstadoOrden | None = None
-    fecha_retorno_estimada: date | None = None
-    fecha_retorno: date | None = None
-    descripcion_trabajo: str | None = None
-    costo: float | None = Field(default=None, ge=0)
-    activo: bool | None = None
+    """Edición menor de la cabecera (proveedor, notas)."""
+    proveedor_id: Optional[int] = None
+    notas:        Optional[str] = None
 
 
 class OrdenMantenimientoResponse(BaseModel):
-    id: int
-    activo_fijo_id: int
-    activo_fijo_nombre: str
-    activo_fijo_codigo: str | None
-    proveedor_id: int | None
-    proveedor_nombre: str | None
-    creado_por_id: int | None
-    creado_por_nombre: str | None
-    estado: EstadoOrden
-    tipo_mantenimiento: TipoMantenimiento | None
-    fecha_envio: date
-    fecha_retorno_estimada: date | None
-    fecha_retorno: date | None
-    descripcion_problema: str | None
-    descripcion_trabajo: str | None
-    costo: float | None
-    activo: bool
+    id:              int
+    proveedor_id:    Optional[int]
+    proveedor_nombre: Optional[str]
+    creado_por_id:   Optional[int]
+    creado_por_nombre: Optional[str]
+    estado:          EstadoOrden
+    fecha_visita:    date
+    notas:           Optional[str]
+    activo:          bool
+    items:           List[OrdenItemResponse]
 
     class Config:
         from_attributes = True
