@@ -58,7 +58,6 @@ interface PaginatorProps {
 function Paginator({ page, totalPages, onPage }: PaginatorProps) {
   if (totalPages <= 1) return null
 
-  // Genera array de páginas visibles: máx 7, con ellipsis
   function pages(): (number | '...')[] {
     if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i)
     const result: (number | '...')[] = []
@@ -85,76 +84,48 @@ function Paginator({ page, totalPages, onPage }: PaginatorProps) {
 
   return (
     <div className="flex items-center gap-1">
-      {/* Ir a primera página */}
       <button
         onClick={() => onPage(0)} disabled={page === 0}
-        className={`${btnBase} ${btnNav} px-1.5`}
-        title="Primera página"
-      >
+        className={`${btnBase} ${btnNav} px-1.5`} title="Primera página">
         <ChevronsLeft size={13} />
       </button>
-
-      {/* Retroceder 10 */}
       <button
-        onClick={() => onPage(Math.max(0, page - 10))}
-        disabled={page === 0}
-        className={`${btnBase} ${btnNav} px-1.5`}
-        title="Retroceder 10 páginas"
-      >
+        onClick={() => onPage(Math.max(0, page - 10))} disabled={page === 0}
+        className={`${btnBase} ${btnNav} px-1.5`} title="Retroceder 10 páginas">
         <ChevronLeft size={13} />
         <span className="text-[10px] ml-0.5">10</span>
       </button>
-
-      {/* Anterior */}
       <button
         onClick={() => onPage(page - 1)} disabled={page === 0}
-        className={`${btnBase} ${btnNav} px-1.5`}
-        title="Página anterior"
-      >
+        className={`${btnBase} ${btnNav} px-1.5`} title="Página anterior">
         <ChevronLeft size={13} />
       </button>
-
-      {/* Números */}
       {pages().map((p, idx) =>
         p === '...'
           ? <span key={`e${idx}`} className="text-h-tertiary text-xs px-1">…</span>
           : (
             <button
-              key={p}
-              onClick={() => onPage(p as number)}
-              className={`${btnBase} px-2 ${p === page ? btnActive : btnNormal}`}
-            >
+              key={p} onClick={() => onPage(p as number)}
+              className={`${btnBase} px-2 ${p === page ? btnActive : btnNormal}`}>
               {(p as number) + 1}
             </button>
           )
       )}
-
-      {/* Siguiente */}
       <button
         onClick={() => onPage(page + 1)} disabled={page >= totalPages - 1}
-        className={`${btnBase} ${btnNav} px-1.5`}
-        title="Página siguiente"
-      >
+        className={`${btnBase} ${btnNav} px-1.5`} title="Página siguiente">
         <ChevronRight size={13} />
       </button>
-
-      {/* Avanzar 10 */}
       <button
         onClick={() => onPage(Math.min(totalPages - 1, page + 10))}
         disabled={page >= totalPages - 1}
-        className={`${btnBase} ${btnNav} px-1.5`}
-        title="Avanzar 10 páginas"
-      >
+        className={`${btnBase} ${btnNav} px-1.5`} title="Avanzar 10 páginas">
         <span className="text-[10px] mr-0.5">10</span>
         <ChevronRight size={13} />
       </button>
-
-      {/* Ir a última página */}
       <button
         onClick={() => onPage(totalPages - 1)} disabled={page >= totalPages - 1}
-        className={`${btnBase} ${btnNav} px-1.5`}
-        title="Última página"
-      >
+        className={`${btnBase} ${btnNav} px-1.5`} title="Última página">
         <ChevronsRight size={13} />
       </button>
     </div>
@@ -170,7 +141,7 @@ function StockBar({ actual, minimo }: { actual: number; minimo: number }) {
         style={{ background: 'var(--h-teal-hover)' }} />
     )
   }
-  const pct = Math.min(100, (actual / (minimo * 2)) * 100)
+  const pct   = Math.min(100, (actual / (minimo * 2)) * 100)
   const color = actual === 0
     ? 'var(--h-sem-danger-border)'
     : actual <= minimo
@@ -178,10 +149,8 @@ function StockBar({ actual, minimo }: { actual: number; minimo: number }) {
       : 'var(--h-teal-hover)'
   return (
     <div className="mt-1 h-[2px] w-full rounded-full bg-h-elevated overflow-hidden">
-      <div
-        className="h-full rounded-full transition-all duration-500"
-        style={{ width: `${pct}%`, background: color }}
-      />
+      <div className="h-full rounded-full transition-all duration-500"
+        style={{ width: `${pct}%`, background: color }} />
     </div>
   )
 }
@@ -225,22 +194,18 @@ export function Insumos() {
   const [showExportMenu, setShowExportMenu] = useState(false)
   const [showScanner, setShowScanner]   = useState(false)
 
-  // Fix hover-ghost: rastrea el id de la fila bajo el cursor
-  const [hoveredId, setHoveredId]     = useState<number | null>(null)
-  const exportRef                     = useRef<HTMLDivElement>(null)
-  const mainRef                       = useRef<HTMLDivElement>(null)
+  // Fix hover-ghost: id de fila bajo el cursor, reset al cambiar página
+  const [hoveredId, setHoveredId] = useState<number | null>(null)
+  const exportRef                 = useRef<HTMLDivElement>(null)
+  const mainRef                   = useRef<HTMLDivElement>(null)
 
   function showToast(msg: string) {
     setToast(msg); setTimeout(() => setToast(null), 3000)
   }
 
-  // Cambio de página: scroll al top instantáneo + reset hover
   function goToPage(p: number) {
     setPage(p)
     setHoveredId(null)
-    if (mainRef.current) {
-      mainRef.current.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior })
-    }
     window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior })
   }
 
@@ -290,8 +255,7 @@ export function Insumos() {
 
   function limpiarFiltros() {
     setSearchInput(''); setNombreFiltro('')
-    setCatFiltro('')
-    setBajoStock(false); setMostrar(false)
+    setCatFiltro(''); setBajoStock(false); setMostrar(false)
     setTipoFiltro(''); goToPage(0)
   }
 
@@ -318,7 +282,9 @@ export function Insumos() {
   }
 
   function abrirCrear() { setForm(FORM_VACIO); setFormError(null); setShowCrear(true) }
-  function abrirEditar(i: InsumoResponse) { setForm(insumoAForm(i)); setFormError(null); setEditTarget(i) }
+  function abrirEditar(i: InsumoResponse) {
+    setForm(insumoAForm(i)); setFormError(null); setEditTarget(i)
+  }
   function abrirEliminar(i: InsumoResponse) {
     setDeleteTarget(i); setDeleteStep('confirm'); setDeleteTotp(''); setFormError(null)
   }
@@ -336,8 +302,7 @@ export function Insumos() {
       stock_actual: parseInt(form.stock_actual) || 0,
       stock_minimo: parseInt(form.stock_minimo) || 0,
       categoria_id: form.categoria_id ? parseInt(form.categoria_id) : null,
-      tipo: form.tipo,
-      sku: form.sku.trim() || null,
+      tipo: form.tipo, sku: form.sku.trim() || null,
       codigo_barras: form.codigo_barras.trim() || null,
       costo_unitario: form.costo_unitario ? parseFloat(form.costo_unitario) : null,
       fecha_vencimiento: form.fecha_vencimiento || null,
@@ -361,7 +326,9 @@ export function Insumos() {
     if (!deleteTarget) return
     setDeleting(true)
     try {
-      await api.delete(`/insumos/${deleteTarget.id}`, { headers: { 'x-totp-code': deleteTotp } })
+      await api.delete(`/insumos/${deleteTarget.id}`, {
+        headers: { 'x-totp-code': deleteTotp },
+      })
       showToast(`'${deleteTarget.nombre}' desactivado`); cerrarModal()
       load(page * PAGE_SIZE, nombreFiltro, catFiltro, bajoStock, mostrarInactivos, tipoFiltro)
     } catch (err: unknown) {
@@ -375,7 +342,7 @@ export function Insumos() {
     if (!reactivarTarget) return
     setDeleting(true)
     try {
-      await api.put(`/reactivarTarget.id}`, { activo: true })
+      await api.put(`/insumos/${reactivarTarget.id}`, { activo: true })
       showToast(`'${reactivarTarget.nombre}' reactivado`); cerrarModal()
       load(page * PAGE_SIZE, nombreFiltro, catFiltro, bajoStock, mostrarInactivos, tipoFiltro)
     } catch (err: unknown) {
@@ -397,7 +364,8 @@ export function Insumos() {
   const inputCls = `w-full px-3 py-2.5 rounded-lg text-h-primary text-sm
     focus:outline-none transition-all bg-h-elevated border border-h-visible
     focus:border-h-strong placeholder:text-h-tertiary`
-  const labelCls = `block text-[10px] font-semibold text-h-tertiary uppercase tracking-widest mb-1.5`
+  const labelCls = `block text-[10px] font-semibold text-h-tertiary
+    uppercase tracking-widest mb-1.5`
   const selectCls = `${inputCls} cursor-pointer`
 
   return (
@@ -431,13 +399,11 @@ export function Insumos() {
           {puedeEscribir && (
             <div className="relative" ref={exportRef}>
               <button
-                onClick={() => setShowExportMenu(v => !v)}
-                disabled={exporting}
+                onClick={() => setShowExportMenu(v => !v)} disabled={exporting}
                 className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium
                            transition-colors duration-150 disabled:opacity-50
                            text-h-secondary bg-h-elevated border border-h-subtle
-                           hover:bg-h-highlight hover:text-h-primary"
-              >
+                           hover:bg-h-highlight hover:text-h-primary">
                 <Download size={14} />{exporting ? 'Exportando…' : 'Exportar'}
               </button>
               {showExportMenu && (
@@ -463,15 +429,14 @@ export function Insumos() {
                          px-4 py-2.5 rounded-xl text-sm transition-colors duration-150"
               style={{ background: 'var(--h-teal-rest)' }}
               onMouseEnter={e => (e.currentTarget.style.background = 'var(--h-teal-hover)')}
-              onMouseLeave={e => (e.currentTarget.style.background = 'var(--h-teal-rest)')}
-            >
+              onMouseLeave={e => (e.currentTarget.style.background = 'var(--h-teal-rest)')}>
               <Plus size={16} /> Nuevo ítem
             </button>
           )}
         </div>
       </div>
 
-      {/* Toolbar búsqueda + filtros */}
+      {/* Toolbar */}
       <div className="bg-h-surface rounded-xl border border-h-subtle p-4 mb-4">
         <div className="flex gap-2 mb-3">
           <SearchWithSuggestions
@@ -528,17 +493,15 @@ export function Insumos() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-h-subtle bg-h-elevated">
-              <th className="text-left px-4 py-3 text-[10px] font-semibold text-h-tertiary
-                             uppercase tracking-widest">Nombre</th>
-              <th className="text-right px-4 py-3 text-[10px] font-semibold text-h-tertiary
-                             uppercase tracking-widest">Stock</th>
-              <th className="text-right px-4 py-3 text-[10px] font-semibold text-h-tertiary
-                             uppercase tracking-widest">Mínimo</th>
-              <th className="text-center px-4 py-3 text-[10px] font-semibold text-h-tertiary
-                             uppercase tracking-widest">Estado</th>
-              {puedeEscribir && (
-                <th className="w-10 px-4 py-3" aria-label="Acciones" />
-              )}
+              <th className="text-left px-4 py-3 text-[10px] font-semibold
+                             text-h-tertiary uppercase tracking-widest">Nombre</th>
+              <th className="text-right px-4 py-3 text-[10px] font-semibold
+                             text-h-tertiary uppercase tracking-widest">Stock</th>
+              <th className="text-right px-4 py-3 text-[10px] font-semibold
+                             text-h-tertiary uppercase tracking-widest">Mínimo</th>
+              <th className="text-center px-4 py-3 text-[10px] font-semibold
+                             text-h-tertiary uppercase tracking-widest">Estado</th>
+              {puedeEscribir && <th className="w-10 px-4 py-3" aria-label="Acciones" />}
             </tr>
           </thead>
           <tbody>
@@ -564,8 +527,7 @@ export function Insumos() {
             ) : insumos.map(i => {
               const isHovered = hoveredId === i.id
               return (
-                <tr
-                  key={i.id}
+                <tr key={i.id}
                   onMouseEnter={() => setHoveredId(i.id)}
                   onMouseLeave={() => setHoveredId(null)}
                   className={`
@@ -589,16 +551,13 @@ export function Insumos() {
 
                   {/* Stock + barra */}
                   <td className="px-4 py-3 text-right">
-                    <span
-                      className="text-sm font-bold"
-                      style={{
-                        color: i.stock_actual === 0
-                          ? 'var(--h-sem-danger-text)'
-                          : i.stock_actual <= i.stock_minimo
-                            ? 'var(--h-sem-warning-text)'
-                            : 'var(--h-text-primary)',
-                      }}
-                    >
+                    <span className="text-sm font-bold" style={{
+                      color: i.stock_actual === 0
+                        ? 'var(--h-sem-danger-text)'
+                        : i.stock_actual <= i.stock_minimo
+                          ? 'var(--h-sem-warning-text)'
+                          : 'var(--h-text-primary)',
+                    }}>
                       {i.stock_actual}
                     </span>
                     <StockBar actual={i.stock_actual} minimo={i.stock_minimo} />
@@ -612,59 +571,57 @@ export function Insumos() {
                   {/* Estado */}
                   <td className="px-4 py-3 text-center">{stockBadge(i)}</td>
 
-                  {/* Acciones — solo visibles en hover */}
+                  {/* Acciones — solo en hover */}
                   {puedeEscribir && (
                     <td className="px-3 py-3 w-10">
-                      <div
-                        className="flex items-center justify-end gap-1 transition-opacity duration-150"
-                        style={{ opacity: isHovered ? 1 : 0 }}
-                      >
+                      <div className="flex items-center justify-end gap-1
+                                      transition-opacity duration-150"
+                        style={{ opacity: isHovered ? 1 : 0 }}>
                         {i.tipo === 'implemento' && i.activo && (
                           <button
                             onClick={() => navigate(`/insumos/${i.id}/unidades`)}
                             title="Ver unidades físicas"
-                            className="p-1.5 rounded-md text-h-tertiary transition-colors duration-150
-                                       hover:bg-h-highlight hover:text-h-secondary"
-                          >
+                            className="p-1.5 rounded-md text-h-tertiary
+                                       transition-colors duration-150
+                                       hover:bg-h-highlight hover:text-h-secondary">
                             <Layers size={14} />
                           </button>
                         )}
                         {i.activo ? (
                           <>
-                            <button onClick={() => abrirEditar(i)}
-                              title="Editar"
-                              className="p-1.5 rounded-md text-h-tertiary transition-colors duration-150
+                            <button onClick={() => abrirEditar(i)} title="Editar"
+                              className="p-1.5 rounded-md text-h-tertiary
+                                         transition-colors duration-150
                                          hover:bg-h-highlight hover:text-h-secondary">
                               <Pencil size={14} />
                             </button>
                             {puedeEliminar && (
-                              <button onClick={() => abrirEliminar(i)}
-                                title="Desactivar"
-                                className="p-1.5 rounded-md text-h-tertiary transition-colors duration-150"
+                              <button onClick={() => abrirEliminar(i)} title="Desactivar"
+                                className="p-1.5 rounded-md transition-colors duration-150"
                                 style={{ color: 'var(--h-text-tertiary)' }}
                                 onMouseEnter={e => {
-                                  (e.currentTarget as HTMLButtonElement).style.background = 'var(--h-sem-danger-bg)'
-                                  ;(e.currentTarget as HTMLButtonElement).style.color = 'var(--h-sem-danger-text)'
+                                  const b = e.currentTarget as HTMLButtonElement
+                                  b.style.background = 'var(--h-sem-danger-bg)'
+                                  b.style.color = 'var(--h-sem-danger-text)'
                                 }}
                                 onMouseLeave={e => {
-                                  (e.currentTarget as HTMLButtonElement).style.background = ''
-                                  ;(e.currentTarget as HTMLButtonElement).style.color = 'var(--h-text-tertiary)'
-                                }}
-                              >
+                                  const b = e.currentTarget as HTMLButtonElement
+                                  b.style.background = ''
+                                  b.style.color = 'var(--h-text-tertiary)'
+                                }}>
                                 <Archive size={14} />
                               </button>
                             )}
                           </>
                         ) : (
                           puedeEliminar && (
-                            <button onClick={() => abrirReactivar(i)}
-                              className="flex items-center gap-1 px-2 py-1 rounded-md text-xs
-                                         font-medium transition-colors duration-150"
+                            <button onClick={() => abrirReactivar(i)} title="Reactivar"
+                              className="flex items-center gap-1 px-2 py-1 rounded-md
+                                         text-xs font-medium transition-colors duration-150"
                               style={{
                                 background: 'var(--h-sem-success-bg)',
                                 color: 'var(--h-sem-success-text)',
-                              }}
-                              title="Reactivar">
+                              }}>
                               <ArchiveRestore size={12} /> Reactivar
                             </button>
                           )
@@ -678,13 +635,11 @@ export function Insumos() {
           </tbody>
         </table>
 
-        {/* Footer de paginación */}
         {!loading && totalPages > 1 && (
           <div className="flex items-center justify-between px-4 py-3
                           border-t border-h-subtle">
             <p className="text-xs text-h-tertiary">
-              Página {page + 1} de {totalPages}
-              {' '}· {total} ítems en total
+              Página {page + 1} de {totalPages} · {total} ítems en total
             </p>
             <Paginator page={page} totalPages={totalPages} onPage={goToPage} />
           </div>
@@ -695,34 +650,26 @@ export function Insumos() {
       {showModal && (
         <Modal
           title={editTarget ? 'Editar ítem' : 'Nuevo insumo o implemento'}
-          onClose={cerrarModal}
-          size="lg"
-        >
+          onClose={cerrarModal} size="lg">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className={labelCls}>Tipo de ítem *</label>
               <div className="flex rounded-xl border border-h-subtle overflow-hidden">
-                <button type="button"
-                  onClick={() => setField('tipo', 'insumo')}
+                <button type="button" onClick={() => setField('tipo', 'insumo')}
                   className={`flex-1 py-2.5 text-sm font-semibold transition-colors ${
-                    form.tipo === 'insumo'
-                      ? 'text-white'
-                      : 'text-h-secondary hover:bg-h-elevated'
+                    form.tipo === 'insumo' ? 'text-white' : 'text-h-secondary hover:bg-h-elevated'
                   }`}
-                  style={form.tipo === 'insumo'
-                    ? { background: 'var(--h-teal-rest)' } : {}}>
+                  style={form.tipo === 'insumo' ? { background: 'var(--h-teal-rest)' } : {}}>
                   Insumo desechable
                 </button>
-                <button type="button"
-                  onClick={() => setField('tipo', 'implemento')}
+                <button type="button" onClick={() => setField('tipo', 'implemento')}
                   className={`flex-1 py-2.5 text-sm font-semibold border-l border-h-subtle
                                transition-colors ${
-                    form.tipo === 'implemento'
-                      ? 'text-white'
-                      : 'text-h-secondary hover:bg-h-elevated'
+                    form.tipo === 'implemento' ? 'text-white' : 'text-h-secondary hover:bg-h-elevated'
                   }`}
                   style={form.tipo === 'implemento'
-                    ? { background: 'var(--h-teal-rest)', borderColor: 'var(--h-teal-rest)' } : {}}>
+                    ? { background: 'var(--h-teal-rest)', borderColor: 'var(--h-teal-rest)' }
+                    : {}}>
                   Implemento retornable
                 </button>
               </div>
@@ -819,12 +766,11 @@ export function Insumos() {
             </div>
 
             {formError && (
-              <p className="text-xs px-3 py-2 rounded-lg font-medium"
-                style={{
-                  background: 'var(--h-sem-danger-bg)',
-                  color: 'var(--h-sem-danger-text)',
-                  border: '1px solid var(--h-sem-danger-border)',
-                }}>{formError}</p>
+              <p className="text-xs px-3 py-2 rounded-lg font-medium" style={{
+                background: 'var(--h-sem-danger-bg)',
+                color: 'var(--h-sem-danger-text)',
+                border: '1px solid var(--h-sem-danger-border)',
+              }}>{formError}</p>
             )}
             <div className="flex gap-3 pt-2">
               <button type="button" onClick={cerrarModal}
@@ -860,11 +806,10 @@ export function Insumos() {
                 y puede reactivarse cuando quieras.
               </p>
               {userHas2FA === false ? (
-                <div className="rounded-xl p-4 text-left border"
-                  style={{
-                    background: 'var(--h-sem-warning-bg)',
-                    borderColor: 'var(--h-sem-warning-border)',
-                  }}>
+                <div className="rounded-xl p-4 text-left border" style={{
+                  background: 'var(--h-sem-warning-bg)',
+                  borderColor: 'var(--h-sem-warning-border)',
+                }}>
                   <div className="flex items-start gap-2">
                     <ShieldAlert size={16} className="mt-0.5 flex-shrink-0"
                       style={{ color: 'var(--h-sem-warning-text)' }} />
@@ -879,8 +824,7 @@ export function Insumos() {
                   </div>
                   <Link to="/seguridad" onClick={cerrarModal}
                     className="mt-3 flex items-center justify-center gap-1.5
-                               text-white text-xs font-semibold py-2 rounded-lg
-                               transition-colors"
+                               text-white text-xs font-semibold py-2 rounded-lg transition-colors"
                     style={{ background: 'var(--h-teal-rest)' }}>
                     Activar 2FA ahora
                   </Link>
@@ -896,8 +840,7 @@ export function Insumos() {
                                  text-h-secondary font-medium hover:bg-h-elevated
                                  transition-colors">Cancelar</button>
                     <button onClick={() => setDeleteStep('totp')}
-                      className="flex-1 py-2.5 rounded-xl text-white font-semibold
-                                 transition-colors"
+                      className="flex-1 py-2.5 rounded-xl text-white font-semibold transition-colors"
                       style={{ background: 'var(--h-sem-danger-border)' }}>
                       Continuar
                     </button>
@@ -919,12 +862,11 @@ export function Insumos() {
                            placeholder:text-h-tertiary transition-all"
                 placeholder="000000" autoFocus />
               {formError && (
-                <p className="text-xs px-3 py-2 rounded-lg font-medium mb-4"
-                  style={{
-                    background: 'var(--h-sem-danger-bg)',
-                    color: 'var(--h-sem-danger-text)',
-                    border: '1px solid var(--h-sem-danger-border)',
-                  }}>{formError}</p>
+                <p className="text-xs px-3 py-2 rounded-lg font-medium mb-4" style={{
+                  background: 'var(--h-sem-danger-bg)',
+                  color: 'var(--h-sem-danger-text)',
+                  border: '1px solid var(--h-sem-danger-border)',
+                }}>{formError}</p>
               )}
               <div className="flex gap-3">
                 <button onClick={() => { setDeleteStep('confirm'); setFormError(null) }}
@@ -957,12 +899,11 @@ export function Insumos() {
               los listados y podrá recibir movimientos de stock.
             </p>
             {formError && (
-              <p className="text-xs px-3 py-2 rounded-lg mb-4"
-                style={{
-                  background: 'var(--h-sem-danger-bg)',
-                  color: 'var(--h-sem-danger-text)',
-                  border: '1px solid var(--h-sem-danger-border)',
-                }}>{formError}</p>
+              <p className="text-xs px-3 py-2 rounded-lg mb-4" style={{
+                background: 'var(--h-sem-danger-bg)',
+                color: 'var(--h-sem-danger-text)',
+                border: '1px solid var(--h-sem-danger-border)',
+              }}>{formError}</p>
             )}
             <div className="flex gap-3">
               <button onClick={cerrarModal}
