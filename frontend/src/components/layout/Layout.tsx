@@ -14,7 +14,6 @@ export function Layout() {
 
   const [show2FAWarning, setShow2FAWarning] = useState(false)
 
-  // Sincroniza la clase 'dark' en <html> cuando cambia la preferencia de tema
   useEffect(() => {
     if (isDark) {
       document.documentElement.classList.add('dark')
@@ -25,16 +24,9 @@ export function Layout() {
 
   useEffect(() => {
     if (!token) return
-
-    // Pop-up 2FA: aparece siempre que totp_habilitado sea false,
-    // sin importar si el usuario ya lo descartó antes.
     api.get<UsuarioMe>('/usuarios/me').then(({ data }) => {
       if (!data.totp_habilitado) setShow2FAWarning(true)
     }).catch(() => {})
-
-    // El pop-up de solicitudes fue eliminado: el flujo de solicitudes
-    // de retiro ya no existe en Hestia. Maritza gestiona los insumos
-    // a través de los Paquetes de insumos (Guía de Taller).
   }, [token])
 
   function dismiss2FA() { setShow2FAWarning(false) }
@@ -47,46 +39,45 @@ export function Layout() {
   if (!token) return <Navigate to="/login" replace />
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-slate-900">
+    <div className="flex h-screen overflow-hidden bg-h-base">
       <Sidebar />
       <main className="flex-1 overflow-y-auto">
         <Outlet />
       </main>
 
-      {/* Pop-up 2FA — aparece siempre que totp_habilitado sea false */}
       {show2FAWarning && (
         <div
           className="
-            fixed inset-0 bg-slate-900/50 backdrop-blur-sm
+            fixed inset-0 bg-black/50 backdrop-blur-sm
             flex items-center justify-center z-50 p-4
           "
         >
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-sm p-7">
+          <div className="bg-h-surface border border-h-subtle rounded-2xl w-full max-w-sm p-7">
             <div className="flex items-start justify-between mb-4">
               <div
                 className="
-                  w-12 h-12 bg-amber-100 dark:bg-amber-900/40 rounded-xl
-                  flex items-center justify-center flex-shrink-0
+                  w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0
+                  bg-h-warning border border-h-warning
                 "
               >
-                <ShieldAlert size={24} className="text-amber-600 dark:text-amber-400" />
+                <ShieldAlert size={24} className="text-h-warning" />
               </div>
               <button
                 onClick={dismiss2FA}
                 className="
-                  w-8 h-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700
-                  flex items-center justify-center
-                  text-slate-400 hover:text-slate-600 dark:hover:text-slate-200
+                  w-8 h-8 rounded-lg flex items-center justify-center
+                  text-h-tertiary hover:bg-h-elevated hover:text-h-secondary
+                  transition-colors duration-150
                 "
               >
                 <X size={16} />
               </button>
             </div>
 
-            <h2 className="text-lg font-black text-slate-900 dark:text-slate-50 mb-2">
+            <h2 className="text-lg font-bold text-h-primary mb-2">
               Activa la verificación en dos pasos
             </h2>
-            <p className="text-slate-500 dark:text-slate-400 text-sm mb-4">
+            <p className="text-h-secondary text-sm mb-4">
               Sin el 2FA activo, algunas funciones críticas no estarán disponibles:
             </p>
             <ul className="space-y-2 mb-6">
@@ -100,15 +91,12 @@ export function Layout() {
                     className="
                       w-5 h-5 rounded-full flex items-center justify-center
                       text-xs flex-shrink-0
-                      bg-amber-100 dark:bg-amber-900/50
-                      text-amber-700 dark:text-amber-400
+                      bg-h-warning text-h-warning
                     "
                   >
                     !
                   </span>
-                  <span className="text-slate-700 dark:text-slate-300 font-semibold">
-                    {item}
-                  </span>
+                  <span className="text-h-primary font-medium">{item}</span>
                 </li>
               ))}
             </ul>
@@ -116,17 +104,24 @@ export function Layout() {
             <button
               onClick={goToSecurity}
               className="
-                w-full bg-teal-600 hover:bg-teal-700 text-white font-bold
-                py-2.5 rounded-xl transition-colors mb-2
+                w-full font-semibold py-2.5 rounded-xl transition-colors mb-2
+                text-sm text-white
               "
+              style={{ background: 'var(--h-teal-rest)' }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.background = 'var(--h-teal-hover)'
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.background = 'var(--h-teal-rest)'
+              }}
             >
               Configurar 2FA ahora
             </button>
             <button
               onClick={dismiss2FA}
               className="
-                w-full py-2 text-sm font-semibold transition-colors
-                text-slate-400 hover:text-slate-600 dark:hover:text-slate-200
+                w-full py-2 text-sm font-medium transition-colors
+                text-h-tertiary hover:text-h-secondary
               "
             >
               Recordar más tarde
