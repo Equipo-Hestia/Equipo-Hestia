@@ -2,12 +2,110 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ─── Tipografía global ────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════
+   HESTIA DESIGN TOKENS
+   Fuente de verdad para la paleta de colores del sistema.
+   Las variables definidas aquí son consumidas por:
+     1. tailwind.config.js  → clases utilitarias h-*
+     2. Reglas CSS directas → overrides de modo oscuro
+   ═══════════════════════════════════════════════════════════ */
+
+:root {
+  /* ── Fondos (modo claro) ─────────────────────────────── */
+  --h-bg-base:      #f8fafc;   /* Fondo de página            */
+  --h-bg-surface:   #ffffff;   /* Sidebar · cards contenedor */
+  --h-bg-elevated:  #f1f5f9;   /* Cards internas · modales   */
+  --h-bg-highlight: #e2e8f0;   /* Selected · active state    */
+
+  /* ── Bordes (modo claro) ────────────────────────────── */
+  --h-border-subtle:   #e2e8f0;  /* Entre cards · divisores        */
+  --h-border-visible:  #cbd5e1;  /* Inputs focus · cards activos   */
+  --h-border-strong:   #94a3b8;  /* Separador de sección           */
+
+  /* ── Texto (modo claro) ─────────────────────────────── */
+  --h-text-primary:   #0f172a;  /* Títulos · valores              */
+  --h-text-secondary: #475569;  /* Labels · descripciones         */
+  --h-text-tertiary:  #94a3b8;  /* Metadatos · timestamps         */
+  --h-text-accent:    #0f6e56;  /* Links · valores positivos      */
+
+  /* ── Acento teal (modo claro) ───────────────────────── */
+  --h-teal-rest:    #0f6e56;  /* Botón reposo                   */
+  --h-teal-hover:   #1d9e75;  /* Botón hover                    */
+  --h-teal-active:  #5dcaa5;  /* Botón pressed                  */
+  --h-teal-subtle:  #e1f5ee;  /* Fondo sutil teal               */
+  --h-teal-border:  #1d9e75;  /* Borde outline teal             */
+
+  /* ── Semánticos (modo claro) ────────────────────────── */
+  --h-sem-warning-bg:     #fefce8;
+  --h-sem-warning-border: #fde047;
+  --h-sem-warning-text:   #854d0e;
+
+  --h-sem-danger-bg:      #fff1f2;
+  --h-sem-danger-border:  #fca5a5;
+  --h-sem-danger-text:    #991b1b;
+
+  --h-sem-success-bg:     #f0fdf4;
+  --h-sem-success-border: #86efac;
+  --h-sem-success-text:   #166534;
+
+  --h-sem-info-bg:        #eff6ff;
+  --h-sem-info-border:    #93c5fd;
+  --h-sem-info-text:      #1e40af;
+}
+
+.dark {
+  color-scheme: dark;
+
+  /* ── Fondos (modo oscuro) ────────────────────────────── */
+  --h-bg-base:      #0f1117;  /* Fondo de página            */
+  --h-bg-surface:   #161b22;  /* Sidebar · cards contenedor */
+  --h-bg-elevated:  #1e2530;  /* Cards internas · modales   */
+  --h-bg-highlight: #263040;  /* Selected · active state    */
+
+  /* ── Bordes (modo oscuro) ───────────────────────────── */
+  --h-border-subtle:   #2a3444;  /* Entre cards · divisores        */
+  --h-border-visible:  #3a4a5c;  /* Inputs focus · cards activos   */
+  --h-border-strong:   #4a5f72;  /* Separador de sección           */
+
+  /* ── Texto (modo oscuro) ────────────────────────────── */
+  --h-text-primary:   #f1f5f9;  /* Títulos · valores              */
+  --h-text-secondary: #94a3b8;  /* Labels · descripciones         */
+  --h-text-tertiary:  #475569;  /* Metadatos · timestamps         */
+  --h-text-accent:    #1d9e75;  /* Links · valores positivos      */
+
+  /* ── Acento teal (modo oscuro) ──────────────────────── */
+  --h-teal-rest:    #0f6e56;
+  --h-teal-hover:   #1d9e75;
+  --h-teal-active:  #5dcaa5;
+  --h-teal-subtle:  rgba(4, 52, 44, 0.5);  /* Fondo sutil sobre oscuro */
+  --h-teal-border:  #1d9e75;
+
+  /* ── Semánticos (modo oscuro) ───────────────────────── */
+  --h-sem-warning-bg:     rgba(66, 32, 6, 0.7);
+  --h-sem-warning-border: #854f0b;
+  --h-sem-warning-text:   #fac775;
+
+  --h-sem-danger-bg:      rgba(63, 15, 15, 0.7);
+  --h-sem-danger-border:  #a32d2d;
+  --h-sem-danger-text:    #f7c1c1;
+
+  --h-sem-success-bg:     rgba(4, 52, 44, 0.7);
+  --h-sem-success-border: #0f6e56;
+  --h-sem-success-text:   #9fe1cb;
+
+  --h-sem-info-bg:        rgba(12, 37, 66, 0.7);
+  --h-sem-info-border:    #185fa5;
+  --h-sem-info-text:      #b5d4f4;
+}
+
+
+/* ─── Tipografía global ──────────────────────────────────── */
 * {
   font-family: 'Nunito', sans-serif;
 }
 
-/* ─── Skeleton loading ──────────────────────────────────── */
+
+/* ─── Skeleton loading ───────────────────────────────────── */
 @keyframes shimmer {
   0%   { background-position: -200% 0; }
   100% { background-position:  200% 0; }
@@ -16,33 +114,24 @@
 .skeleton {
   background: linear-gradient(
     90deg,
-    #e2e8f0 25%,
-    #f1f5f9 50%,
-    #e2e8f0 75%
+    var(--h-bg-elevated) 25%,
+    var(--h-bg-highlight) 50%,
+    var(--h-bg-elevated) 75%
   );
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite linear;
   border-radius: 0.5rem;
 }
 
-.dark .skeleton {
-  background: linear-gradient(
-    90deg,
-    #334155 25%,
-    #475569 50%,
-    #334155 75%
-  );
-  background-size: 200% 100%;
-}
 
 /* ─── Scrollbar sutil ────────────────────────────────────── */
-::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar       { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-
-.dark ::-webkit-scrollbar-thumb { background: #475569; }
-.dark ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+::-webkit-scrollbar-thumb {
+  background: var(--h-border-visible);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--h-border-strong); }
 
 
 /* ═══════════════════════════════════════════════════════════
@@ -54,125 +143,118 @@
    páginas sin tocar cada componente individualmente.
    ═══════════════════════════════════════════════════════════ */
 
-/* Indica al navegador que el modo de color es oscuro;
-   mejora la apariencia de controles nativos (select, date, etc.) */
-.dark {
-  color-scheme: dark;
-}
-
-
 /* ══ Fondos principales ══════════════════════════════════════ */
 
-/* Tarjetas, paneles y modales */
-.dark .bg-white     { background-color: #1e293b; }
-/* Página, campos de formulario */
-.dark .bg-slate-50  { background-color: #0f172a; }
-/* Fondos secundarios (thead, chips) */
-.dark .bg-slate-100 { background-color: #1e293b; }
-.dark .bg-slate-200 { background-color: #334155; }
+.dark .bg-white     { background-color: var(--h-bg-elevated); }
+.dark .bg-slate-50  { background-color: var(--h-bg-base);     }
+.dark .bg-slate-100 { background-color: var(--h-bg-elevated); }
+.dark .bg-slate-200 { background-color: var(--h-bg-highlight); }
 
 
 /* ══ Hover e interacciones ═══════════════════════════════════ */
 
-.dark .hover\:bg-slate-50:hover  { background-color: #1e293b; }
-.dark .hover\:bg-slate-100:hover { background-color: #334155; }
-/* Para inputs con focus:bg-white (ej. Insumos form) */
-.dark .focus\:bg-white:focus     { background-color: #1e293b; }
+.dark .hover\:bg-slate-50:hover  { background-color: var(--h-bg-elevated);  }
+.dark .hover\:bg-slate-100:hover { background-color: var(--h-bg-highlight); }
+.dark .focus\:bg-white:focus     { background-color: var(--h-bg-elevated);  }
 
 
 /* ══ Texto ══════════════════════════════════════════════════ */
 
-/* text-slate-900 (#0f172a) sobre fondo #0f172a = invisible → near-white */
-.dark .text-slate-900 { color: #f1f5f9; }
-/* text-slate-800 (#1e293b) sobre fondo #1e293b = invisible → slate-100 */
-.dark .text-slate-800 { color: #f1f5f9; }
-/* text-slate-700 (#334155) sobre fondo oscuro = casi invisible → slate-300 */
-.dark .text-slate-700 { color: #cbd5e1; }
-/* text-slate-600 (#475569) contraste 2.1:1 → slate-400 (6.3:1) */
-.dark .text-slate-600 { color: #94a3b8; }
-/* text-slate-500 (#64748b) contraste 3.4:1 → slate-400 (6.3:1) */
-.dark .text-slate-500 { color: #94a3b8; }
+.dark .text-slate-900 { color: var(--h-text-primary);   }
+.dark .text-slate-800 { color: var(--h-text-primary);   }
+.dark .text-slate-700 { color: #cbd5e1;                 }
+.dark .text-slate-600 { color: var(--h-text-secondary); }
+.dark .text-slate-500 { color: var(--h-text-secondary); }
 
 
 /* ══ Bordes ══════════════════════════════════════════════════ */
 
-.dark .border-slate-200 { border-color: #334155; }
-.dark .border-slate-100 { border-color: #1e293b; }
+.dark .border-slate-200 { border-color: var(--h-bg-highlight); }
+.dark .border-slate-100 { border-color: var(--h-bg-elevated);  }
 
 
 /* ══ Divisores (divide-y / divide-x) ════════════════════════ */
 
-.dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]) { border-color: #334155; }
-.dark .divide-slate-200 > :not([hidden]) ~ :not([hidden]) { border-color: #334155; }
+.dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--h-bg-highlight);
+}
+.dark .divide-slate-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--h-bg-highlight);
+}
 
 
-/* ══ Fondos semánticos (teal, amber, rose, etc.) ════════════ */
+/* ══ Fondos semánticos — nivel -50 ══════════════════════════ */
 
-/* Nivel -50 (muy sutil, usado en indicadores y alertas) */
-.dark .bg-teal-50    { background-color: rgba(19, 78, 74, 0.35);  }
-.dark .bg-amber-50   { background-color: rgba(120, 53, 15, 0.35); }
-.dark .bg-rose-50    { background-color: rgba(136, 19, 55, 0.35); }
-.dark .bg-emerald-50 { background-color: rgba(6, 78, 59, 0.35);   }
-.dark .bg-blue-50    { background-color: rgba(30, 58, 138, 0.35); }
+.dark .bg-teal-50    { background-color: var(--h-sem-success-bg);  }
+.dark .bg-amber-50   { background-color: var(--h-sem-warning-bg);  }
+.dark .bg-rose-50    { background-color: var(--h-sem-danger-bg);   }
+.dark .bg-emerald-50 { background-color: var(--h-sem-success-bg);  }
+.dark .bg-blue-50    { background-color: var(--h-sem-info-bg);     }
 
-/* Nivel -100 (usado en íconos de modal e highlights) */
-.dark .bg-teal-100    { background-color: rgba(19, 78, 74, 0.4);  }
-.dark .bg-amber-100   { background-color: rgba(120, 53, 15, 0.4); }
-.dark .bg-rose-100    { background-color: rgba(136, 19, 55, 0.4); }
-.dark .bg-emerald-100 { background-color: rgba(6, 78, 59, 0.4);   }
-.dark .bg-blue-100    { background-color: rgba(30, 58, 138, 0.4); }
+
+/* ══ Fondos semánticos — nivel -100 ═════════════════════════ */
+
+.dark .bg-teal-100    { background-color: var(--h-sem-success-bg);  }
+.dark .bg-amber-100   { background-color: var(--h-sem-warning-bg);  }
+.dark .bg-rose-100    { background-color: var(--h-sem-danger-bg);   }
+.dark .bg-emerald-100 { background-color: var(--h-sem-success-bg);  }
+.dark .bg-blue-100    { background-color: var(--h-sem-info-bg);     }
 
 
 /* ══ Bordes semánticos ═══════════════════════════════════════ */
 
-.dark .border-teal-200    { border-color: rgba(15, 118, 110, 0.5); }
-.dark .border-amber-200   { border-color: rgba(180, 83, 9, 0.5);   }
-.dark .border-rose-200    { border-color: rgba(190, 18, 60, 0.5);  }
-.dark .border-emerald-200 { border-color: rgba(4, 120, 87, 0.5);   }
-.dark .border-blue-200    { border-color: rgba(37, 99, 235, 0.5);  }
+.dark .border-teal-200    { border-color: var(--h-sem-success-border); }
+.dark .border-amber-200   { border-color: var(--h-sem-warning-border); }
+.dark .border-rose-200    { border-color: var(--h-sem-danger-border);  }
+.dark .border-emerald-200 { border-color: var(--h-sem-success-border); }
+.dark .border-blue-200    { border-color: var(--h-sem-info-border);    }
 
-/* Hover en fondos semánticos */
-.dark .hover\:bg-rose-100:hover    { background-color: rgba(136, 19, 55, 0.5);  }
-.dark .hover\:bg-amber-100:hover   { background-color: rgba(120, 53, 15, 0.5);  }
-.dark .hover\:bg-teal-100:hover    { background-color: rgba(19, 78, 74, 0.5);   }
-.dark .hover\:bg-emerald-100:hover { background-color: rgba(6, 78, 59, 0.5);    }
+
+/* ══ Hover semánticos ════════════════════════════════════════ */
+
+.dark .hover\:bg-rose-50:hover    { background-color: var(--h-sem-danger-bg);   }
+.dark .hover\:bg-amber-50:hover   { background-color: var(--h-sem-warning-bg);  }
+.dark .hover\:bg-teal-50:hover    { background-color: var(--h-sem-success-bg);  }
+.dark .hover\:bg-emerald-50:hover { background-color: var(--h-sem-success-bg);  }
+.dark .hover\:bg-rose-100:hover    { background-color: var(--h-sem-danger-bg);  }
+.dark .hover\:bg-amber-100:hover   { background-color: var(--h-sem-warning-bg); }
+.dark .hover\:bg-teal-100:hover    { background-color: var(--h-sem-success-bg); }
+.dark .hover\:bg-emerald-100:hover { background-color: var(--h-sem-success-bg); }
 
 
 /* ══ Texto semántico en cajas de color ══════════════════════ */
-/* Los colores -700 y -800 son demasiado oscuros en fondos dark.
-   Se cambian a versiones más claras (-300/-400) para mantener contraste. */
 
-.dark .text-teal-700    { color: #5eead4; }  /* teal-300    */
-.dark .text-teal-800    { color: #5eead4; }  /* teal-300    */
-.dark .text-amber-700   { color: #fcd34d; }  /* amber-300   */
-.dark .text-amber-800   { color: #fbbf24; }  /* amber-400   */
-.dark .text-rose-700    { color: #fca5a5; }  /* rose-300    */
-.dark .text-rose-800    { color: #f87171; }  /* rose-400    */
-.dark .text-emerald-700 { color: #6ee7b7; }  /* emerald-300 */
-.dark .text-emerald-800 { color: #6ee7b7; }  /* emerald-300 */
-.dark .text-blue-700    { color: #93c5fd; }  /* blue-300    */
-.dark .text-blue-800    { color: #93c5fd; }  /* blue-300    */
+.dark .text-teal-700    { color: var(--h-sem-success-text); }
+.dark .text-teal-800    { color: var(--h-sem-success-text); }
+.dark .text-amber-700   { color: var(--h-sem-warning-text); }
+.dark .text-amber-800   { color: var(--h-sem-warning-text); }
+.dark .text-rose-700    { color: var(--h-sem-danger-text);  }
+.dark .text-rose-800    { color: var(--h-sem-danger-text);  }
+.dark .text-emerald-700 { color: var(--h-sem-success-text); }
+.dark .text-emerald-800 { color: var(--h-sem-success-text); }
+.dark .text-blue-700    { color: var(--h-sem-info-text);    }
+.dark .text-blue-800    { color: var(--h-sem-info-text);    }
 
 
-/* ══ Controles de formulario (input, select, textarea) ══════ */
+/* ══ Controles de formulario ════════════════════════════════ */
 /* Excluye checkbox, radio y range para no alterar su apariencia nativa. */
 
 .dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
 .dark select,
 .dark textarea {
-  background-color: #0f172a;  /* slate-900 */
-  color: #f1f5f9;             /* slate-100 */
-  border-color: #334155;      /* slate-700 */
+  background-color: var(--h-bg-base);
+  color: var(--h-text-primary);
+  border-color: var(--h-border-subtle);
 }
 
 .dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus,
 .dark select:focus,
 .dark textarea:focus {
-  background-color: #1e293b;  /* slate-800 */
+  background-color: var(--h-bg-elevated);
+  border-color: var(--h-border-visible);
 }
 
-/* Texto placeholder en oscuro */
 .dark input::placeholder,
 .dark textarea::placeholder {
-  color: #475569;  /* slate-600 */
+  color: var(--h-text-tertiary);
 }
