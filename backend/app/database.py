@@ -115,7 +115,7 @@ MIGRACIONES_COLUMNAS = [
     "ALTER TABLE IF EXISTS activos_fijos "
     "ADD COLUMN IF NOT EXISTS proveedor_id INTEGER "
     "REFERENCES proveedores(id) ON DELETE SET NULL",
-    # TipoMantenimiento en ordenes_mantenimiento
+    # TipoMantenimiento (legacy, se mantiene por compatibilidad)
     (
         "DO $$ BEGIN "
         "CREATE TYPE tipomantenimiento AS ENUM ("
@@ -127,6 +127,44 @@ MIGRACIONES_COLUMNAS = [
     "ADD COLUMN IF NOT EXISTS tipo_mantenimiento tipomantenimiento",
     "ALTER TABLE IF EXISTS ordenes_mantenimiento "
     "ADD COLUMN IF NOT EXISTS fecha_retorno_estimada DATE",
+    # ── Refactor mantenimiento: evento multi-Phantoma ───────────────────
+    # Nuevos enums para la cabecera refactorizada y los ítems
+    (
+        "DO $$ BEGIN "
+        "CREATE TYPE estadoordenitem AS ENUM ("
+        "'en_curso', 'cerrada', 'cancelada'"
+        "); "
+        "EXCEPTION WHEN duplicate_object THEN NULL; END $$"
+    ),
+    (
+        "DO $$ BEGIN "
+        "CREATE TYPE resultadoitem AS ENUM ("
+        "'pendiente', 'ok', 'sale_a_taller', 'dar_de_baja'"
+        "); "
+        "EXCEPTION WHEN duplicate_object THEN NULL; END $$"
+    ),
+    # Nuevas columnas en la cabecera de ordenes_mantenimiento
+    "ALTER TABLE IF EXISTS ordenes_mantenimiento "
+    "ADD COLUMN IF NOT EXISTS fecha_visita DATE",
+    "ALTER TABLE IF EXISTS ordenes_mantenimiento "
+    "ADD COLUMN IF NOT EXISTS notas TEXT",
+    # Tabla de ítems: un Phantoma por fila, resultado individual
+    (
+        "CREATE TABLE IF NOT EXISTS orden_mantenimiento_items ("
+        "  id                     SERIAL PRIMARY KEY,"
+        "  orden_id               INTEGER NOT NULL "
+        "    REFERENCES ordenes_mantenimiento(id) ON DELETE CASCADE,"
+        "  activo_fijo_id         INTEGER NOT NULL "
+        "    REFERENCES activos_fijos(id) ON DELETE RESTRICT,"
+        "  resultado              resultadoitem NOT NULL DEFAULT 'pendiente',"
+        "  fecha_envio            DATE,"
+        "  fecha_retorno_estimada DATE,"
+        "  fecha_retorno          DATE,"
+        "  descripcion_problema   TEXT,"
+        "  descripcion_trabajo    TEXT,"
+        "  costo                  NUMERIC(12,2)"
+        ")"
+    ),
 ]
 
 MIGRACIONES_ENUM = [
@@ -141,6 +179,14 @@ MIGRACIONES_ENUM = [
     (
         "tipomovimiento",
         ["entrada", "salida", "interno"],
+    ),
+    (
+        "estadoordenitem",
+        ["en_curso", "cerrada", "cancelada"],
+    ),
+    (
+        "resultadoitem",
+        ["pendiente", "ok", "sale_a_taller", "dar_de_baja"],
     ),
 ]
 
