@@ -8,6 +8,7 @@ import {
   Calendar, CalendarDays, BarChart2,
   ChevronLeft, ChevronRight, Sun, Moon,
   Sofa, FlaskConical, ClipboardCheck, Wrench,
+  Building2,
 } from 'lucide-react'
 import { useAuthStore } from '../../store/auth'
 import { useThemeStore } from '../../store/theme'
@@ -68,8 +69,10 @@ const NAV_SECTIONS: NavSection[] = [
   },
   {
     label: 'Administración',
-    roles: ['admin'],
+    roles: ['admin', 'operador_coordinador'],
     items: [
+      { to: '/proveedores',      icon: Building2,     label: 'Proveedores',
+        roles: ['admin', 'operador_coordinador'] },
       { to: '/asignaturas',      icon: BookOpen,      label: 'Asignaturas',
         roles: ['admin'] },
       { to: '/clases-docente',   icon: GraduationCap, label: 'Clases Docentes',
@@ -97,10 +100,9 @@ const ROL_LABELS: Record<string, string> = {
 
 const SIDEBAR_KEY = 'hestia-sidebar-collapsed'
 
-// Duración en ms de cada fase de la animación Opción C
-const LABEL_OUT_MS  = 110   // fade+slide out del texto
-const WIDTH_MS      = 260   // animación del ancho
-const LABEL_IN_MS   = 140   // fade+slide in del texto al expandir
+const LABEL_OUT_MS  = 110
+const WIDTH_MS      = 260
+const LABEL_IN_MS   = 140
 
 // ─── Sub-componentes ────────────────────────────────────────────────────────
 
@@ -137,7 +139,7 @@ function NavItemRow({ item, collapsed, labelsVisible }: NavItemRowProps) {
     ${ collapsed ? 'justify-center px-0 py-2.5 w-full' : 'px-2.5 py-2 w-full' }
   `
 
-  const activeCls = `bg-h-elevated text-h-primary`
+  const activeCls   = `bg-h-elevated text-h-primary`
   const inactiveCls = `text-h-secondary hover:bg-h-elevated hover:text-h-primary`
 
   return (
@@ -149,7 +151,6 @@ function NavItemRow({ item, collapsed, labelsVisible }: NavItemRowProps) {
     >
       {({ isActive }) => (
         <>
-          {/* Barra de acento lateral — solo visible en ítem activo expandido */}
           {!collapsed && (
             <span
               className="
@@ -164,14 +165,12 @@ function NavItemRow({ item, collapsed, labelsVisible }: NavItemRowProps) {
             />
           )}
 
-          {/* Ícono */}
           <Icon
             size={16}
             className="flex-shrink-0 transition-colors duration-150"
             style={{ color: isActive ? 'var(--h-teal-hover)' : 'inherit' }}
           />
 
-          {/* Label con fade+slide */}
           {!collapsed && (
             <span
               className="text-[13px] font-medium truncate min-w-0 flex-1"
@@ -185,7 +184,6 @@ function NavItemRow({ item, collapsed, labelsVisible }: NavItemRowProps) {
             </span>
           )}
 
-          {/* Tooltip cuando está colapsado */}
           {collapsed && <Tooltip label={label} />}
         </>
       )}
@@ -203,21 +201,17 @@ export function Sidebar() {
   const [collapsed, setCollapsed] = useState<boolean>(
     () => localStorage.getItem(SIDEBAR_KEY) === 'true'
   )
-  // Controla la visibilidad del texto independientemente del ancho
   const [labelsVisible, setLabelsVisible] = useState<boolean>(!collapsed)
 
   useEffect(() => {
     localStorage.setItem(SIDEBAR_KEY, String(collapsed))
   }, [collapsed])
 
-  // Animación Opción C: fade+slide secuencial
   const handleCollapse = useCallback(() => {
     if (!collapsed) {
-      // → Colapsar: texto sale primero, luego el ancho
       setLabelsVisible(false)
       setTimeout(() => setCollapsed(true), LABEL_OUT_MS)
     } else {
-      // → Expandir: ancho primero, luego el texto entra
       setCollapsed(false)
       setTimeout(() => setLabelsVisible(true), WIDTH_MS)
     }
@@ -225,7 +219,6 @@ export function Sidebar() {
 
   function handleLogout() { logout(); navigate('/login') }
 
-  // Iniciales del usuario para el avatar
   const initials = user?.nombre
     ? user.nombre.split(' ').slice(0, 2).map((n) => n[0]).join('').toUpperCase()
     : '?'
@@ -248,7 +241,7 @@ export function Sidebar() {
         transition: `width ${WIDTH_MS}ms cubic-bezier(0.4,0,0.2,1)`,
       }}
     >
-      {/* ── Header: logo + nombre + botón colapsar ── */}
+      {/* ── Header ── */}
       <div
         className="
           flex items-center border-b border-h-subtle flex-shrink-0
@@ -291,24 +284,21 @@ export function Sidebar() {
         </button>
       </div>
 
-      {/* ── Navegación principal ── */}
+      {/* ── Navegación ── */}
       <nav className="flex-1 overflow-y-auto overflow-x-hidden py-3 px-2 space-y-4">
         {NAV_SECTIONS.map((section) => {
           if (!user?.rol) return null
 
-          // Filtrar ítems visibles para el rol actual
           const visibleItems = section.items.filter(
             (item) => item.roles.includes(user.rol as string)
           )
           if (visibleItems.length === 0) return null
 
-          // Verificar si la sección completa aplica para el rol
           const sectionVisible = section.roles.includes(user.rol as string)
           if (!sectionVisible) return null
 
           return (
             <div key={section.label}>
-              {/* Label de sección — oculto cuando colapsado */}
               {!collapsed && (
                 <p
                   className="
@@ -340,17 +330,15 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* ── Footer: usuario + acciones ── */}
+      {/* ── Footer ── */}
       <div className="border-t border-h-subtle flex-shrink-0 px-2 py-3 space-y-0.5">
 
-        {/* Tarjeta de usuario */}
         <div
           className={`
             flex items-center gap-2.5 rounded-md px-2 py-2 mb-1
             ${ collapsed ? 'justify-center' : '' }
           `}
         >
-          {/* Avatar con iniciales */}
           <div
             className="
               w-7 h-7 rounded-full flex-shrink-0
@@ -384,7 +372,6 @@ export function Sidebar() {
 
         <div className="h-px bg-h-subtle mx-1 mb-1" />
 
-        {/* Perfil */}
         <div className="relative group">
           <NavLink
             to="/perfil"
@@ -413,7 +400,6 @@ export function Sidebar() {
           {collapsed && <Tooltip label="Mi perfil" />}
         </div>
 
-        {/* Seguridad */}
         <div className="relative group">
           <NavLink
             to="/seguridad"
@@ -442,7 +428,6 @@ export function Sidebar() {
           {collapsed && <Tooltip label="Seguridad" />}
         </div>
 
-        {/* Tema */}
         <div className="relative group">
           <button
             onClick={toggleTheme}
@@ -473,7 +458,6 @@ export function Sidebar() {
           {collapsed && <Tooltip label={isDark ? 'Modo claro' : 'Modo oscuro'} />}
         </div>
 
-        {/* Cerrar sesión */}
         <div className="relative group">
           <button
             onClick={handleLogout}
