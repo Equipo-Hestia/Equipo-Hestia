@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from app.database import get_db
 from app.models.activo_fijo import ActivoFijo, TipoActivo, EstadoActivo
 from app.schemas.activo_fijo import (
@@ -12,8 +12,24 @@ from app.utils.deps import get_usuario_actual, require_operador, require_admin
 router = APIRouter(prefix="/activos-fijos", tags=["activos-fijos"])
 
 
+def _cargar(db: Session, activo_id: int) -> ActivoFijo:
+    """Carga un ActivoFijo con sus relaciones sala y proveedor."""
+    af = (
+        db.query(ActivoFijo)
+        .options(
+            joinedload(ActivoFijo.sala),
+            joinedload(ActivoFijo.proveedor),
+        )
+        .filter(ActivoFijo.id == activo_id)
+        .first()
+    )
+    if not af:
+        raise HTTPException(status_code=404, detail="Activo fijo no encontrado")
+    return af
+
+
 def _to_response(af: ActivoFijo) -> ActivoFijoResponse:
-    """Serializa un ActivoFijo incluyendo el nombre de sala (lazy load)."""
+    """Serializa un ActivoFijo incluyendo sala y proveedor."""
     return ActivoFijoResponse(
         id=af.id,
         nombre=af.nombre,
@@ -25,6 +41,8 @@ def _to_response(af: ActivoFijo) -> ActivoFijoResponse:
         fidelidad=af.fidelidad,
         sala_id=af.sala_id,
         sala_nombre=af.sala.nombre if af.sala else None,
+        proveedor_id=af.proveedor_id,
+        proveedor_nombre=af.proveedor.nombre if af.proveedor else None,
         notas=af.notas,
         activo=af.activo,
     )
@@ -77,7 +95,13 @@ def listar(
     _=Depends(get_usuario_actual),
 ):
     """Lista activos fijos con filtros opcionales."""
-    query = db.query(ActivoFijo)
+    query = (
+        db.query(ActivoFijo)
+        .options(
+            joinedload(ActivoFijo.sala),
+            joinedload(ActivoFijo.proveedor),
+        )
+    )
     if not incluir_inactivos:
         query = query.filter(ActivoFijo.activo.is_(True))
     if tipo:
@@ -117,14 +141,13 @@ def crear(
 
     af = ActivoFijo(**datos.model_dump())
     db.add(af)
-    db.flush()  # necesario para obtener af.id antes del commit
+    db.flush()
 
     prefijo = "MUE" if af.tipo.value == "mueble" else "PHN"
     af.codigo_interno = f"{prefijo}-{af.id:05d}"
 
     db.commit()
-    db.refresh(af)
-    return _to_response(af)
+    return _to_response(_cargar(db, af.id))
 
 
 @router.get("/{activo_id}", response_model=ActivoFijoResponse)
@@ -133,10 +156,7 @@ def obtener(
     db: Session = Depends(get_db),
     _=Depends(get_usuario_actual),
 ):
-    af = db.query(ActivoFijo).filter(ActivoFijo.id == activo_id).first()
-    if not af:
-        raise HTTPException(status_code=404, detail="Activo fijo no encontrado")
-    return _to_response(af)
+    return _to_response(_cargar(db, activo_id))
 
 
 @router.put("/{activo_id}", response_model=ActivoFijoResponse)
@@ -146,9 +166,7 @@ def actualizar(
     db: Session = Depends(get_db),
     _=Depends(require_operador),
 ):
-    af = db.query(ActivoFijo).filter(ActivoFijo.id == activo_id).first()
-    if not af:
-        raise HTTPException(status_code=404, detail="Activo fijo no encontrado")
+    af = _cargar(db, activo_id)
 
     if datos.codigo_barras and datos.codigo_barras != af.codigo_barras:
         existente = (
@@ -166,8 +184,7 @@ def actualizar(
         setattr(af, campo, valor)
 
     db.commit()
-    db.refresh(af)
-    return _to_response(af)
+    return _to_response(_cargar(db, activo_id))
 
 
 @router.delete("/{activo_id}", status_code=204)

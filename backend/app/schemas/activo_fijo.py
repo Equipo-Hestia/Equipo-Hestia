@@ -10,6 +10,7 @@ class ActivoFijoCreate(BaseModel):
     estado: EstadoActivo = EstadoActivo.disponible
     fidelidad: FidelidadPhantoma | None = None
     sala_id: int | None = None
+    proveedor_id: int | None = None
     notas: str | None = None
 
 
@@ -20,6 +21,7 @@ class ActivoFijoUpdate(BaseModel):
     estado: EstadoActivo | None = None
     fidelidad: FidelidadPhantoma | None = None
     sala_id: int | None = None
+    proveedor_id: int | None = None
     notas: str | None = None
     activo: bool | None = None
 
@@ -35,6 +37,8 @@ class ActivoFijoResponse(BaseModel):
     fidelidad: FidelidadPhantoma | None = None
     sala_id: int | None = None
     sala_nombre: str | None = None
+    proveedor_id: int | None = None
+    proveedor_nombre: str | None = None
     notas: str | None = None
     activo: bool
 
