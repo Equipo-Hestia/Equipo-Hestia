@@ -46,9 +46,9 @@ interface ModalCrearProps {
 }
 
 function ModalCrear({ implementoId, onClose, onSaved }: ModalCrearProps) {
-  const [notas, setNotas]       = useState('')
+  const [notas, setNotas]         = useState('')
   const [guardando, setGuardando] = useState(false)
-  const [error, setError]       = useState('')
+  const [error, setError]         = useState('')
 
   async function handleGuardar() {
     setGuardando(true)
@@ -84,7 +84,6 @@ function ModalCrear({ implementoId, onClose, onSaved }: ModalCrearProps) {
         </div>
 
         <div className="px-6 py-5 space-y-4">
-          {/* Info: siempre va a Bodega */}
           <div className="flex items-start gap-3 rounded-xl border border-h-subtle
                           bg-h-elevated px-4 py-3">
             <Info size={15} className="mt-0.5 flex-shrink-0"
@@ -96,7 +95,6 @@ function ModalCrear({ implementoId, onClose, onSaved }: ModalCrearProps) {
             </p>
           </div>
 
-          {/* Notas */}
           <div>
             <label className="block text-[10px] font-semibold text-h-tertiary
                               mb-1.5 uppercase tracking-widest">
@@ -162,13 +160,13 @@ interface ModalEditarProps {
 }
 
 function ModalEditar({ unidad, salas, esAdmin, onClose, onSaved }: ModalEditarProps) {
-  const [estado, setEstado]   = useState<EstadoUnidad>(unidad.estado)
-  const [salaId, setSalaId]   = useState<string>(
+  const [estado, setEstado]       = useState<EstadoUnidad>(unidad.estado)
+  const [salaId, setSalaId]       = useState<string>(
     unidad.sala_id != null ? String(unidad.sala_id) : ''
   )
-  const [notas, setNotas]     = useState(unidad.notas ?? '')
+  const [notas, setNotas]         = useState(unidad.notas ?? '')
   const [guardando, setGuardando] = useState(false)
-  const [error, setError]     = useState('')
+  const [error, setError]         = useState('')
 
   async function handleGuardar() {
     setGuardando(true)
@@ -178,7 +176,6 @@ function ModalEditar({ unidad, salas, esAdmin, onClose, onSaved }: ModalEditarPr
         estado,
         notas: notas.trim() || null,
       }
-      // Solo admin puede cambiar la sala manualmente
       if (esAdmin) {
         body.sala_id = salaId ? parseInt(salaId) : null
       }
@@ -201,12 +198,8 @@ function ModalEditar({ unidad, salas, esAdmin, onClose, onSaved }: ModalEditarPr
         <div className="flex items-center justify-between px-6 py-4
                         border-b border-h-subtle">
           <div>
-            <h2 className="text-base font-semibold text-h-primary">
-              Editar unidad
-            </h2>
-            <p className="text-xs text-h-tertiary mt-0.5 font-mono">
-              {unidad.codigo}
-            </p>
+            <h2 className="text-base font-semibold text-h-primary">Editar unidad</h2>
+            <p className="text-xs text-h-tertiary mt-0.5 font-mono">{unidad.codigo}</p>
           </div>
           <button onClick={onClose}
             className="text-h-tertiary hover:text-h-secondary text-xl font-bold
@@ -214,7 +207,6 @@ function ModalEditar({ unidad, salas, esAdmin, onClose, onSaved }: ModalEditarPr
         </div>
 
         <div className="px-6 py-5 space-y-4">
-          {/* Estado */}
           <div>
             <p className="text-[10px] font-semibold text-h-tertiary mb-2
                           uppercase tracking-widest">Estado</p>
@@ -234,7 +226,6 @@ function ModalEditar({ unidad, salas, esAdmin, onClose, onSaved }: ModalEditarPr
             </div>
           </div>
 
-          {/* Sala — solo visible para admin */}
           {esAdmin && (
             <div>
               <label className="block text-[10px] font-semibold text-h-tertiary
@@ -269,7 +260,6 @@ function ModalEditar({ unidad, salas, esAdmin, onClose, onSaved }: ModalEditarPr
             </div>
           )}
 
-          {/* Notas */}
           <div>
             <label className="block text-[10px] font-semibold text-h-tertiary
                               mb-1.5 uppercase tracking-widest">Notas</label>
@@ -376,7 +366,7 @@ function ModalGenerarLote(
           <p className="text-sm text-h-secondary leading-relaxed">
             Se crearan <strong className="text-h-primary">{cantidad}</strong> unidades
             nuevas en <strong className="text-h-primary">Bodega</strong>, cada una
-            con su subcódigo unico generado automaticamente.
+            con su subcodigo unico generado automaticamente.
           </p>
 
           <div>
@@ -394,9 +384,7 @@ function ModalGenerarLote(
                          focus:outline-none transition-all
                          bg-h-elevated border border-h-visible focus:border-h-strong"
             />
-            <p className="text-[10px] text-h-tertiary mt-1">
-              Maximo 500 por operacion.
-            </p>
+            <p className="text-[10px] text-h-tertiary mt-1">Maximo 500 por operacion.</p>
           </div>
 
           {error && (
@@ -510,20 +498,31 @@ export function UnidadesImplemento() {
     }
   }
 
-  // Conteos a partir de TODAS las unidades activas (sin filtro de sala)
-  const totalActivas   = unidades.length
-  const totalDisp      = unidades.filter(u => u.estado === 'disponible').length
-  const totalEnUso     = unidades.filter(u => u.estado === 'en_uso').length
-  const totalBaja      = unidades.filter(u => u.estado === 'dado_de_baja').length
-  const totalEnSalas   = unidades.filter(u => u.sala_id != null).length
-  const totalEnBodega  = unidades.filter(u => u.sala_id == null).length
+  // ---------------------------------------------------------------------------
+  // Conteos
+  //
+  // Las unidades "dado_de_baja" se excluyen del stock operativo.
+  // No cuentan ni para la comparacion con el stock contable ni para el
+  // subtotal de "en salas / en bodega".
+  // ---------------------------------------------------------------------------
+  const totalBaja       = unidades.filter(u => u.estado === 'dado_de_baja').length
+  const totalDisp       = unidades.filter(u => u.estado === 'disponible').length
+  const totalEnUso      = unidades.filter(u => u.estado === 'en_uso').length
+  // Operativas = disponibles + en uso (excluye dado_de_baja)
+  const totalOperativas = totalDisp + totalEnUso
+  const totalEnSalas    = unidades.filter(
+    u => u.sala_id != null && u.estado !== 'dado_de_baja',
+  ).length
+  const totalEnBodega   = unidades.filter(
+    u => u.sala_id == null && u.estado !== 'dado_de_baja',
+  ).length
 
-  // Diferencia entre stock contable y unidades fisicas registradas
-  const stockContable      = implemento?.stock_actual ?? 0
-  const unidadesRegistradas = totalActivas
+  // Diferencia entre stock contable y unidades fisicas operativas.
+  // diferencia > 0 => faltan unidades fisicas (generar lote)
+  // diferencia < 0 => sobran unidades fisicas (dar de baja las sobrantes)
+  const stockContable       = implemento?.stock_actual ?? 0
+  const unidadesRegistradas = totalOperativas
   const diferencia          = stockContable - unidadesRegistradas
-  // diferencia > 0 => faltan unidades fisicas
-  // diferencia < 0 => sobran unidades fisicas (posible incongruencia)
 
   if (!implementoId) {
     return (
@@ -549,8 +548,7 @@ export function UnidadesImplemento() {
       {/* Encabezado */}
       <div>
         <Link to="/insumos"
-          className="flex items-center gap-1.5 text-sm text-h-secondary
-                     transition-colors mb-3"
+          className="flex items-center gap-1.5 text-sm transition-colors mb-3"
           style={{ color: 'var(--h-text-secondary)' }}
           onMouseEnter={e => (e.currentTarget.style.color = 'var(--h-teal-hover)')}
           onMouseLeave={e => (e.currentTarget.style.color = 'var(--h-text-secondary)')}
@@ -598,7 +596,7 @@ export function UnidadesImplemento() {
         </div>
       </div>
 
-      {/* Banner: faltantes (diferencia > 0) */}
+      {/* Banner: faltan unidades fisicas */}
       {!cargando && diferencia > 0 && puedeEscribir && (
         <div className="flex items-start justify-between gap-4 rounded-xl
                         border px-4 py-3"
@@ -612,12 +610,13 @@ export function UnidadesImplemento() {
             <div>
               <p className="text-sm font-semibold"
                 style={{ color: 'var(--h-sem-warning-text)' }}>
-                {diferencia} {diferencia === 1 ? 'unidad sin subcódigo' : 'unidades sin subcódigo'}
+                {diferencia}{' '}
+                {diferencia === 1 ? 'unidad sin subcodigo' : 'unidades sin subcodigo'}
               </p>
               <p className="text-xs mt-0.5"
                 style={{ color: 'var(--h-sem-warning-text)', opacity: 0.85 }}>
                 El stock indica {stockContable} unidades pero solo hay
-                {' '}{unidadesRegistradas} con subcódigo asignado.
+                {' '}{unidadesRegistradas} operativas con subcodigo asignado.
               </p>
             </div>
           </div>
@@ -636,7 +635,7 @@ export function UnidadesImplemento() {
         </div>
       )}
 
-      {/* Banner: sobrantes (diferencia < 0) */}
+      {/* Banner: sobran unidades fisicas */}
       {!cargando && diferencia < 0 && (
         <div className="flex items-start gap-3 rounded-xl border px-4 py-3"
           style={{
@@ -652,9 +651,8 @@ export function UnidadesImplemento() {
             </p>
             <p className="text-xs mt-0.5"
               style={{ color: 'var(--h-sem-danger-text)', opacity: 0.85 }}>
-              Hay {unidadesRegistradas} unidades fisicas registradas
-              pero el stock indica solo {stockContable}.
-              Revisa si alguna debe darse de baja.
+              Hay {unidadesRegistradas} unidades fisicas operativas pero el stock
+              indica solo {stockContable}. Revisa si alguna debe darse de baja.
             </p>
           </div>
         </div>
@@ -663,10 +661,10 @@ export function UnidadesImplemento() {
       {/* Tarjetas de resumen */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: 'Total',       value: totalActivas, color: 'var(--h-text-primary)' },
-          { label: 'Disponibles', value: totalDisp,    color: '#34d399' },
-          { label: 'En uso',      value: totalEnUso,   color: '#60a5fa' },
-          { label: 'Baja',        value: totalBaja,    color: '#f87171' },
+          { label: 'Operativas',  value: totalOperativas, color: 'var(--h-text-primary)' },
+          { label: 'Disponibles', value: totalDisp,       color: '#34d399' },
+          { label: 'En uso',      value: totalEnUso,      color: '#60a5fa' },
+          { label: 'Baja',        value: totalBaja,       color: '#f87171' },
         ].map(stat => (
           <div key={stat.label}
             className="rounded-xl border border-h-subtle p-4 text-center"
@@ -723,7 +721,7 @@ export function UnidadesImplemento() {
               <thead>
                 <tr className="border-b border-h-subtle"
                   style={{ background: 'var(--h-bg-elevated)' }}>
-                  {['Subcódigo', 'Ubicacion', 'Estado', 'Notas', 'Acciones'].map(col => (
+                  {['Subcodigo', 'Ubicacion', 'Estado', 'Notas', 'Acciones'].map(col => (
                     <th key={col}
                       className="text-left px-4 py-3 text-[10px] font-semibold
                                  text-h-tertiary uppercase tracking-widest">
@@ -749,8 +747,7 @@ export function UnidadesImplemento() {
                         : 'var(--h-bg-elevated)')}
                   >
                     <td className="px-4 py-3">
-                      <span className="font-mono text-sm font-bold px-2.5 py-1
-                                       rounded-lg"
+                      <span className="font-mono text-sm font-bold px-2.5 py-1 rounded-lg"
                         style={{
                           background: 'var(--h-bg-highlight)',
                           color: 'var(--h-text-primary)',
@@ -782,9 +779,7 @@ export function UnidadesImplemento() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-h-secondary max-w-xs truncate text-xs">
-                      {u.notas ?? (
-                        <span className="text-h-tertiary">&mdash;</span>
-                      )}
+                      {u.notas ?? <span className="text-h-tertiary">&mdash;</span>}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
