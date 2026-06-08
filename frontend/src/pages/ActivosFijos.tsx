@@ -102,19 +102,19 @@ interface ModalProps {
 
 function ActivoModal({ activo, salas, proveedores, onClose, onSaved }: ModalProps) {
   const esNuevo = activo === null
-  const [nombre, setNombre]           = useState(activo?.nombre ?? '')
-  const [descripcion, setDescripcion] = useState(activo?.descripcion ?? '')
-  const [tipo, setTipo]               = useState<TipoActivo>(activo?.tipo ?? 'mueble')
+  const [nombre, setNombre]             = useState(activo?.nombre ?? '')
+  const [descripcion, setDescripcion]   = useState(activo?.descripcion ?? '')
+  const [tipo, setTipo]                 = useState<TipoActivo>(activo?.tipo ?? 'mueble')
   const [codigoBarras, setCodigoBarras] = useState(activo?.codigo_barras ?? '')
-  const [estado, setEstado]           = useState<string>(activo?.estado ?? 'disponible')
-  const [fidelidad, setFidelidad]     = useState<string>(activo?.fidelidad ?? '')
-  const [salaId, setSalaId]           = useState<string>(activo?.sala_id?.toString() ?? '')
-  const [proveedorId, setProveedorId] = useState<string>(activo?.proveedor_id?.toString() ?? '')
-  const [notas, setNotas]             = useState(activo?.notas ?? '')
-  const [guardando, setGuardando]     = useState(false)
-  const [error, setError]             = useState('')
+  const [estado, setEstado]             = useState<string>(activo?.estado ?? 'disponible')
+  const [fidelidad, setFidelidad]       = useState<string>(activo?.fidelidad ?? '')
+  const [salaId, setSalaId]             = useState<string>(activo?.sala_id?.toString() ?? '')
+  const [proveedorId, setProveedorId]   = useState<string>(activo?.proveedor_id?.toString() ?? '')
+  const [notas, setNotas]               = useState(activo?.notas ?? '')
+  const [guardando, setGuardando]       = useState(false)
+  const [error, setError]               = useState('')
 
-  const salaOpts     = salas.map(s => ({ value: String(s.id), label: s.nombre }))
+  const salaOpts      = salas.map(s => ({ value: String(s.id), label: s.nombre }))
   const proveedorOpts = proveedores.map(p => ({ value: String(p.id), label: p.nombre }))
 
   async function handleGuardar() {
@@ -166,21 +166,17 @@ function ActivoModal({ activo, salas, proveedores, onClose, onSaved }: ModalProp
       <div className="bg-h-surface border border-h-subtle rounded-2xl shadow-2xl
                       w-full max-w-lg max-h-[90vh] flex flex-col">
 
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-h-subtle
-                        flex-shrink-0">
+        <div className="flex items-center justify-between px-6 py-4
+                        border-b border-h-subtle flex-shrink-0">
           <h2 className="text-base font-semibold text-h-primary">
-            {esNuevo ? 'Registrar activo fijo' : `Editar activo`}
+            {esNuevo ? 'Registrar activo fijo' : 'Editar activo'}
           </h2>
           <button onClick={onClose}
             className="text-h-tertiary hover:text-h-secondary text-xl font-bold
                        transition-colors">x</button>
         </div>
 
-        {/* Body */}
         <div className="px-6 py-5 space-y-4 overflow-y-auto flex-1">
-
-          {/* Nombre */}
           <div>
             <label className={labelCls}>Nombre *</label>
             <input className={inputCls} value={nombre}
@@ -188,7 +184,6 @@ function ActivoModal({ activo, salas, proveedores, onClose, onSaved }: ModalProp
               placeholder="Ej: Camilla articulada, SimMan 3G" />
           </div>
 
-          {/* Tipo — solo al crear */}
           {esNuevo && (
             <div>
               <label className={labelCls}>Tipo *</label>
@@ -211,56 +206,37 @@ function ActivoModal({ activo, salas, proveedores, onClose, onSaved }: ModalProp
             </div>
           )}
 
-          {/* Estado */}
           <div>
             <label className={labelCls}>Estado</label>
-            <HSelect
-              value={estado}
-              onChange={setEstado}
-              options={ESTADO_OPTS}
-              className="w-full"
-            />
+            <HSelect value={estado} onChange={setEstado} options={ESTADO_OPTS} className="w-full" />
           </div>
 
-          {/* Fidelidad — solo para phantomas */}
           {(tipo === 'phantoma' || activo?.tipo === 'phantoma') && (
             <div>
               <label className={labelCls}>Fidelidad del simulador</label>
               <HSelect
-                value={fidelidad}
-                onChange={setFidelidad}
-                options={FIDELIDAD_OPTS}
-                placeholder="Sin especificar"
-                className="w-full"
+                value={fidelidad} onChange={setFidelidad}
+                options={FIDELIDAD_OPTS} placeholder="Sin especificar" className="w-full"
               />
             </div>
           )}
 
-          {/* Sala */}
           <div>
             <label className={labelCls}>Sala de origen</label>
             <HSelect
-              value={salaId}
-              onChange={setSalaId}
-              options={salaOpts}
-              placeholder="Sin asignar"
-              className="w-full"
+              value={salaId} onChange={setSalaId}
+              options={salaOpts} placeholder="Sin asignar" className="w-full"
             />
           </div>
 
-          {/* Proveedor */}
           <div>
             <label className={labelCls}>Proveedor</label>
             <HSelect
-              value={proveedorId}
-              onChange={setProveedorId}
-              options={proveedorOpts}
-              placeholder="Sin proveedor asignado"
-              className="w-full"
+              value={proveedorId} onChange={setProveedorId}
+              options={proveedorOpts} placeholder="Sin proveedor asignado" className="w-full"
             />
           </div>
 
-          {/* Codigo de barras */}
           <div>
             <label className={labelCls}>Codigo de barras</label>
             <input className={inputCls} value={codigoBarras}
@@ -268,7 +244,6 @@ function ActivoModal({ activo, salas, proveedores, onClose, onSaved }: ModalProp
               placeholder="Escanear o ingresar manualmente" />
           </div>
 
-          {/* Descripcion */}
           <div>
             <label className={labelCls}>Descripcion</label>
             <textarea className={`${inputCls} resize-none`} rows={2} value={descripcion}
@@ -276,7 +251,6 @@ function ActivoModal({ activo, salas, proveedores, onClose, onSaved }: ModalProp
               placeholder="Caracteristicas adicionales..." />
           </div>
 
-          {/* Notas */}
           <div>
             <label className={labelCls}>Notas internas</label>
             <textarea className={`${inputCls} resize-none`} rows={2} value={notas}
@@ -296,7 +270,6 @@ function ActivoModal({ activo, salas, proveedores, onClose, onSaved }: ModalProp
           )}
         </div>
 
-        {/* Footer */}
         <div className="flex justify-end gap-3 px-6 py-4 border-t border-h-subtle flex-shrink-0">
           <button onClick={onClose} disabled={guardando}
             className="px-4 py-2 rounded-lg text-sm font-semibold text-h-secondary
@@ -340,6 +313,8 @@ export function ActivosFijos() {
   const esAdmin       = user?.rol === 'admin'
 
   const [activos, setActivos]       = useState<ActivoFijoResponse[]>([])
+  // todos: lista completa sin filtro de tipo, usada solo para los conteos de los tabs
+  const [todos, setTodos]           = useState<ActivoFijoResponse[]>([])
   const [salas, setSalas]           = useState<SalaResponse[]>([])
   const [proveedores, setProveedores] = useState<ProveedorResponse[]>([])
   const [cargando, setCargando]     = useState(true)
@@ -355,6 +330,7 @@ export function ActivosFijos() {
     setToast(msg); setTimeout(() => setToast(''), 3000)
   }
 
+  // Carga la lista filtrada (para la tabla)
   const cargar = useCallback(async () => {
     setCargando(true)
     try {
@@ -370,7 +346,21 @@ export function ActivosFijos() {
     } finally { setCargando(false) }
   }, [filtroTipo, filtroEstado, filtroSala, busqueda])
 
+  // Carga la lista completa sin filtro de tipo, para conteos de tabs.
+  // Solo se actualiza cuando cambian el estado, sala o busqueda (no el tipo).
+  const cargarTodos = useCallback(async () => {
+    try {
+      const params: Record<string, string> = {}
+      if (filtroEstado) params.estado = filtroEstado
+      if (filtroSala)  params.sala_id = filtroSala
+      if (busqueda.trim()) params.q = busqueda.trim()
+      const res = await api.get<ActivoFijoResponse[]>('/activos-fijos/', { params })
+      setTodos(res.data)
+    } catch { /* silencioso */ }
+  }, [filtroEstado, filtroSala, busqueda])
+
   useEffect(() => { cargar() }, [cargar])
+  useEffect(() => { cargarTodos() }, [cargarTodos])
 
   useEffect(() => {
     api.get<PaginatedResponse<SalaResponse>>('/salas/', { params: { limit: 100 } })
@@ -383,20 +373,23 @@ export function ActivosFijos() {
     if (!confirm(`Dar de baja a "${af.nombre}"?`)) return
     try {
       await api.put(`/activos-fijos/${af.id}`, { estado: 'dado_de_baja' })
-      mostrarToast('Activo dado de baja'); cargar()
+      mostrarToast('Activo dado de baja')
+      cargar()
+      cargarTodos()
     } catch { mostrarToast('Error al dar de baja') }
   }
 
   const tabs: { key: FiltroTipo; label: string; icon: React.ReactNode }[] = [
-    { key: 'todos',    label: 'Todos',    icon: null },
-    { key: 'mueble',   label: 'Muebles',  icon: <Sofa size={14} /> },
+    { key: 'todos',    label: 'Todos',     icon: null },
+    { key: 'mueble',   label: 'Muebles',   icon: <Sofa size={14} /> },
     { key: 'phantoma', label: 'Phantomas', icon: <Brain size={14} /> },
   ]
 
+  // Conteos calculados sobre la lista completa (sin filtro de tipo)
   const conteos = {
-    todos:    activos.length,
-    mueble:   activos.filter(a => a.tipo === 'mueble').length,
-    phantoma: activos.filter(a => a.tipo === 'phantoma').length,
+    todos:    todos.length,
+    mueble:   todos.filter(a => a.tipo === 'mueble').length,
+    phantoma: todos.filter(a => a.tipo === 'phantoma').length,
   }
 
   const salaFiltroOpts = salas.map(s => ({ value: String(s.id), label: s.nombre }))
@@ -409,7 +402,6 @@ export function ActivosFijos() {
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-5">
 
-      {/* Toast */}
       {toast && (
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2
                         text-white text-sm font-medium px-4 py-3 rounded-xl shadow-lg"
@@ -419,7 +411,6 @@ export function ActivosFijos() {
         </div>
       )}
 
-      {/* Encabezado */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-h-primary">Activos Fijos</h1>
@@ -430,8 +421,7 @@ export function ActivosFijos() {
         {puedeEscribir && (
           <button onClick={() => setModalActivo(null)}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl
-                       text-white text-sm font-semibold
-                       transition-colors shadow-sm"
+                       text-white text-sm font-semibold transition-colors shadow-sm"
             style={{ background: 'var(--h-teal-rest)' }}
             onMouseEnter={e =>
               (e.currentTarget.style.background = 'var(--h-teal-hover)')}
@@ -447,22 +437,22 @@ export function ActivosFijos() {
       <div className="flex gap-1 p-1 rounded-xl w-fit"
         style={{ background: 'var(--h-bg-elevated)' }}>
         {tabs.map(tab => {
-          const activo = filtroTipo === tab.key
+          const isActive = filtroTipo === tab.key
           return (
             <button key={tab.key} onClick={() => setFiltroTipo(tab.key)}
               className={[
                 'flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-semibold',
                 'transition-all duration-150',
-                activo ? 'text-h-primary shadow-sm' : 'text-h-tertiary hover:text-h-secondary',
+                isActive ? 'text-h-primary shadow-sm' : 'text-h-tertiary hover:text-h-secondary',
               ].join(' ')}
-              style={activo ? { background: 'var(--h-bg-surface)' } : {}}>
+              style={isActive ? { background: 'var(--h-bg-surface)' } : {}}>
               {tab.icon}
               {tab.label}
               <span
                 className="ml-1 text-xs px-1.5 py-0.5 rounded-full"
                 style={{
-                  background: activo ? 'var(--h-teal-subtle)' : 'var(--h-bg-highlight)',
-                  color: activo ? 'var(--h-teal-hover)' : 'var(--h-text-tertiary)',
+                  background: isActive ? 'var(--h-teal-subtle)' : 'var(--h-bg-highlight)',
+                  color: isActive ? 'var(--h-teal-hover)' : 'var(--h-text-tertiary)',
                 }}>
                 {conteos[tab.key]}
               </span>
@@ -473,7 +463,6 @@ export function ActivosFijos() {
 
       {/* Barra de filtros */}
       <div className="flex flex-wrap gap-3 items-center">
-        {/* Busqueda */}
         <div className="relative flex-1 min-w-[200px]">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-h-tertiary
                                        pointer-events-none" />
@@ -487,29 +476,16 @@ export function ActivosFijos() {
             onChange={e => setBusqueda(e.target.value)}
           />
         </div>
-
-        {/* Filtro estado */}
         <HSelect
-          value={filtroEstado}
-          onChange={setFiltroEstado}
-          options={ESTADO_FILTRO_OPTS}
-          placeholder="Todos los estados"
-          size="sm"
+          value={filtroEstado} onChange={setFiltroEstado}
+          options={ESTADO_FILTRO_OPTS} placeholder="Todos los estados" size="sm"
         />
-
-        {/* Filtro sala */}
         <HSelect
-          value={filtroSala}
-          onChange={setFiltroSala}
-          options={salaFiltroOpts}
-          placeholder="Todas las salas"
-          size="sm"
+          value={filtroSala} onChange={setFiltroSala}
+          options={salaFiltroOpts} placeholder="Todas las salas" size="sm"
         />
-
-        {/* Boton refrescar */}
-        <button onClick={cargar}
-          className="p-2 rounded-lg border border-h-subtle text-h-tertiary
-                     transition-colors"
+        <button onClick={() => { cargar(); cargarTodos() }}
+          className="p-2 rounded-lg border border-h-subtle text-h-tertiary transition-colors"
           style={{ background: 'var(--h-bg-elevated)' }}
           onMouseEnter={e => {
             e.currentTarget.style.background = 'var(--h-bg-highlight)'
@@ -569,7 +545,6 @@ export function ActivosFijos() {
                     onMouseEnter={() => setHoveredId(af.id)}
                     onMouseLeave={() => setHoveredId(null)}
                   >
-                    {/* Codigo interno */}
                     <td className="px-4 py-3">
                       <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded-md"
                         style={{
@@ -580,8 +555,6 @@ export function ActivosFijos() {
                         {af.codigo_interno ?? '—'}
                       </span>
                     </td>
-
-                    {/* Nombre + descripcion */}
                     <td className="px-4 py-3">
                       <p className="font-semibold text-h-primary">{af.nombre}</p>
                       {af.descripcion && (
@@ -590,8 +563,6 @@ export function ActivosFijos() {
                         </p>
                       )}
                     </td>
-
-                    {/* Proveedor */}
                     <td className="px-4 py-3">
                       {af.proveedor_nombre ? (
                         <span className="inline-flex items-center gap-1 text-xs
@@ -603,8 +574,6 @@ export function ActivosFijos() {
                         <span className="text-xs italic text-h-tertiary">Sin proveedor</span>
                       )}
                     </td>
-
-                    {/* Tipo */}
                     <td className="px-4 py-3">
                       <span className={[
                         'inline-flex items-center gap-1.5 text-xs font-semibold',
@@ -618,25 +587,15 @@ export function ActivosFijos() {
                           : <><Brain size={11} /> Phantoma</>}
                       </span>
                     </td>
-
-                    {/* Estado */}
-                    <td className="px-4 py-3">
-                      <EstadoBadge estado={af.estado} />
-                    </td>
-
-                    {/* Sala */}
+                    <td className="px-4 py-3"><EstadoBadge estado={af.estado} /></td>
                     <td className="px-4 py-3 text-h-secondary text-sm">
                       {af.sala_nombre ?? (
                         <span className="text-h-tertiary italic text-xs">Sin asignar</span>
                       )}
                     </td>
-
-                    {/* Fidelidad */}
                     <td className="px-4 py-3">
                       <FidelidadBadge fidelidad={af.fidelidad} />
                     </td>
-
-                    {/* Acciones */}
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
                         {puedeEscribir && (
@@ -679,7 +638,6 @@ export function ActivosFijos() {
         )}
       </div>
 
-      {/* Modal */}
       {modalActivo !== undefined && (
         <ActivoModal
           activo={modalActivo}
@@ -690,6 +648,7 @@ export function ActivosFijos() {
             setModalActivo(undefined)
             mostrarToast('Activo guardado')
             cargar()
+            cargarTodos()
           }}
         />
       )}
