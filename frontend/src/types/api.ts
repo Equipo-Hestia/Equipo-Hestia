@@ -25,6 +25,16 @@ export interface UnidadImplementoUpdate {
   activo?: boolean
 }
 
+export interface GenerarLoteRequest {
+  implemento_id: number
+  cantidad: number
+}
+
+export interface GenerarLoteResponse {
+  creadas: number
+  codigos_generados: string[]
+}
+
 // ---------------------------------------------------------------------------
 // Tipos TypeScript sincronizados con los schemas Pydantic del backend.
 // ---------------------------------------------------------------------------
@@ -144,10 +154,10 @@ export interface CategoriaCreate {
   nombre: string
 }
 
-// Tipo base del movimiento: direcci\u00f3n del flujo
+// Tipo base del movimiento: direccion del flujo
 export type TipoMovimiento = 'entrada' | 'salida' | 'interno'
 
-// Subtipo: motivo espec\u00edfico que detalla el tipo base
+// Subtipo: motivo especifico que detalla el tipo base
 export type SubtipoMovimiento =
   // Entradas
   | 'compra'
@@ -164,7 +174,7 @@ export type SubtipoMovimiento =
   | 'reingreso_disponible'
   | 'devolucion_interna'
 
-/** Mapa de subtipos v\u00e1lidos por tipo base. \u00datil para poblar selects. */
+/** Mapa de subtipos validos por tipo base. Util para poblar selects. */
 export const SUBTIPOS_POR_TIPO: Record<TipoMovimiento, SubtipoMovimiento[]> = {
   entrada: ['compra', 'devolucion_proveedor_entrada', 'ajuste_entrada'],
   salida: [
@@ -177,19 +187,19 @@ export const SUBTIPOS_POR_TIPO: Record<TipoMovimiento, SubtipoMovimiento[]> = {
   interno: ['enviado_mantenimiento', 'reingreso_disponible', 'devolucion_interna'],
 }
 
-/** Etiquetas en espa\u00f1ol para mostrar en la UI */
+/** Etiquetas en espanol para mostrar en la UI */
 export const ETIQUETA_SUBTIPO: Record<SubtipoMovimiento, string> = {
   compra: 'Compra a proveedor',
-  devolucion_proveedor_entrada: 'Devoluci\u00f3n de proveedor (reingreso)',
+  devolucion_proveedor_entrada: 'Devolucion de proveedor (reingreso)',
   ajuste_entrada: 'Ajuste de inventario (sobrante)',
   consumo_taller: 'Consumo en taller',
-  prestamo_implemento: 'Pr\u00e9stamo de implemento',
-  devolucion_proveedor_salida: 'Devoluci\u00f3n a proveedor',
+  prestamo_implemento: 'Prestamo de implemento',
+  devolucion_proveedor_salida: 'Devolucion a proveedor',
   baja: 'Baja definitiva',
   ajuste_salida: 'Ajuste de inventario (faltante)',
   enviado_mantenimiento: 'Enviado a mantenimiento',
   reingreso_disponible: 'Reingreso tras mantenimiento',
-  devolucion_interna: 'Devoluci\u00f3n interna a bodega',
+  devolucion_interna: 'Devolucion interna a bodega',
 }
 
 export interface MovimientoCreate {
@@ -270,7 +280,7 @@ export interface ClaseDocenteResponse {
 }
 
 // ---------------------------------------------------------------------------
-// Talleres y Paquetes de insumos (Gu\u00eda de Taller)
+// Talleres y Paquetes de insumos (Guia de Taller)
 // ---------------------------------------------------------------------------
 
 export interface TallerResponse {
@@ -335,7 +345,7 @@ export interface PaqueteItemCreate {
 }
 
 // ---------------------------------------------------------------------------
-// Checklist de preparaci\u00f3n de taller
+// Checklist de preparacion de taller
 // ---------------------------------------------------------------------------
 
 export interface ChecklistItemResponse {
@@ -548,7 +558,7 @@ export interface ProveedorUpdate {
 }
 
 // ---------------------------------------------------------------------------
-// \u00d3rdenes de Mantenimiento
+// Ordenes de Mantenimiento
 // ---------------------------------------------------------------------------
 
 export type EstadoOrden = 'enviado' | 'en_proceso' | 'completado' | 'cancelado'

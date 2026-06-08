@@ -7,12 +7,16 @@ from app.models.insumo import Insumo, TipoInsumo
 from app.models.sala import Sala
 from app.schemas.unidad_implemento import (
     UnidadImplementoCreate,
+    UnidadImplementoGenerarLote,
     UnidadImplementoUpdate,
     UnidadImplementoResponse,
+    GenerarLoteResponse,
 )
 from app.utils.deps import get_usuario_actual, require_operador, require_admin
 
 router = APIRouter(prefix="/unidades-implemento", tags=["unidades-implemento"])
+
+MAX_LOTE = 500  # tope de seguridad para generacion masiva
 
 
 def _prefijo(nombre: str) -> str:
@@ -24,8 +28,6 @@ def _prefijo(nombre: str) -> str:
     """
     nombre_norm = (
         nombre.upper()
-        .replace("A", "A").replace("E", "E").replace("I", "I")
-        .replace("O", "O").replace("U", "U")
         .replace("\u00c1", "A").replace("\u00c9", "E").replace("\u00cd", "I")
         .replace("\u00d3", "O").replace("\u00da", "U").replace("\u00d1", "N")
     )
@@ -62,7 +64,9 @@ def _to_response(u: UnidadImplemento) -> UnidadImplementoResponse:
     )
 
 
+# ---------------------------------------------------------------------------
 # Rutas estaticas ANTES de /{unidad_id}
+# ---------------------------------------------------------------------------
 
 @router.get("/", response_model=list[UnidadImplementoResponse])
 def listar(
@@ -73,11 +77,7 @@ def listar(
     db: Session = Depends(get_db),
     _=Depends(get_usuario_actual),
 ):
-    """Lista unidades. Filtrable por implemento_id, sala_id y estado.
-
-    sala_id=0 puede usarse como convencion para 'solo bodega',
-    pero se recomienda filtrar por sala_id IS NULL en el cliente.
-    """
+    """Lista unidades. Filtrable por implemento_id, sala_id y estado."""
     q = (
         db.query(UnidadImplemento)
         .options(
@@ -97,6 +97,59 @@ def listar(
         _to_response(u)
         for u in q.order_by(UnidadImplemento.codigo).all()
     ]
+
+
+@router.post(
+    "/generar-lote",
+    response_model=GenerarLoteResponse,
+    status_code=201,
+)
+def generar_lote(
+    datos: UnidadImplementoGenerarLote,
+    db: Session = Depends(get_db),
+    _=Depends(require_operador),
+):
+    """Crea N unidades en Bodega (sala_id=NULL) para un implemento.
+
+    Util para sincronizar unidades fisicas con el stock_actual cuando
+    hay menos unidades registradas que stock. Tope: MAX_LOTE unidades
+    por llamada para evitar timeouts.
+    """
+    if datos.cantidad < 1 or datos.cantidad > MAX_LOTE:
+        raise HTTPException(
+            status_code=422,
+            detail=f"La cantidad debe estar entre 1 y {MAX_LOTE}.",
+        )
+
+    implemento = db.query(Insumo).filter(Insumo.id == datos.implemento_id).first()
+    if not implemento:
+        raise HTTPException(status_code=404, detail="Implemento no encontrado")
+    if implemento.tipo != TipoInsumo.implemento:
+        raise HTTPException(
+            status_code=400,
+            detail="Solo se pueden generar unidades para insumos de tipo implemento.",
+        )
+
+    prefijo = _prefijo(implemento.nombre)
+    creadas = []
+    for _ in range(datos.cantidad):
+        u = UnidadImplemento(
+            implemento_id=datos.implemento_id,
+            sala_id=None,
+            notas=None,
+        )
+        db.add(u)
+        db.flush()
+        u.codigo = f"{prefijo}-{u.id:05d}"
+        creadas.append(u.id)
+
+    db.commit()
+    return GenerarLoteResponse(
+        creadas=len(creadas),
+        codigos_generados=[
+            f"{prefijo}-{uid:05d}" for uid in creadas
+        ],
+    )
 
 
 @router.post("/", response_model=UnidadImplementoResponse, status_code=201)
@@ -161,8 +214,10 @@ def actualizar(
 ):
     """Actualiza estado, sala y notas de una unidad.
 
+    El campo sala_id solo deberia ser modificado por el sistema
+    (flujo de retiro) o por un administrador de forma excepcional.
     Para mover una unidad de Bodega a una sala: sala_id=<id_sala>.
-    Para devolverla a Bodega: sala_id=null (no enviar el campo).
+    Para devolverla a Bodega: sala_id=null.
     """
     u = _cargar(db, unidad_id)
 

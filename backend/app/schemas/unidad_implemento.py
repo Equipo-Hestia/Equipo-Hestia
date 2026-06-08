@@ -9,6 +9,12 @@ class UnidadImplementoCreate(BaseModel):
     # codigo se auto-genera; estado empieza siempre en disponible
 
 
+class UnidadImplementoGenerarLote(BaseModel):
+    """Genera N unidades en Bodega para un implemento de una sola vez."""
+    implemento_id: int
+    cantidad: int  # entre 1 y MAX_LOTE (500)
+
+
 class UnidadImplementoUpdate(BaseModel):
     estado: EstadoUnidad | None = None
     sala_id: int | None = None
@@ -29,3 +35,9 @@ class UnidadImplementoResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class GenerarLoteResponse(BaseModel):
+    """Respuesta del endpoint generar-lote."""
+    creadas: int
+    codigos_generados: list[str]

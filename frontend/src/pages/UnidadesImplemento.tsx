@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import {
   Package, Plus, Pencil, PowerOff, RefreshCw,
-  ChevronLeft, CheckCircle, MapPin,
+  ChevronLeft, CheckCircle, MapPin, AlertTriangle,
+  Layers, Info,
 } from 'lucide-react'
 import { api } from '../api/client'
 import { useAuthStore } from '../store/auth'
@@ -10,6 +11,7 @@ import type {
   UnidadImplementoResponse, UnidadImplementoCreate,
   UnidadImplementoUpdate, EstadoUnidad, InsumoResponse,
   SalaResponse, PaginatedResponse,
+  GenerarLoteRequest, GenerarLoteResponse,
 } from '../types/api'
 
 // ---------------------------------------------------------------------------
@@ -31,54 +33,33 @@ const ESTADO_CFG: Record<EstadoUnidad, { label: string; cls: string }> = {
   },
 }
 
+const ROLES_ESCRITURA = ['admin', 'operador_coordinador', 'operador']
+
 // ---------------------------------------------------------------------------
-// Modal crear / editar unidad
+// Modal crear unidad
 // ---------------------------------------------------------------------------
 
-interface ModalProps {
-  unidad: UnidadImplementoResponse | null  // null = crear nueva
+interface ModalCrearProps {
   implementoId: number
-  salas: SalaResponse[]
   onClose: () => void
   onSaved: () => void
 }
 
-function UnidadModal({ unidad, implementoId, salas, onClose, onSaved }: ModalProps) {
-  const esNueva = unidad === null
-  const [estado, setEstado] = useState<EstadoUnidad>(unidad?.estado ?? 'disponible')
-  const [salaId, setSalaId] = useState<string>(unidad?.sala_id != null ? String(unidad.sala_id) : '')
-  const [notas, setNotas] = useState(unidad?.notas ?? '')
+function ModalCrear({ implementoId, onClose, onSaved }: ModalCrearProps) {
+  const [notas, setNotas]       = useState('')
   const [guardando, setGuardando] = useState(false)
-  const [error, setError] = useState('')
-
-  const inputCls = [
-    'w-full px-3 py-2 rounded-lg border text-sm',
-    'bg-white dark:bg-slate-700',
-    'border-slate-300 dark:border-slate-600',
-    'text-slate-900 dark:text-slate-50',
-    'focus:outline-none focus:ring-2 focus:ring-teal-500',
-  ].join(' ')
+  const [error, setError]       = useState('')
 
   async function handleGuardar() {
     setGuardando(true)
     setError('')
     try {
-      const sala_id = salaId ? parseInt(salaId) : null
-      if (esNueva) {
-        const body: UnidadImplementoCreate = {
-          implemento_id: implementoId,
-          sala_id,
-          notas: notas.trim() || null,
-        }
-        await api.post('/unidades-implemento/', body)
-      } else {
-        const body: UnidadImplementoUpdate = {
-          estado,
-          sala_id,
-          notas: notas.trim() || null,
-        }
-        await api.put(`/unidades-implemento/${unidad!.id}`, body)
+      const body: UnidadImplementoCreate = {
+        implemento_id: implementoId,
+        sala_id: null,
+        notas: notas.trim() || null,
       }
+      await api.post('/unidades-implemento/', body)
       onSaved()
     } catch (err: unknown) {
       const detail = (err as { response?: { data?: { detail?: string } } })
@@ -90,93 +71,77 @@ function UnidadModal({ unidad, implementoId, salas, onClose, onSaved }: ModalPro
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60
+                    backdrop-blur-sm p-4">
+      <div className="bg-h-surface border border-h-subtle rounded-2xl shadow-2xl
+                      w-full max-w-sm">
         <div className="flex items-center justify-between px-6 py-4
-                        border-b border-slate-200 dark:border-slate-700">
-          <h2 className="text-base font-bold text-slate-900 dark:text-slate-50">
-            {esNueva ? 'Registrar nueva unidad' : `Editar ${unidad!.codigo ?? 'unidad'}`}
-          </h2>
+                        border-b border-h-subtle">
+          <h2 className="text-base font-semibold text-h-primary">Registrar nueva unidad</h2>
           <button onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200
-                       text-xl font-bold">×</button>
+            className="text-h-tertiary hover:text-h-secondary text-xl font-bold
+                       transition-colors">x</button>
         </div>
 
         <div className="px-6 py-5 space-y-4">
-          {/* Estado — solo en edición */}
-          {!esNueva && (
-            <div>
-              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400
-                            mb-2 uppercase tracking-wide">Estado</p>
-              <div className="flex gap-2 flex-wrap">
-                {(['disponible', 'en_uso', 'dado_de_baja'] as EstadoUnidad[]).map(e => (
-                  <button key={e} onClick={() => setEstado(e)}
-                    className={[
-                      'px-3 py-1.5 rounded-full text-xs font-semibold transition-all border-2',
-                      estado === e
-                        ? 'border-teal-500 bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300'
-                        : 'border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400',
-                    ].join(' ')}>
-                    {ESTADO_CFG[e].label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Sala asignada */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-700
-                              dark:text-slate-300 mb-1.5 uppercase tracking-wide">
-              <span className="flex items-center gap-1.5">
-                <MapPin size={11} /> Ubicación física
-              </span>
-            </label>
-            <select
-              value={salaId}
-              onChange={e => setSalaId(e.target.value)}
-              className={inputCls}
-            >
-              <option value="">Bodega (sin asignar a sala)</option>
-              {salas.map(s => (
-                <option key={s.id} value={s.id}>{s.nombre}</option>
-              ))}
-            </select>
-            <p className="text-xs text-slate-400 mt-1">
-              Si esta unidad está asignada permanentemente a una sala clínica,
-              selecciónala. De lo contrario, se indica que está en Bodega.
+          {/* Info: siempre va a Bodega */}
+          <div className="flex items-start gap-3 rounded-xl border border-h-subtle
+                          bg-h-elevated px-4 py-3">
+            <Info size={15} className="mt-0.5 flex-shrink-0"
+              style={{ color: 'var(--h-teal-hover)' }} />
+            <p className="text-xs text-h-secondary leading-relaxed">
+              La unidad se registra en <strong className="text-h-primary">Bodega</strong>.
+              Su ubicacion cambia automaticamente cuando sea retirada
+              para un taller.
             </p>
           </div>
 
           {/* Notas */}
           <div>
-            <label className="block text-xs font-semibold text-slate-700
-                              dark:text-slate-300 mb-1 uppercase tracking-wide">
-              Notas
+            <label className="block text-[10px] font-semibold text-h-tertiary
+                              mb-1.5 uppercase tracking-widest">
+              Notas (opcional)
             </label>
-            <textarea className={inputCls} rows={2} value={notas}
+            <textarea
+              className="w-full px-3 py-2.5 rounded-lg text-h-primary text-sm
+                         focus:outline-none placeholder:text-h-tertiary transition-all
+                         bg-h-elevated border border-h-visible focus:border-h-strong
+                         resize-none"
+              rows={2}
+              value={notas}
               onChange={e => setNotas(e.target.value)}
-              placeholder="Ej: rayada, falta goma de sellado…" />
+              placeholder="Ej: rayada, falta goma de sellado..."
+            />
           </div>
 
           {error && (
-            <p className="text-sm text-rose-600 dark:text-rose-400 font-medium">{error}</p>
+            <p className="text-xs font-medium px-3 py-2 rounded-lg"
+              style={{
+                background: 'var(--h-sem-danger-bg)',
+                color: 'var(--h-sem-danger-text)',
+                border: '1px solid var(--h-sem-danger-border)',
+              }}>
+              {error}
+            </p>
           )}
         </div>
 
-        <div className="flex justify-end gap-3 px-6 py-4
-                        border-t border-slate-200 dark:border-slate-700">
+        <div className="flex justify-end gap-3 px-6 py-4 border-t border-h-subtle">
           <button onClick={onClose} disabled={guardando}
-            className="px-4 py-2 rounded-lg text-sm font-semibold
-                       text-slate-600 dark:text-slate-400
-                       hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+            className="px-4 py-2 rounded-lg text-sm font-semibold text-h-secondary
+                       hover:bg-h-elevated transition-colors">
             Cancelar
           </button>
           <button onClick={handleGuardar} disabled={guardando}
-            className="px-5 py-2 rounded-lg text-sm font-semibold
-                       bg-teal-600 hover:bg-teal-700 text-white
-                       disabled:opacity-50 transition-colors">
-            {guardando ? 'Guardando…' : esNueva ? 'Registrar' : 'Guardar'}
+            className="px-5 py-2 rounded-lg text-sm font-semibold text-white
+                       transition-colors disabled:opacity-50"
+            style={{ background: 'var(--h-teal-rest)' }}
+            onMouseEnter={e => !guardando &&
+              (e.currentTarget.style.background = 'var(--h-teal-hover)')}
+            onMouseLeave={e =>
+              (e.currentTarget.style.background = 'var(--h-teal-rest)')}
+          >
+            {guardando ? 'Registrando...' : 'Registrar'}
           </button>
         </div>
       </div>
@@ -185,31 +150,323 @@ function UnidadModal({ unidad, implementoId, salas, onClose, onSaved }: ModalPro
 }
 
 // ---------------------------------------------------------------------------
-// Página principal
+// Modal editar unidad
 // ---------------------------------------------------------------------------
 
-const ROLES_ESCRITURA = ['admin', 'operador_coordinador', 'operador']
+interface ModalEditarProps {
+  unidad: UnidadImplementoResponse
+  salas: SalaResponse[]
+  esAdmin: boolean
+  onClose: () => void
+  onSaved: () => void
+}
+
+function ModalEditar({ unidad, salas, esAdmin, onClose, onSaved }: ModalEditarProps) {
+  const [estado, setEstado]   = useState<EstadoUnidad>(unidad.estado)
+  const [salaId, setSalaId]   = useState<string>(
+    unidad.sala_id != null ? String(unidad.sala_id) : ''
+  )
+  const [notas, setNotas]     = useState(unidad.notas ?? '')
+  const [guardando, setGuardando] = useState(false)
+  const [error, setError]     = useState('')
+
+  async function handleGuardar() {
+    setGuardando(true)
+    setError('')
+    try {
+      const body: UnidadImplementoUpdate = {
+        estado,
+        notas: notas.trim() || null,
+      }
+      // Solo admin puede cambiar la sala manualmente
+      if (esAdmin) {
+        body.sala_id = salaId ? parseInt(salaId) : null
+      }
+      await api.put(`/unidades-implemento/${unidad.id}`, body)
+      onSaved()
+    } catch (err: unknown) {
+      const detail = (err as { response?: { data?: { detail?: string } } })
+        ?.response?.data?.detail
+      setError(detail ?? 'Error al guardar')
+    } finally {
+      setGuardando(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60
+                    backdrop-blur-sm p-4">
+      <div className="bg-h-surface border border-h-subtle rounded-2xl shadow-2xl
+                      w-full max-w-sm">
+        <div className="flex items-center justify-between px-6 py-4
+                        border-b border-h-subtle">
+          <div>
+            <h2 className="text-base font-semibold text-h-primary">
+              Editar unidad
+            </h2>
+            <p className="text-xs text-h-tertiary mt-0.5 font-mono">
+              {unidad.codigo}
+            </p>
+          </div>
+          <button onClick={onClose}
+            className="text-h-tertiary hover:text-h-secondary text-xl font-bold
+                       transition-colors">x</button>
+        </div>
+
+        <div className="px-6 py-5 space-y-4">
+          {/* Estado */}
+          <div>
+            <p className="text-[10px] font-semibold text-h-tertiary mb-2
+                          uppercase tracking-widest">Estado</p>
+            <div className="flex gap-2 flex-wrap">
+              {(['disponible', 'en_uso', 'dado_de_baja'] as EstadoUnidad[]).map(e => (
+                <button key={e} onClick={() => setEstado(e)}
+                  className={[
+                    'px-3 py-1.5 rounded-full text-xs font-semibold transition-all border-2',
+                    estado === e
+                      ? 'border-teal-500 text-white'
+                      : 'border-h-subtle text-h-tertiary hover:border-h-visible',
+                  ].join(' ')}
+                  style={estado === e ? { background: 'var(--h-teal-rest)' } : {}}>
+                  {ESTADO_CFG[e].label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Sala — solo visible para admin */}
+          {esAdmin && (
+            <div>
+              <label className="block text-[10px] font-semibold text-h-tertiary
+                                mb-1.5 uppercase tracking-widest">
+                <span className="flex items-center gap-1.5">
+                  <MapPin size={11} />
+                  Ubicacion fisica
+                  <span className="ml-1 px-1.5 py-0.5 rounded text-[9px]
+                                   bg-amber-100 text-amber-700
+                                   dark:bg-amber-900/40 dark:text-amber-300
+                                   font-bold uppercase tracking-wide">
+                    Solo admin
+                  </span>
+                </span>
+              </label>
+              <select
+                value={salaId}
+                onChange={e => setSalaId(e.target.value)}
+                className="w-full px-3 py-2.5 rounded-lg text-h-primary text-sm
+                           focus:outline-none transition-all cursor-pointer
+                           bg-h-elevated border border-h-visible focus:border-h-strong"
+              >
+                <option value="">Bodega (sin asignar a sala)</option>
+                {salas.map(s => (
+                  <option key={s.id} value={s.id}>{s.nombre}</option>
+                ))}
+              </select>
+              <p className="text-[10px] text-h-tertiary mt-1.5 leading-relaxed">
+                La ubicacion normalmente la gestiona el flujo de retiro.
+                Modifica solo si hay un error de registro.
+              </p>
+            </div>
+          )}
+
+          {/* Notas */}
+          <div>
+            <label className="block text-[10px] font-semibold text-h-tertiary
+                              mb-1.5 uppercase tracking-widest">Notas</label>
+            <textarea
+              className="w-full px-3 py-2.5 rounded-lg text-h-primary text-sm
+                         focus:outline-none placeholder:text-h-tertiary transition-all
+                         bg-h-elevated border border-h-visible focus:border-h-strong
+                         resize-none"
+              rows={2}
+              value={notas}
+              onChange={e => setNotas(e.target.value)}
+              placeholder="Ej: rayada, falta goma de sellado..."
+            />
+          </div>
+
+          {error && (
+            <p className="text-xs font-medium px-3 py-2 rounded-lg"
+              style={{
+                background: 'var(--h-sem-danger-bg)',
+                color: 'var(--h-sem-danger-text)',
+                border: '1px solid var(--h-sem-danger-border)',
+              }}>
+              {error}
+            </p>
+          )}
+        </div>
+
+        <div className="flex justify-end gap-3 px-6 py-4 border-t border-h-subtle">
+          <button onClick={onClose} disabled={guardando}
+            className="px-4 py-2 rounded-lg text-sm font-semibold text-h-secondary
+                       hover:bg-h-elevated transition-colors">
+            Cancelar
+          </button>
+          <button onClick={handleGuardar} disabled={guardando}
+            className="px-5 py-2 rounded-lg text-sm font-semibold text-white
+                       transition-colors disabled:opacity-50"
+            style={{ background: 'var(--h-teal-rest)' }}
+            onMouseEnter={e => !guardando &&
+              (e.currentTarget.style.background = 'var(--h-teal-hover)')}
+            onMouseLeave={e =>
+              (e.currentTarget.style.background = 'var(--h-teal-rest)')}
+          >
+            {guardando ? 'Guardando...' : 'Guardar cambios'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Modal generar lote
+// ---------------------------------------------------------------------------
+
+interface ModalGenerarLoteProps {
+  implementoId: number
+  faltantes: number
+  onClose: () => void
+  onSaved: (creadas: number) => void
+}
+
+function ModalGenerarLote(
+  { implementoId, faltantes, onClose, onSaved }: ModalGenerarLoteProps,
+) {
+  const [cantidad, setCantidad]   = useState(faltantes)
+  const [generando, setGenerando] = useState(false)
+  const [error, setError]         = useState('')
+
+  async function handleGenerar() {
+    if (cantidad < 1) return
+    setGenerando(true)
+    setError('')
+    try {
+      const body: GenerarLoteRequest = { implemento_id: implementoId, cantidad }
+      const res = await api.post<GenerarLoteResponse>(
+        '/unidades-implemento/generar-lote', body,
+      )
+      onSaved(res.data.creadas)
+    } catch (err: unknown) {
+      const detail = (err as { response?: { data?: { detail?: string } } })
+        ?.response?.data?.detail
+      setError(detail ?? 'Error al generar unidades')
+    } finally {
+      setGenerando(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60
+                    backdrop-blur-sm p-4">
+      <div className="bg-h-surface border border-h-subtle rounded-2xl shadow-2xl
+                      w-full max-w-sm">
+        <div className="flex items-center justify-between px-6 py-4
+                        border-b border-h-subtle">
+          <h2 className="text-base font-semibold text-h-primary">
+            Generar unidades en lote
+          </h2>
+          <button onClick={onClose}
+            className="text-h-tertiary hover:text-h-secondary text-xl font-bold
+                       transition-colors">x</button>
+        </div>
+
+        <div className="px-6 py-5 space-y-4">
+          <p className="text-sm text-h-secondary leading-relaxed">
+            Se crearan <strong className="text-h-primary">{cantidad}</strong> unidades
+            nuevas en <strong className="text-h-primary">Bodega</strong>, cada una
+            con su subcódigo unico generado automaticamente.
+          </p>
+
+          <div>
+            <label className="block text-[10px] font-semibold text-h-tertiary
+                              mb-1.5 uppercase tracking-widest">
+              Cantidad a generar
+            </label>
+            <input
+              type="number"
+              min={1}
+              max={500}
+              value={cantidad}
+              onChange={e => setCantidad(Math.max(1, parseInt(e.target.value) || 1))}
+              className="w-full px-3 py-2.5 rounded-lg text-h-primary text-sm
+                         focus:outline-none transition-all
+                         bg-h-elevated border border-h-visible focus:border-h-strong"
+            />
+            <p className="text-[10px] text-h-tertiary mt-1">
+              Maximo 500 por operacion.
+            </p>
+          </div>
+
+          {error && (
+            <p className="text-xs font-medium px-3 py-2 rounded-lg"
+              style={{
+                background: 'var(--h-sem-danger-bg)',
+                color: 'var(--h-sem-danger-text)',
+                border: '1px solid var(--h-sem-danger-border)',
+              }}>
+              {error}
+            </p>
+          )}
+        </div>
+
+        <div className="flex justify-end gap-3 px-6 py-4 border-t border-h-subtle">
+          <button onClick={onClose} disabled={generando}
+            className="px-4 py-2 rounded-lg text-sm font-semibold text-h-secondary
+                       hover:bg-h-elevated transition-colors">
+            Cancelar
+          </button>
+          <button onClick={handleGenerar} disabled={generando || cantidad < 1}
+            className="px-5 py-2 rounded-lg text-sm font-semibold text-white
+                       transition-colors disabled:opacity-50"
+            style={{ background: 'var(--h-teal-rest)' }}
+            onMouseEnter={e => !(generando || cantidad < 1) &&
+              (e.currentTarget.style.background = 'var(--h-teal-hover)')}
+            onMouseLeave={e =>
+              (e.currentTarget.style.background = 'var(--h-teal-rest)')}
+          >
+            {generando ? 'Generando...' : `Generar ${cantidad}`}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Tipo de modal activo
+// ---------------------------------------------------------------------------
+
+type ModalState =
+  | { tipo: 'crear' }
+  | { tipo: 'editar'; unidad: UnidadImplementoResponse }
+  | { tipo: 'lote'; faltantes: number }
+  | null
+
+// ---------------------------------------------------------------------------
+// Pagina principal
+// ---------------------------------------------------------------------------
 
 export function UnidadesImplemento() {
   const { user } = useAuthStore()
   const puedeEscribir = user?.rol ? ROLES_ESCRITURA.includes(user.rol) : false
-  const esAdmin = user?.rol === 'admin'
+  const esAdmin       = user?.rol === 'admin'
 
   const { implemento_id } = useParams<{ implemento_id: string }>()
   const implementoId = parseInt(implemento_id ?? '0')
 
   const [implemento, setImplemento] = useState<InsumoResponse | null>(null)
-  const [unidades, setUnidades] = useState<UnidadImplementoResponse[]>([])
-  const [salas, setSalas] = useState<SalaResponse[]>([])
-  const [cargando, setCargando] = useState(true)
-  const [modal, setModal] = useState<UnidadImplementoResponse | null | undefined>(undefined)
-  const [toast, setToast] = useState('')
-  // Filtro de sala en la vista
+  const [unidades, setUnidades]     = useState<UnidadImplementoResponse[]>([])
+  const [salas, setSalas]           = useState<SalaResponse[]>([])
+  const [cargando, setCargando]     = useState(true)
+  const [modal, setModal]           = useState<ModalState>(null)
+  const [toast, setToast]           = useState('')
   const [filtroSala, setFiltroSala] = useState<string>('')
 
   function mostrarToast(msg: string) {
     setToast(msg)
-    setTimeout(() => setToast(''), 3000)
+    setTimeout(() => setToast(''), 3500)
   }
 
   useEffect(() => {
@@ -229,7 +486,9 @@ export function UnidadesImplemento() {
     try {
       const params: Record<string, string | number> = { implemento_id: implementoId }
       if (filtroSala) params.sala_id = parseInt(filtroSala)
-      const res = await api.get<UnidadImplementoResponse[]>('/unidades-implemento/', { params })
+      const res = await api.get<UnidadImplementoResponse[]>(
+        '/unidades-implemento/', { params },
+      )
       setUnidades(res.data)
     } catch {
       mostrarToast('Error al cargar unidades')
@@ -241,7 +500,7 @@ export function UnidadesImplemento() {
   useEffect(() => { cargar() }, [cargar])
 
   async function handleDarDeBaja(u: UnidadImplementoResponse) {
-    if (!confirm(`¿Dar de baja a ${u.codigo ?? 'esta unidad'}?`)) return
+    if (!confirm(`Dar de baja a ${u.codigo ?? 'esta unidad'}?`)) return
     try {
       await api.put(`/unidades-implemento/${u.id}`, { estado: 'dado_de_baja' })
       mostrarToast('Unidad dada de baja')
@@ -251,105 +510,183 @@ export function UnidadesImplemento() {
     }
   }
 
-  const conteos = {
-    total: unidades.length,
-    disponibles: unidades.filter(u => u.estado === 'disponible').length,
-    en_uso: unidades.filter(u => u.estado === 'en_uso').length,
-    baja: unidades.filter(u => u.estado === 'dado_de_baja').length,
-    en_salas: unidades.filter(u => u.sala_id != null).length,
-    en_bodega: unidades.filter(u => u.sala_id == null).length,
-  }
+  // Conteos a partir de TODAS las unidades activas (sin filtro de sala)
+  const totalActivas   = unidades.length
+  const totalDisp      = unidades.filter(u => u.estado === 'disponible').length
+  const totalEnUso     = unidades.filter(u => u.estado === 'en_uso').length
+  const totalBaja      = unidades.filter(u => u.estado === 'dado_de_baja').length
+  const totalEnSalas   = unidades.filter(u => u.sala_id != null).length
+  const totalEnBodega  = unidades.filter(u => u.sala_id == null).length
+
+  // Diferencia entre stock contable y unidades fisicas registradas
+  const stockContable      = implemento?.stock_actual ?? 0
+  const unidadesRegistradas = totalActivas
+  const diferencia          = stockContable - unidadesRegistradas
+  // diferencia > 0 => faltan unidades fisicas
+  // diferencia < 0 => sobran unidades fisicas (posible incongruencia)
 
   if (!implementoId) {
     return (
-      <div className="p-6 text-center text-slate-400 dark:text-slate-500">
-        No se especificó un implemento. Accede desde la página de Insumos.
+      <div className="p-6 text-center text-h-secondary">
+        No se especifico un implemento. Accede desde la pagina de Insumos.
       </div>
     )
   }
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6">
+    <div className="p-6 max-w-4xl mx-auto space-y-5">
+
       {/* Toast */}
       {toast && (
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2
-                        bg-slate-900 dark:bg-slate-700 text-white text-sm
-                        font-medium px-4 py-3 rounded-xl shadow-lg">
-          <CheckCircle size={14} /> {toast}
+                        text-white text-sm font-medium px-4 py-3 rounded-xl shadow-lg"
+          style={{ background: 'var(--h-bg-highlight)' }}>
+          <CheckCircle size={14} style={{ color: 'var(--h-teal-hover)' }} />
+          {toast}
         </div>
       )}
 
       {/* Encabezado */}
       <div>
         <Link to="/insumos"
-          className="flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400
-                     hover:text-teal-600 dark:hover:text-teal-400 transition-colors mb-3">
+          className="flex items-center gap-1.5 text-sm text-h-secondary
+                     transition-colors mb-3"
+          style={{ color: 'var(--h-text-secondary)' }}
+          onMouseEnter={e => (e.currentTarget.style.color = 'var(--h-teal-hover)')}
+          onMouseLeave={e => (e.currentTarget.style.color = 'var(--h-text-secondary)')}
+        >
           <ChevronLeft size={15} /> Volver a Insumos e Implementos
         </Link>
 
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2 mb-1">
-              <Package size={20} className="text-teal-600" />
-              <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-50">
-                {implemento?.nombre ?? 'Cargando…'}
+            <div className="flex items-center gap-2.5 mb-1">
+              <Package size={20} style={{ color: 'var(--h-teal-hover)' }} />
+              <h1 className="text-2xl font-bold text-h-primary">
+                {implemento?.nombre ?? 'Cargando...'}
               </h1>
-              <span className="text-xs font-semibold px-2 py-0.5 rounded-full
-                               bg-violet-100 text-violet-700
-                               dark:bg-violet-900/40 dark:text-violet-300">
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-full"
+                style={{
+                  background: 'rgba(139,92,246,0.15)',
+                  color: '#a78bfa',
+                  border: '1px solid rgba(139,92,246,0.3)',
+                }}>
                 Implemento
               </span>
             </div>
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              Unidades físicas individuales —
-              {' '}<strong>{conteos.en_salas}</strong> en salas,
-              {' '}<strong>{conteos.en_bodega}</strong> en bodega
+            <p className="text-sm text-h-secondary">
+              Unidades fisicas individuales &mdash;{' '}
+              <strong className="text-h-primary">{totalEnSalas}</strong> en salas,{' '}
+              <strong className="text-h-primary">{totalEnBodega}</strong> en bodega
             </p>
           </div>
 
           {puedeEscribir && (
-            <button onClick={() => setModal(null)}
+            <button onClick={() => setModal({ tipo: 'crear' })}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl
-                         bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold
-                         transition-colors shadow-sm flex-shrink-0">
+                         text-white text-sm font-semibold
+                         transition-colors shadow-sm flex-shrink-0"
+              style={{ background: 'var(--h-teal-rest)' }}
+              onMouseEnter={e =>
+                (e.currentTarget.style.background = 'var(--h-teal-hover)')}
+              onMouseLeave={e =>
+                (e.currentTarget.style.background = 'var(--h-teal-rest)')}
+            >
               <Plus size={15} /> Registrar unidad
             </button>
           )}
         </div>
       </div>
 
-      {/* Resumen de estados */}
+      {/* Banner: faltantes (diferencia > 0) */}
+      {!cargando && diferencia > 0 && puedeEscribir && (
+        <div className="flex items-start justify-between gap-4 rounded-xl
+                        border px-4 py-3"
+          style={{
+            background: 'var(--h-sem-warning-bg)',
+            borderColor: 'var(--h-sem-warning-border)',
+          }}>
+          <div className="flex items-start gap-3">
+            <Layers size={16} className="mt-0.5 flex-shrink-0"
+              style={{ color: 'var(--h-sem-warning-text)' }} />
+            <div>
+              <p className="text-sm font-semibold"
+                style={{ color: 'var(--h-sem-warning-text)' }}>
+                {diferencia} {diferencia === 1 ? 'unidad sin subcódigo' : 'unidades sin subcódigo'}
+              </p>
+              <p className="text-xs mt-0.5"
+                style={{ color: 'var(--h-sem-warning-text)', opacity: 0.85 }}>
+                El stock indica {stockContable} unidades pero solo hay
+                {' '}{unidadesRegistradas} con subcódigo asignado.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setModal({ tipo: 'lote', faltantes: diferencia })}
+            className="flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold
+                       text-white transition-colors"
+            style={{ background: 'var(--h-teal-rest)' }}
+            onMouseEnter={e =>
+              (e.currentTarget.style.background = 'var(--h-teal-hover)')}
+            onMouseLeave={e =>
+              (e.currentTarget.style.background = 'var(--h-teal-rest)')}
+          >
+            Generar {diferencia}
+          </button>
+        </div>
+      )}
+
+      {/* Banner: sobrantes (diferencia < 0) */}
+      {!cargando && diferencia < 0 && (
+        <div className="flex items-start gap-3 rounded-xl border px-4 py-3"
+          style={{
+            background: 'var(--h-sem-danger-bg)',
+            borderColor: 'var(--h-sem-danger-border)',
+          }}>
+          <AlertTriangle size={16} className="mt-0.5 flex-shrink-0"
+            style={{ color: 'var(--h-sem-danger-text)' }} />
+          <div>
+            <p className="text-sm font-semibold"
+              style={{ color: 'var(--h-sem-danger-text)' }}>
+              Incongruencia de stock detectada
+            </p>
+            <p className="text-xs mt-0.5"
+              style={{ color: 'var(--h-sem-danger-text)', opacity: 0.85 }}>
+              Hay {unidadesRegistradas} unidades fisicas registradas
+              pero el stock indica solo {stockContable}.
+              Revisa si alguna debe darse de baja.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Tarjetas de resumen */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: 'Total', value: conteos.total,
-            cls: 'text-slate-700 dark:text-slate-200' },
-          { label: 'Disponibles', value: conteos.disponibles,
-            cls: 'text-emerald-600 dark:text-emerald-400' },
-          { label: 'En uso', value: conteos.en_uso,
-            cls: 'text-blue-600 dark:text-blue-400' },
-          { label: 'Baja', value: conteos.baja,
-            cls: 'text-rose-500 dark:text-rose-400' },
+          { label: 'Total',       value: totalActivas, color: 'var(--h-text-primary)' },
+          { label: 'Disponibles', value: totalDisp,    color: '#34d399' },
+          { label: 'En uso',      value: totalEnUso,   color: '#60a5fa' },
+          { label: 'Baja',        value: totalBaja,    color: '#f87171' },
         ].map(stat => (
           <div key={stat.label}
-            className="bg-white dark:bg-slate-800 rounded-xl border
-                       border-slate-200 dark:border-slate-700 p-4 text-center">
-            <p className={`text-2xl font-black ${stat.cls}`}>{stat.value}</p>
-            <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold mt-0.5">
-              {stat.label}
-            </p>
+            className="rounded-xl border border-h-subtle p-4 text-center"
+            style={{ background: 'var(--h-bg-surface)' }}>
+            <p className="text-2xl font-black mb-0.5"
+              style={{ color: stat.color }}>{stat.value}</p>
+            <p className="text-xs text-h-tertiary font-semibold">{stat.label}</p>
           </div>
         ))}
       </div>
 
       {/* Filtro de sala */}
       <div className="flex items-center gap-3">
-        <MapPin size={14} className="text-slate-400" />
+        <MapPin size={14} className="text-h-tertiary" />
         <select
           value={filtroSala}
           onChange={e => setFiltroSala(e.target.value)}
-          className="px-3 py-1.5 rounded-lg border border-slate-200 text-sm
-                     text-slate-600 bg-white focus:outline-none
-                     focus:ring-2 focus:ring-teal-500 cursor-pointer"
+          className="px-3 py-1.5 rounded-lg border text-sm cursor-pointer
+                     bg-h-elevated border-h-visible text-h-primary
+                     focus:outline-none focus:border-h-strong transition-colors"
         >
           <option value="">Todas las ubicaciones</option>
           <option value="0">Solo Bodega</option>
@@ -359,23 +696,24 @@ export function UnidadesImplemento() {
         </select>
       </div>
 
-      {/* Tabla de unidades */}
-      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm
-                      border border-slate-200 dark:border-slate-700 overflow-hidden">
+      {/* Tabla */}
+      <div className="rounded-2xl border border-h-subtle overflow-hidden"
+        style={{ background: 'var(--h-bg-surface)' }}>
         {cargando ? (
-          <div className="p-12 text-center text-slate-400 dark:text-slate-500">
-            <RefreshCw size={24} className="animate-spin mx-auto mb-3" />
-            Cargando unidades…
+          <div className="p-12 text-center text-h-secondary">
+            <RefreshCw size={22} className="animate-spin mx-auto mb-3"
+              style={{ color: 'var(--h-teal-hover)' }} />
+            <p className="text-sm">Cargando unidades...</p>
           </div>
         ) : unidades.length === 0 ? (
           <div className="p-12 text-center">
-            <Package size={32} className="mx-auto mb-3 text-slate-300" />
-            <p className="text-slate-500 dark:text-slate-400 font-medium">
-              No hay unidades para esta selección
+            <Package size={32} className="mx-auto mb-3 text-h-tertiary" />
+            <p className="text-h-secondary font-medium text-sm">
+              No hay unidades para esta seleccion
             </p>
             {puedeEscribir && (
-              <p className="text-slate-400 dark:text-slate-500 text-sm mt-1">
-                Usa "Registrar unidad" para agregar la primera unidad.
+              <p className="text-h-tertiary text-xs mt-1">
+                Usa "Registrar unidad" para agregar la primera.
               </p>
             )}
           </div>
@@ -383,40 +721,55 @@ export function UnidadesImplemento() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-slate-200 dark:border-slate-700
-                               bg-slate-50 dark:bg-slate-900/50">
-                  {['Sub-código', 'Ubicación', 'Estado', 'Notas', 'Acciones'].map(col => (
+                <tr className="border-b border-h-subtle"
+                  style={{ background: 'var(--h-bg-elevated)' }}>
+                  {['Subcódigo', 'Ubicacion', 'Estado', 'Notas', 'Acciones'].map(col => (
                     <th key={col}
-                      className="text-left px-4 py-3 text-xs font-semibold
-                                 text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+                      className="text-left px-4 py-3 text-[10px] font-semibold
+                                 text-h-tertiary uppercase tracking-widest">
                       {col}
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
-                {unidades.map(u => (
+              <tbody>
+                {unidades.map((u, idx) => (
                   <tr key={u.id}
-                    className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+                    className="border-b border-h-subtle transition-colors"
+                    style={{
+                      background: idx % 2 === 0
+                        ? 'var(--h-bg-surface)'
+                        : 'var(--h-bg-elevated)',
+                    }}
+                    onMouseEnter={e =>
+                      (e.currentTarget.style.background = 'var(--h-bg-highlight)')}
+                    onMouseLeave={e =>
+                      (e.currentTarget.style.background = idx % 2 === 0
+                        ? 'var(--h-bg-surface)'
+                        : 'var(--h-bg-elevated)')}
+                  >
                     <td className="px-4 py-3">
-                      <span className="font-mono text-sm font-bold
-                                       text-slate-800 dark:text-slate-100
-                                       bg-slate-100 dark:bg-slate-700
-                                       px-2.5 py-1 rounded-lg">
+                      <span className="font-mono text-sm font-bold px-2.5 py-1
+                                       rounded-lg"
+                        style={{
+                          background: 'var(--h-bg-highlight)',
+                          color: 'var(--h-text-primary)',
+                          border: '1px solid var(--h-border-subtle)',
+                        }}>
                         {u.codigo ?? '—'}
                       </span>
                     </td>
                     <td className="px-4 py-3">
                       {u.sala_nombre ? (
-                        <span className="flex items-center gap-1.5 text-slate-600
-                                         dark:text-slate-300 text-sm">
-                          <MapPin size={11} className="text-teal-500" />
+                        <span className="flex items-center gap-1.5 text-sm"
+                          style={{ color: 'var(--h-teal-hover)' }}>
+                          <MapPin size={11} />
                           {u.sala_nombre}
                         </span>
                       ) : (
-                        <span className="text-xs text-slate-400
-                                         bg-slate-100 dark:bg-slate-700
-                                         px-2 py-0.5 rounded-full font-semibold">
+                        <span className="text-xs font-semibold px-2 py-0.5
+                                         rounded-full text-h-tertiary"
+                          style={{ background: 'var(--h-bg-highlight)' }}>
                           Bodega
                         </span>
                       )}
@@ -428,25 +781,44 @@ export function UnidadesImplemento() {
                         {ESTADO_CFG[u.estado].label}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-slate-500 dark:text-slate-400
-                                   max-w-xs truncate text-sm">
-                      {u.notas ?? <span className="text-slate-300 dark:text-slate-600">—</span>}
+                    <td className="px-4 py-3 text-h-secondary max-w-xs truncate text-xs">
+                      {u.notas ?? (
+                        <span className="text-h-tertiary">&mdash;</span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
                         {puedeEscribir && (
-                          <button onClick={() => setModal(u)}
+                          <button
+                            onClick={() => setModal({ tipo: 'editar', unidad: u })}
                             title="Editar"
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-teal-600
-                                       hover:bg-teal-50 dark:hover:bg-teal-900/30 transition-colors">
+                            className="p-1.5 rounded-lg text-h-tertiary transition-colors"
+                            onMouseEnter={e => {
+                              e.currentTarget.style.color = 'var(--h-teal-hover)'
+                              e.currentTarget.style.background = 'var(--h-teal-subtle)'
+                            }}
+                            onMouseLeave={e => {
+                              e.currentTarget.style.color = ''
+                              e.currentTarget.style.background = ''
+                            }}
+                          >
                             <Pencil size={14} />
                           </button>
                         )}
                         {esAdmin && u.estado !== 'dado_de_baja' && (
-                          <button onClick={() => handleDarDeBaja(u)}
+                          <button
+                            onClick={() => handleDarDeBaja(u)}
                             title="Dar de baja"
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600
-                                       hover:bg-rose-50 dark:hover:bg-rose-900/30 transition-colors">
+                            className="p-1.5 rounded-lg text-h-tertiary transition-colors"
+                            onMouseEnter={e => {
+                              e.currentTarget.style.color = 'var(--h-sem-danger-text)'
+                              e.currentTarget.style.background = 'var(--h-sem-danger-bg)'
+                            }}
+                            onMouseLeave={e => {
+                              e.currentTarget.style.color = ''
+                              e.currentTarget.style.background = ''
+                            }}
+                          >
                             <PowerOff size={14} />
                           </button>
                         )}
@@ -460,16 +832,39 @@ export function UnidadesImplemento() {
         )}
       </div>
 
-      {/* Modal */}
-      {modal !== undefined && (
-        <UnidadModal
-          unidad={modal}
+      {/* Modales */}
+      {modal?.tipo === 'crear' && (
+        <ModalCrear
           implementoId={implementoId}
-          salas={salas}
-          onClose={() => setModal(undefined)}
+          onClose={() => setModal(null)}
           onSaved={() => {
-            setModal(undefined)
-            mostrarToast(modal === null ? 'Unidad registrada' : 'Unidad actualizada')
+            setModal(null)
+            mostrarToast('Unidad registrada en Bodega')
+            cargar()
+          }}
+        />
+      )}
+      {modal?.tipo === 'editar' && (
+        <ModalEditar
+          unidad={modal.unidad}
+          salas={salas}
+          esAdmin={esAdmin}
+          onClose={() => setModal(null)}
+          onSaved={() => {
+            setModal(null)
+            mostrarToast('Unidad actualizada')
+            cargar()
+          }}
+        />
+      )}
+      {modal?.tipo === 'lote' && (
+        <ModalGenerarLote
+          implementoId={implementoId}
+          faltantes={modal.faltantes}
+          onClose={() => setModal(null)}
+          onSaved={creadas => {
+            setModal(null)
+            mostrarToast(`${creadas} unidades generadas en Bodega`)
             cargar()
           }}
         />
