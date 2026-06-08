@@ -8,15 +8,16 @@ import type {
   ValorizacionResponse, ConsumoCarrerasResponse,
   PaqueteResponse, TallerResponse, AsignaturaResponse,
 } from '../types/api'
+import { useLastUpdated } from '../hooks/useLastUpdated'
 
 type Tab = 'paquetes' | 'carreras' | 'exportar'
 
 const CARRERA_NOMBRES: Record<string, string> = {
-  TENS: 'Técnico en Enfermería',
-  TQF: 'Técnico en Química y Farmacia',
-  TLCBS: 'Técnico de Laboratorio Clínico y Banco de Sangre',
-  TONS: 'Técnico en Odontología',
-  preparador_fisico: 'Preparador Físico',
+  TENS: 'Tecnico en Enfermeria',
+  TQF: 'Tecnico en Quimica y Farmacia',
+  TLCBS: 'Tecnico de Laboratorio Clinico y Banco de Sangre',
+  TONS: 'Tecnico en Odontologia',
+  preparador_fisico: 'Preparador Fisico',
 }
 
 function nombreCarrera(carrera: string): string {
@@ -45,9 +46,9 @@ function fmtDec(n: number) {
 }
 
 // ---------------------------------------------------------------------------
-// Tab: Paquetes de insumos (vista principal — reemplaza "Por Categoría")
+// Tab: Paquetes de insumos
 // ---------------------------------------------------------------------------
-function TabPaquetes() {
+function TabPaquetes({ refreshKey }: { refreshKey: number }) {
   const [paquetes, setPaquetes]       = useState<PaqueteResponse[]>([])
   const [talleres, setTalleres]       = useState<TallerResponse[]>([])
   const [asignaturas, setAsignaturas] = useState<AsignaturaResponse[]>([])
@@ -55,6 +56,7 @@ function TabPaquetes() {
   const [loading, setLoading]         = useState(true)
   const [error, setError]             = useState<string | null>(null)
   const [expandido, setExpandido]     = useState<number | null>(null)
+  const { labelTiempo, marcarActualizado } = useLastUpdated()
 
   const load = useCallback(async () => {
     setLoading(true); setError(null)
@@ -69,14 +71,15 @@ function TabPaquetes() {
       setTalleres(tallRes.data)
       setAsignaturas(asigRes.data)
       setVal(valRes.data)
+      marcarActualizado()
     } catch {
-      setError('No se pudo cargar la información de paquetes.')
+      setError('No se pudo cargar la informacion de paquetes.')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [marcarActualizado])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => { load() }, [load, refreshKey])
 
   if (loading) return (
     <div className="space-y-3 mt-4">
@@ -87,8 +90,12 @@ function TabPaquetes() {
   )
 
   if (error) return (
-    <div className="flex items-center gap-3 bg-rose-50 border border-rose-200
-                    rounded-xl px-4 py-3 mt-4 text-rose-700 text-sm">
+    <div className="flex items-center gap-3 rounded-xl px-4 py-3 mt-4 text-sm"
+      style={{
+        background: 'var(--h-sem-danger-bg)',
+        color: 'var(--h-sem-danger-text)',
+        border: '1px solid var(--h-sem-danger-border)',
+      }}>
       <AlertCircle size={16} className="flex-shrink-0" />
       {error}
     </div>
@@ -96,166 +103,174 @@ function TabPaquetes() {
 
   return (
     <div className="mt-4 space-y-6">
-      {/* KPIs del inventario */}
+
+      {/* Label de tiempo debajo del contenido */}
+      {labelTiempo && (
+        <p className="text-xs text-h-tertiary -mt-2">{labelTiempo}</p>
+      )}
+
       {val && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-white rounded-xl border border-slate-200 p-5">
+          <div className="rounded-xl border border-h-subtle p-5"
+            style={{ background: 'var(--h-bg-surface)' }}>
             <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-teal-50 rounded-lg">
-                <DollarSign size={18} className="text-teal-600" />
+              <div className="p-2 rounded-lg" style={{ background: 'var(--h-teal-subtle)' }}>
+                <DollarSign size={18} style={{ color: 'var(--h-teal-hover)' }} />
               </div>
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">
+              <p className="text-xs font-bold text-h-tertiary uppercase tracking-wide">
                 Valor Total Inventario
               </p>
             </div>
-            <p className="text-2xl font-black text-slate-900">
+            <p className="text-2xl font-black text-h-primary">
               {fmt(val.valor_total_inventario)}
             </p>
           </div>
-          <div className="bg-white rounded-xl border border-slate-200 p-5">
+          <div className="rounded-xl border border-h-subtle p-5"
+            style={{ background: 'var(--h-bg-surface)' }}>
             <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-emerald-50 rounded-lg">
-                <Package size={18} className="text-emerald-600" />
+              <div className="p-2 rounded-lg" style={{ background: 'var(--h-sem-success-bg)' }}>
+                <Package size={18} style={{ color: 'var(--h-sem-success-text)' }} />
               </div>
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">
+              <p className="text-xs font-bold text-h-tertiary uppercase tracking-wide">
                 Total Paquetes
               </p>
             </div>
-            <p className="text-2xl font-black text-slate-900">{paquetes.length}</p>
+            <p className="text-2xl font-black text-h-primary">{paquetes.length}</p>
           </div>
-          <div className="bg-white rounded-xl border border-slate-200 p-5">
+          <div className="rounded-xl border border-h-subtle p-5"
+            style={{ background: 'var(--h-bg-surface)' }}>
             <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-violet-50 rounded-lg">
-                <TrendingUp size={18} className="text-violet-600" />
+              <div className="p-2 rounded-lg"
+                style={{ background: 'rgba(139,92,246,0.15)' }}>
+                <TrendingUp size={18} style={{ color: '#a78bfa' }} />
               </div>
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">
+              <p className="text-xs font-bold text-h-tertiary uppercase tracking-wide">
                 Total Talleres
               </p>
             </div>
-            <p className="text-2xl font-black text-slate-900">{talleres.length}</p>
+            <p className="text-2xl font-black text-h-primary">{talleres.length}</p>
           </div>
         </div>
       )}
 
       {/* Tabla de paquetes */}
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-        <div className="px-5 py-4 border-b border-slate-200">
-          <h3 className="font-bold text-slate-800">
-            Paquetes de insumos ({paquetes.length})
-          </h3>
-          <p className="text-xs text-slate-400 mt-0.5">
+      <div className="rounded-xl border border-h-subtle overflow-hidden"
+        style={{ background: 'var(--h-bg-surface)' }}>
+        <div className="px-5 py-4 border-b border-h-subtle">
+          <h3 className="font-bold text-h-primary">Paquetes de insumos ({paquetes.length})</h3>
+          <p className="text-xs text-h-tertiary mt-0.5">
             Haz clic en una fila para ver el detalle de insumos del paquete.
           </p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-slate-50">
+              <tr className="border-b border-h-subtle"
+                style={{ background: 'var(--h-bg-elevated)' }}>
                 <th className="w-8 px-3 py-3"></th>
                 {[
-                  { l: 'Taller',       a: 'left'   },
-                  { l: 'Asignatura',   a: 'left'   },
-                  { l: 'Carrera',      a: 'left'   },
-                  { l: 'Semestre',     a: 'center' },
-                  { l: 'Ítems',        a: 'center' },
-                  { l: 'Estado',       a: 'center' },
+                  { l: 'Taller',     a: 'left'   },
+                  { l: 'Asignatura', a: 'left'   },
+                  { l: 'Carrera',    a: 'left'   },
+                  { l: 'Semestre',   a: 'center' },
+                  { l: 'Items',      a: 'center' },
+                  { l: 'Estado',     a: 'center' },
                 ].map(h => (
                   <th key={h.l}
-                    className={`px-4 py-3 text-xs font-bold text-slate-500
-                                uppercase tracking-wide text-${h.a}`}>
+                    className={`px-4 py-3 text-[10px] font-semibold text-h-tertiary
+                                uppercase tracking-widest text-${h.a}`}>
                     {h.l}
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody>
               {paquetes.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-12 text-slate-400">
+                  <td colSpan={7} className="text-center py-12 text-h-secondary">
                     <Package size={28} className="mx-auto mb-2 opacity-30" />
-                    <p className="font-semibold text-sm">
-                      No hay paquetes registrados.
-                    </p>
+                    <p className="font-semibold text-sm">No hay paquetes registrados.</p>
                   </td>
                 </tr>
               ) : paquetes.map(p => {
                 const taller = talleres.find(t => t.id === p.taller_id)
-                const asig = asignaturas.find(a => a.id === taller?.asignatura_id)
+                const asig   = asignaturas.find(a => a.id === taller?.asignatura_id)
                 const abierto = expandido === p.id
                 return (
                   <>
                     <tr key={p.id}
-                      className="hover:bg-slate-50 transition-colors cursor-pointer"
-                      onClick={() => setExpandido(abierto ? null : p.id)}>
-                      <td className="px-3 py-3 text-slate-400">
+                      className="border-b border-h-subtle transition-colors cursor-pointer"
+                      onClick={() => setExpandido(abierto ? null : p.id)}
+                      onMouseEnter={e =>
+                        (e.currentTarget.style.background = 'var(--h-bg-elevated)')}
+                      onMouseLeave={e =>
+                        (e.currentTarget.style.background = '')}
+                    >
+                      <td className="px-3 py-3 text-h-tertiary">
                         {abierto
-                          ? <span className="text-teal-500">▲</span>
-                          : <span>▼</span>}
+                          ? <span style={{ color: 'var(--h-teal-hover)' }}>&#9650;</span>
+                          : <span>&#9660;</span>}
                       </td>
-                      <td className="px-4 py-3 font-semibold text-slate-900">
+                      <td className="px-4 py-3 font-semibold text-h-primary">
                         {p.taller_nombre}
                       </td>
-                      <td className="px-4 py-3 text-slate-600 text-sm max-w-[220px]">
+                      <td className="px-4 py-3 text-h-secondary text-sm max-w-[220px]">
                         {asig?.nombre ?? '—'}
                       </td>
-                      <td className="px-4 py-3 text-slate-600 text-sm">
+                      <td className="px-4 py-3 text-h-secondary text-sm">
                         {asig ? nombreCarrera(asig.carrera ?? '') : '—'}
                       </td>
                       <td className="px-4 py-3 text-center">
-                        <span className="font-mono text-xs bg-slate-100
-                                         px-2 py-0.5 rounded-full">
+                        <span className="font-mono text-xs px-2 py-0.5 rounded-full"
+                          style={{ background: 'var(--h-bg-highlight)', color: 'var(--h-text-secondary)' }}>
                           {p.semestre}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-center font-semibold">
+                      <td className="px-4 py-3 text-center font-semibold text-h-primary">
                         {p.items.length}
                       </td>
                       <td className="px-4 py-3 text-center text-xs">
                         {p.bloqueado
-                          ? <span className="text-amber-600 font-semibold">Bloqueado</span>
-                          : <span className="text-teal-600 font-semibold">Editable</span>}
+                          ? <span style={{ color: 'var(--h-sem-warning-text)' }} className="font-semibold">Bloqueado</span>
+                          : <span style={{ color: 'var(--h-teal-hover)' }} className="font-semibold">Editable</span>}
                       </td>
                     </tr>
                     {abierto && (
                       <tr key={`${p.id}-det`}>
-                        <td colSpan={7} className="bg-slate-50 px-8 py-3">
+                        <td colSpan={7} className="px-8 py-3"
+                          style={{ background: 'var(--h-bg-elevated)' }}>
                           {p.items.length === 0 ? (
-                            <p className="text-slate-400 text-xs italic">
-                              Sin ítems.
-                            </p>
+                            <p className="text-h-tertiary text-xs italic">Sin items.</p>
                           ) : (
                             <table className="w-full text-xs">
                               <thead>
-                                <tr className="text-slate-400 font-bold uppercase tracking-wide">
+                                <tr className="text-h-tertiary font-bold uppercase tracking-wide">
                                   <th className="text-left py-1 pr-4">Insumo / implemento</th>
                                   <th className="text-center py-1 pr-4">Tipo</th>
                                   <th className="text-center py-1 pr-4">Cantidad</th>
                                   <th className="text-left py-1">Notas</th>
                                 </tr>
                               </thead>
-                              <tbody className="divide-y divide-slate-200">
+                              <tbody className="divide-y divide-h-subtle">
                                 {p.items.map(it => (
                                   <tr key={it.id}>
-                                    <td className="py-1.5 pr-4 font-semibold text-slate-700">
+                                    <td className="py-1.5 pr-4 font-semibold text-h-primary">
                                       {it.insumo_nombre}
                                     </td>
-                                    <td className="py-1.5 pr-4 text-center text-slate-500">
+                                    <td className="py-1.5 pr-4 text-center text-h-secondary">
                                       {it.insumo_tipo}
                                     </td>
-                                    <td className="py-1.5 pr-4 text-center font-bold
-                                                   text-slate-700">
+                                    <td className="py-1.5 pr-4 text-center font-bold text-h-primary">
                                       {it.cantidad_requerida}
                                     </td>
-                                    <td className="py-1.5 text-slate-400">
-                                      {it.notas ?? '—'}
-                                    </td>
+                                    <td className="py-1.5 text-h-tertiary">{it.notas ?? '—'}</td>
                                   </tr>
                                 ))}
                               </tbody>
                             </table>
                           )}
                           {p.creado_por_nombre && (
-                            <p className="text-xs text-slate-400 mt-2">
+                            <p className="text-xs text-h-tertiary mt-2">
                               Creado por {p.creado_por_nombre}
                             </p>
                           )}
@@ -270,56 +285,51 @@ function TabPaquetes() {
         </div>
       </div>
 
-      {/* Detalle de valorización (tabla completa) */}
       {val && val.insumos.length > 0 && (
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-          <div className="px-5 py-4 border-b border-slate-200">
-            <h3 className="font-bold text-slate-800">
-              Valorización del inventario ({val.total_insumos_valorados} insumos)
+        <div className="rounded-xl border border-h-subtle overflow-hidden"
+          style={{ background: 'var(--h-bg-surface)' }}>
+          <div className="px-5 py-4 border-b border-h-subtle">
+            <h3 className="font-bold text-h-primary">
+              Valorizacion del inventario ({val.total_insumos_valorados} insumos)
             </h3>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-slate-50">
+                <tr className="border-b border-h-subtle"
+                  style={{ background: 'var(--h-bg-elevated)' }}>
                   {[
                     { label: 'Nombre',      align: 'left'  },
                     { label: 'SKU',         align: 'left'  },
                     { label: 'Stock',       align: 'right' },
                     { label: 'Costo Unit.', align: 'right' },
                     { label: 'Valor Total', align: 'right' },
-                    { label: 'Categoría',  align: 'left'  },
+                    { label: 'Categoria',   align: 'left'  },
                   ].map(h => (
                     <th key={h.label}
-                      className={`px-4 py-3 text-xs font-bold text-slate-500
-                                  uppercase tracking-wide whitespace-nowrap
+                      className={`px-4 py-3 text-[10px] font-semibold text-h-tertiary
+                                  uppercase tracking-widest whitespace-nowrap
                                   text-${h.align}`}>
                       {h.label}
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody>
                 {val.insumos.map(i => (
-                  <tr key={i.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3 font-medium text-slate-800">
-                      {i.nombre}
-                    </td>
-                    <td className="px-4 py-3 font-mono text-xs text-slate-500">
-                      {i.sku ?? '—'}
-                    </td>
-                    <td className="px-4 py-3 text-slate-600 text-right">
-                      {i.stock_actual}
-                    </td>
-                    <td className="px-4 py-3 text-slate-600 text-right">
-                      ${fmtDec(i.costo_unitario)}
-                    </td>
-                    <td className="px-4 py-3 font-semibold text-right text-teal-600">
+                  <tr key={i.id}
+                    className="border-b border-h-subtle transition-colors"
+                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--h-bg-elevated)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = '')}>
+                    <td className="px-4 py-3 font-medium text-h-primary">{i.nombre}</td>
+                    <td className="px-4 py-3 font-mono text-xs text-h-tertiary">{i.sku ?? '—'}</td>
+                    <td className="px-4 py-3 text-h-secondary text-right">{i.stock_actual}</td>
+                    <td className="px-4 py-3 text-h-secondary text-right">${fmtDec(i.costo_unitario)}</td>
+                    <td className="px-4 py-3 font-semibold text-right"
+                      style={{ color: 'var(--h-teal-hover)' }}>
                       {fmt(i.valor_total)}
                     </td>
-                    <td className="px-4 py-3 text-xs text-slate-500">
-                      {i.categoria ?? '—'}
-                    </td>
+                    <td className="px-4 py-3 text-xs text-h-tertiary">{i.categoria ?? '—'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -336,11 +346,11 @@ function TabPaquetes() {
 // ---------------------------------------------------------------------------
 function TabCarreras() {
   const semestreActual = getSemestreActual()
-  const [semestre, setSemestre] = useState(semestreActual)
-  const [buscando, setBuscando] = useState('')
-  const [data, setData]   = useState<ConsumoCarrerasResponse | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [semestre, setSemestre]   = useState(semestreActual)
+  const [buscando, setBuscando]   = useState('')
+  const [data, setData]           = useState<ConsumoCarrerasResponse | null>(null)
+  const [loading, setLoading]     = useState(false)
+  const [error, setError]         = useState<string | null>(null)
 
   async function buscar() {
     if (!semestre.trim()) return
@@ -366,33 +376,42 @@ function TabCarreras() {
     { label: 'Costo/Estudiante', align: 'right' },
   ]
 
+  const inputCls = `px-3 py-2 text-sm rounded-lg border border-h-subtle
+    focus:outline-none focus:border-h-visible bg-h-elevated text-h-primary
+    placeholder:text-h-tertiary`
+
   return (
     <div className="mt-4 space-y-5">
       <div className="flex gap-3 items-end">
         <div>
-          <label className="block text-xs font-bold text-slate-500 mb-1">
-            SEMESTRE
+          <label className="block text-[10px] font-semibold text-h-tertiary mb-1
+                            uppercase tracking-widest">
+            Semestre
           </label>
           <input value={semestre} onChange={e => setSemestre(e.target.value)}
-            placeholder="Ej: 2026-1"
-            className="px-3 py-2 text-sm rounded-lg border border-slate-200
-                       focus:outline-none focus:ring-2 focus:ring-teal-500 w-40"
+            placeholder="Ej: 2026-1" className={`${inputCls} w-40`}
             onKeyDown={e => e.key === 'Enter' && buscar()} />
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs text-h-tertiary mt-1">
             Semestre actual: <strong>{semestreActual}</strong>
           </p>
         </div>
         <button onClick={buscar} disabled={!semestre.trim() || loading}
-          className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white
-                     text-sm font-bold rounded-lg disabled:opacity-50
-                     transition-colors mb-5">
+          className="px-4 py-2 text-white text-sm font-bold rounded-lg
+                     disabled:opacity-50 transition-colors mb-5"
+          style={{ background: 'var(--h-teal-rest)' }}
+          onMouseEnter={e => { if (!loading) (e.currentTarget.style.background = 'var(--h-teal-hover)') }}
+          onMouseLeave={e => { (e.currentTarget.style.background = 'var(--h-teal-rest)') }}>
           {loading ? 'Cargando...' : 'Consultar'}
         </button>
       </div>
 
       {error && (
-        <div className="flex items-center gap-3 bg-rose-50 border border-rose-200
-                        rounded-xl px-4 py-3 text-rose-700 text-sm">
+        <div className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm"
+          style={{
+            background: 'var(--h-sem-danger-bg)',
+            color: 'var(--h-sem-danger-text)',
+            border: '1px solid var(--h-sem-danger-border)',
+          }}>
           <AlertCircle size={16} className="flex-shrink-0" />
           {error}
         </div>
@@ -400,55 +419,57 @@ function TabCarreras() {
 
       {data && (
         <>
-          <p className="text-sm font-semibold text-slate-700">
+          <p className="text-sm font-semibold text-h-primary">
             Semestre {buscando} — Costo total:
-            <span className="ml-2 font-black text-teal-600">
+            <span className="ml-2 font-black" style={{ color: 'var(--h-teal-hover)' }}>
               {fmt(data.costo_total_semestre)}
             </span>
           </p>
           {data.carreras.length === 0 ? (
-            <div className="text-center py-12 text-slate-400">
+            <div className="text-center py-12 text-h-secondary">
               <TrendingUp size={28} className="mx-auto mb-2 opacity-30" />
-              <p className="font-semibold text-sm">
-                Sin datos de consumo para este semestre.
-              </p>
+              <p className="font-semibold text-sm">Sin datos de consumo para este semestre.</p>
             </div>
           ) : (
-            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+            <div className="rounded-xl border border-h-subtle overflow-hidden"
+              style={{ background: 'var(--h-bg-surface)' }}>
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="bg-slate-50">
+                  <tr className="border-b border-h-subtle"
+                    style={{ background: 'var(--h-bg-elevated)' }}>
                     {COLS.map(col => (
                       <th key={col.label}
-                        className={`px-4 py-3 text-xs font-bold text-slate-500
-                                    uppercase tracking-wide whitespace-nowrap
+                        className={`px-4 py-3 text-[10px] font-semibold text-h-tertiary
+                                    uppercase tracking-widest whitespace-nowrap
                                     text-${col.align}`}>
                         {col.label}
                       </th>
                     ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody>
                   {data.carreras.map(c => (
-                    <tr key={c.carrera} className="hover:bg-slate-50">
-                      <td className="px-4 py-3 font-semibold text-slate-800">
+                    <tr key={c.carrera}
+                      className="border-b border-h-subtle transition-colors"
+                      onMouseEnter={e => (e.currentTarget.style.background = 'var(--h-bg-elevated)')}
+                      onMouseLeave={e => (e.currentTarget.style.background = '')}>
+                      <td className="px-4 py-3 font-semibold text-h-primary">
                         {nombreCarrera(c.carrera)}
                       </td>
-                      <td className="px-4 py-3 text-slate-600 text-right">
-                        {c.num_solicitudes}
-                      </td>
-                      <td className="px-4 py-3 text-slate-600 text-right">
+                      <td className="px-4 py-3 text-h-secondary text-right">{c.num_solicitudes}</td>
+                      <td className="px-4 py-3 text-h-secondary text-right">
                         {c.num_estudiantes_total > 0
                           ? c.num_estudiantes_total
-                          : <span className="text-slate-300">—</span>}
+                          : <span className="text-h-tertiary">—</span>}
                       </td>
-                      <td className="px-4 py-3 font-bold text-right text-teal-600">
+                      <td className="px-4 py-3 font-bold text-right"
+                        style={{ color: 'var(--h-teal-hover)' }}>
                         {fmt(c.costo_total)}
                       </td>
-                      <td className="px-4 py-3 text-slate-600 text-right">
+                      <td className="px-4 py-3 text-h-secondary text-right">
                         {c.costo_por_estudiante != null
                           ? fmt(c.costo_por_estudiante)
-                          : <span className="text-slate-300">—</span>}
+                          : <span className="text-h-tertiary">—</span>}
                       </td>
                     </tr>
                   ))}
@@ -463,10 +484,10 @@ function TabCarreras() {
 }
 
 // ---------------------------------------------------------------------------
-// Tab: Exportar (PDF + Excel lado a lado)
+// Tab: Exportar
 // ---------------------------------------------------------------------------
 function TabExportar() {
-  const [semestre, setSemestre] = useState(getSemestreActual)
+  const [semestre, setSemestre]           = useState(getSemestreActual)
   const [descargandoPdf, setDescargandoPdf]   = useState(false)
   const [descargandoXlsx, setDescargandoXlsx] = useState(false)
   const [errorPdf, setErrorPdf]   = useState<string | null>(null)
@@ -480,12 +501,9 @@ function TabExportar() {
       try {
         const texto = await (response.data as Blob).text()
         return JSON.parse(texto)?.detail ?? 'Error desconocido'
-      } catch {
-        return 'Error desconocido'
-      }
+      } catch { return 'Error desconocido' }
     }
-    return (response?.data as { detail?: string } | undefined)?.detail
-      ?? 'Error desconocido'
+    return (response?.data as { detail?: string } | undefined)?.detail ?? 'Error desconocido'
   }
 
   async function descargarPdf() {
@@ -493,20 +511,15 @@ function TabExportar() {
     try {
       const params = semestre.trim()
         ? `?semestre=${encodeURIComponent(semestre.trim())}` : ''
-      const resp = await api.get(`/reportes/valorizacion/pdf${params}`, {
-        responseType: 'blob',
-      })
-      const url = URL.createObjectURL(
-        new Blob([resp.data], { type: 'application/pdf' })
-      )
+      const resp = await api.get(`/reportes/valorizacion/pdf${params}`, { responseType: 'blob' })
+      const url = URL.createObjectURL(new Blob([resp.data], { type: 'application/pdf' }))
       const a = document.createElement('a')
       a.href = url
       a.download = `valorizacion_hestia${semestre ? `_${semestre}` : ''}.pdf`
       a.click()
       URL.revokeObjectURL(url)
       setOkPdf(true); setTimeout(() => setOkPdf(false), 3000)
-    } catch (err) {
-      setErrorPdf(await _blobError(err))
+    } catch (err) { setErrorPdf(await _blobError(err))
     } finally { setDescargandoPdf(false) }
   }
 
@@ -515,12 +528,8 @@ function TabExportar() {
     try {
       const params = semestre.trim()
         ? `?semestre=${encodeURIComponent(semestre.trim())}` : ''
-      const resp = await api.get(
-        `/reportes/valorizacion/xlsx${params}`,
-        { responseType: 'blob' }
-      )
-      const mime =
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      const resp = await api.get(`/reportes/valorizacion/xlsx${params}`, { responseType: 'blob' })
+      const mime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
       const url = URL.createObjectURL(new Blob([resp.data], { type: mime }))
       const a = document.createElement('a')
       a.href = url
@@ -528,24 +537,23 @@ function TabExportar() {
       a.click()
       URL.revokeObjectURL(url)
       setOkXlsx(true); setTimeout(() => setOkXlsx(false), 3000)
-    } catch (err) {
-      setErrorXlsx(await _blobError(err))
+    } catch (err) { setErrorXlsx(await _blobError(err))
     } finally { setDescargandoXlsx(false) }
   }
 
-  const inputCls = `w-full px-3 py-2 text-sm rounded-lg border border-slate-200
-    focus:outline-none focus:ring-2 focus:ring-teal-500`
+  const inputCls = `w-full px-3 py-2 text-sm rounded-lg border border-h-subtle
+    focus:outline-none focus:border-h-visible bg-h-elevated text-h-primary
+    placeholder:text-h-tertiary`
 
-  // Campo semestre compartido
   const campoSemestre = (
     <div>
-      <label className="block text-xs font-bold text-slate-500 mb-1">
-        SEMESTRE (opcional)
+      <label className="block text-[10px] font-semibold text-h-tertiary mb-1
+                        uppercase tracking-widest">
+        Semestre (opcional)
       </label>
       <input value={semestre} onChange={e => setSemestre(e.target.value)}
         placeholder="Ej: 2026-1" className={inputCls} />
-      <p className="text-xs text-slate-400 mt-1">
-        Aparecerá en el encabezado del reporte.
+      <p className="text-xs text-h-tertiary mt-1">
         Semestre actual: <strong>{getSemestreActual()}</strong>
       </p>
     </div>
@@ -553,73 +561,95 @@ function TabExportar() {
 
   return (
     <div className="mt-4">
-      {/* Semestre compartido arriba */}
       <div className="max-w-xs mb-6">{campoSemestre}</div>
-
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
         {/* Panel PDF */}
-        <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-4">
+        <div className="rounded-xl border border-h-subtle p-6 space-y-4"
+          style={{ background: 'var(--h-bg-surface)' }}>
           <div>
-            <h3 className="font-bold text-slate-800 flex items-center gap-2 mb-1">
-              <Download size={16} className="text-slate-500" />
+            <h3 className="font-bold text-h-primary flex items-center gap-2 mb-1">
+              <Download size={16} className="text-h-tertiary" />
               Reporte PDF
             </h3>
-            <p className="text-sm text-slate-500">
-              Genera un PDF con la valorización del inventario agrupado
-              por categoría, con el detalle de cada insumo.
+            <p className="text-sm text-h-secondary">
+              Genera un PDF con la valorizacion del inventario agrupado por categoria.
             </p>
           </div>
           {errorPdf && (
-            <div className="flex items-start gap-3 bg-rose-50 border border-rose-200
-                            rounded-lg px-3 py-2 text-rose-700 text-sm">
+            <div className="flex items-start gap-3 rounded-lg px-3 py-2 text-sm"
+              style={{
+                background: 'var(--h-sem-danger-bg)',
+                color: 'var(--h-sem-danger-text)',
+                border: '1px solid var(--h-sem-danger-border)',
+              }}>
               <AlertCircle size={14} className="flex-shrink-0 mt-0.5" />
               <span>{errorPdf}</span>
             </div>
           )}
           {okPdf && (
-            <div className="bg-teal-50 border border-teal-200 rounded-lg px-3 py-2
-                            text-teal-700 text-sm font-semibold">
+            <div className="rounded-lg px-3 py-2 text-sm font-semibold"
+              style={{
+                background: 'var(--h-sem-success-bg)',
+                color: 'var(--h-sem-success-text)',
+                border: '1px solid var(--h-sem-success-border)',
+              }}>
               PDF descargado correctamente.
             </div>
           )}
           <button onClick={descargarPdf} disabled={descargandoPdf}
             className="flex items-center gap-2 w-full justify-center px-4 py-2.5
-                       bg-teal-600 hover:bg-teal-700 text-white text-sm font-bold
-                       rounded-lg disabled:opacity-50 transition-colors">
+                       text-white text-sm font-bold rounded-lg disabled:opacity-50
+                       transition-colors"
+            style={{ background: 'var(--h-teal-rest)' }}
+            onMouseEnter={e => { if (!descargandoPdf) (e.currentTarget.style.background = 'var(--h-teal-hover)') }}
+            onMouseLeave={e => { (e.currentTarget.style.background = 'var(--h-teal-rest)') }}>
             <Download size={16} />
             {descargandoPdf ? 'Generando PDF...' : 'Descargar PDF'}
           </button>
         </div>
 
         {/* Panel Excel */}
-        <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-4">
+        <div className="rounded-xl border border-h-subtle p-6 space-y-4"
+          style={{ background: 'var(--h-bg-surface)' }}>
           <div>
-            <h3 className="font-bold text-slate-800 flex items-center gap-2 mb-1">
-              <FileSpreadsheet size={16} className="text-emerald-600" />
+            <h3 className="font-bold text-h-primary flex items-center gap-2 mb-1">
+              <FileSpreadsheet size={16} style={{ color: 'var(--h-sem-success-text)' }} />
               Reporte Excel
             </h3>
-            <p className="text-sm text-slate-500">
-              Genera un archivo Excel (.xlsx) con la valorización del
-              inventario, paquetes de insumos y resumen por categoría.
+            <p className="text-sm text-h-secondary">
+              Genera un archivo Excel (.xlsx) con la valorizacion del inventario,
+              paquetes de insumos y resumen por categoria.
             </p>
           </div>
           {errorXlsx && (
-            <div className="flex items-start gap-3 bg-rose-50 border border-rose-200
-                            rounded-lg px-3 py-2 text-rose-700 text-sm">
+            <div className="flex items-start gap-3 rounded-lg px-3 py-2 text-sm"
+              style={{
+                background: 'var(--h-sem-danger-bg)',
+                color: 'var(--h-sem-danger-text)',
+                border: '1px solid var(--h-sem-danger-border)',
+              }}>
               <AlertCircle size={14} className="flex-shrink-0 mt-0.5" />
               <span>{errorXlsx}</span>
             </div>
           )}
           {okXlsx && (
-            <div className="bg-teal-50 border border-teal-200 rounded-lg px-3 py-2
-                            text-teal-700 text-sm font-semibold">
+            <div className="rounded-lg px-3 py-2 text-sm font-semibold"
+              style={{
+                background: 'var(--h-sem-success-bg)',
+                color: 'var(--h-sem-success-text)',
+                border: '1px solid var(--h-sem-success-border)',
+              }}>
               Excel descargado correctamente.
             </div>
           )}
           <button onClick={descargarXlsx} disabled={descargandoXlsx}
             className="flex items-center gap-2 w-full justify-center px-4 py-2.5
-                       bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold
-                       rounded-lg disabled:opacity-50 transition-colors">
+                       text-white text-sm font-bold rounded-lg disabled:opacity-50
+                       transition-colors"
+            style={{ background: 'var(--h-sem-success-border)' }}
+            onMouseEnter={e => { if (!descargandoXlsx) (e.currentTarget.style.background = 'var(--h-teal-hover)') }}
+            onMouseLeave={e => { (e.currentTarget.style.background = 'var(--h-sem-success-border)') }}>
             <FileSpreadsheet size={16} />
             {descargandoXlsx ? 'Generando Excel...' : 'Descargar Excel'}
           </button>
@@ -630,59 +660,65 @@ function TabExportar() {
 }
 
 // ---------------------------------------------------------------------------
-// Página principal
+// Pagina principal
 // ---------------------------------------------------------------------------
 export function Reportes() {
-  const [tab, setTab] = useState<Tab>('paquetes')
+  const [tab, setTab]           = useState<Tab>('paquetes')
   const [refreshKey, setRefreshKey] = useState(0)
 
   const tabs: { id: Tab; label: string }[] = [
-    { id: 'paquetes',  label: 'Paquetes de insumos' },
-    { id: 'carreras',  label: 'Costo por carrera' },
-    { id: 'exportar',  label: 'Exportar' },
+    { id: 'paquetes', label: 'Paquetes de insumos' },
+    { id: 'carreras', label: 'Costo por carrera' },
+    { id: 'exportar', label: 'Exportar' },
   ]
 
   return (
     <div className="p-8 max-w-6xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-start justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 flex items-center gap-2">
-            <BarChart2 size={22} className="text-teal-600" />
+          <h1 className="text-2xl font-bold text-h-primary flex items-center gap-2">
+            <BarChart2 size={22} style={{ color: 'var(--h-teal-hover)' }} />
             Reportes
           </h1>
-          <p className="text-slate-500 text-sm mt-0.5">
-            Paquetes de insumos, valorización y costo por carrera.
+          <p className="text-h-secondary text-sm mt-0.5">
+            Paquetes de insumos, valorizacion y costo por carrera.
             Semestre actual: <strong>{getSemestreActual()}</strong>
           </p>
         </div>
         {tab === 'paquetes' && (
           <button onClick={() => setRefreshKey(k => k + 1)}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg
-                       border border-slate-200 text-slate-600
-                       hover:bg-slate-100 text-sm font-semibold
-                       transition-colors">
-            <RefreshCw size={14} />
-            Actualizar
+            className="p-2 rounded-lg border border-h-subtle text-h-tertiary transition-colors"
+            style={{ background: 'var(--h-bg-elevated)' }}
+            onMouseEnter={e => {
+              e.currentTarget.style.background = 'var(--h-bg-highlight)'
+              e.currentTarget.style.color = 'var(--h-text-secondary)'
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.background = 'var(--h-bg-elevated)'
+              e.currentTarget.style.color = ''
+            }}
+            title="Actualizar">
+            <RefreshCw size={15} />
           </button>
         )}
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-slate-100 p-1 rounded-xl mb-6 w-fit">
+      <div className="flex gap-1 p-1 rounded-xl mb-6 w-fit"
+        style={{ background: 'var(--h-bg-elevated)' }}>
         {tabs.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
-            className={`px-4 py-2 text-sm font-semibold rounded-lg
-              transition-colors ${
-              tab === t.id
-                ? 'bg-white text-slate-900 shadow-sm'
-                : 'text-slate-500 hover:text-slate-700'
-            }`}>
+            className={[
+              'px-4 py-2 text-sm font-semibold rounded-lg transition-colors',
+              tab === t.id ? 'text-h-primary shadow-sm' : 'text-h-tertiary hover:text-h-secondary',
+            ].join(' ')}
+            style={tab === t.id ? { background: 'var(--h-bg-surface)' } : {}}>
             {t.label}
           </button>
         ))}
       </div>
 
-      {tab === 'paquetes' && <TabPaquetes key={refreshKey} />}
+      {tab === 'paquetes' && <TabPaquetes key={refreshKey} refreshKey={refreshKey} />}
       {tab === 'carreras' && <TabCarreras />}
       {tab === 'exportar' && <TabExportar />}
     </div>
