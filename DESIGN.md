@@ -31,13 +31,13 @@ La direccion elegida es **Opcion B + C**:
 
 ## 2. Tipografia
 
-| Propiedad     | Valor                          |
+| Propiedad  | Valor                                                     |
 |---|---|
-| Familia       | Nunito (Google Fonts)          |
-| Peso normal   | 400                            |
-| Peso medium   | 600                            |
-| Peso bold     | 700 / 800                      |
-| Aplicacion    | `* { font-family: 'Nunito', sans-serif; }` en index.css |
+| Familia    | Nunito (Google Fonts)                                     |
+| Peso normal| 400                                                       |
+| Peso medium| 600                                                       |
+| Peso bold  | 700 / 800                                                 |
+| Aplicacion | `* { font-family: 'Nunito', sans-serif; }` en index.css   |
 
 Nunito fue elegida por su caracter redondo y amigable, que contrasta bien con la
 oscuridad del fondo sin perder legibilidad. No cambiar a otra familia sin consenso.
@@ -69,9 +69,6 @@ var(--h-text-primary)  var(--h-border-subtle)
 
 ### 3.2 Paleta de fondos — Sistema de profundidad (Layer 1)
 
-El sistema de fondos crea percepcion de profundidad Z mediante diferencias sutiles de luminosidad.
-Cada nivel tiene un rol semantico estricto:
-
 | Token              | Dark mode  | Light mode | Uso semantico                         |
 |---|---|---|---|
 | `--h-bg-base`      | `#0f1117`  | `#f8fafc`  | Fondo de pagina (nivel mas bajo)      |
@@ -80,147 +77,169 @@ Cada nivel tiene un rol semantico estricto:
 | `--h-bg-highlight` | `#263040`  | `#e2e8f0`  | Estado selected, active, hover fuerte |
 
 **Regla:** un elemento nunca debe tener el mismo fondo que su contenedor.
-Si el contenedor es `surface`, el interior debe ser `elevated`.
 
 ### 3.3 Paleta de bordes
 
-| Token                  | Dark mode  | Light mode | Uso semantico                       |
+| Token                | Dark mode  | Light mode | Uso semantico                   |
 |---|---|---|---|
-| `--h-border-subtle`    | `#2a3444`  | `#e2e8f0`  | Entre cards, divisores suaves       |
-| `--h-border-visible`   | `#3a4a5c`  | `#cbd5e1`  | Inputs, cards activos               |
-| `--h-border-strong`    | `#4a5f72`  | `#94a3b8`  | Separadores de seccion              |
+| `--h-border-subtle`  | `#2a3444`  | `#e2e8f0`  | Entre cards, divisores suaves   |
+| `--h-border-visible` | `#3a4a5c`  | `#cbd5e1`  | Inputs, cards activos           |
+| `--h-border-strong`  | `#4a5f72`  | `#94a3b8`  | Separadores de seccion          |
 
 ### 3.4 Paleta de texto
 
-| Token                | Dark mode  | Light mode | Uso semantico                    |
+| Token                | Dark mode  | Light mode | Uso semantico                |
 |---|---|---|---|
-| `--h-text-primary`   | `#f1f5f9`  | `#0f172a`  | Titulos, valores importantes     |
-| `--h-text-secondary` | `#94a3b8`  | `#475569`  | Labels, descripciones            |
-| `--h-text-tertiary`  | `#475569`  | `#94a3b8`  | Metadatos, timestamps, hints     |
-| `--h-text-accent`    | `#1d9e75`  | `#0f6e56`  | Links, valores positivos         |
+| `--h-text-primary`   | `#f1f5f9`  | `#0f172a`  | Titulos, valores importantes |
+| `--h-text-secondary` | `#94a3b8`  | `#475569`  | Labels, descripciones        |
+| `--h-text-tertiary`  | `#475569`  | `#94a3b8`  | Metadatos, timestamps, hints |
+| `--h-text-accent`    | `#1d9e75`  | `#0f6e56`  | Links, valores positivos     |
 
 ### 3.5 Paleta de acento teal (identidad de marca)
 
-| Token              | Valor      | Uso                                         |
+| Token             | Valor                    | Uso                                     |
 |---|---|---|
-| `--h-teal-rest`    | `#0f6e56`  | Boton primario en reposo                    |
-| `--h-teal-hover`   | `#1d9e75`  | Boton primario en hover; texto accent       |
-| `--h-teal-active`  | `#5dcaa5`  | Boton primario en pressed; shimmer beam     |
-| `--h-teal-subtle`  | `rgba(4,52,44,0.5)` (dark) | Fondos teal suaves     |
-| `--h-teal-border`  | `#1d9e75`  | Bordes outline teal                         |
+| `--h-teal-rest`   | `#0f6e56`                | Boton primario en reposo                |
+| `--h-teal-hover`  | `#1d9e75`                | Boton primario en hover; texto accent   |
+| `--h-teal-active` | `#5dcaa5`                | Boton primario en pressed; shimmer beam |
+| `--h-teal-subtle` | `rgba(4,52,44,0.5)` dark | Fondos teal suaves                      |
+| `--h-teal-border` | `#1d9e75`                | Bordes outline teal                     |
 
 El teal es el color de identidad de Hestia. Reservarlo para acciones primarias,
 links activos y elementos que merecen atencion. No sobre-usarlo.
 
 ### 3.6 Colores semanticos
 
-Cada estado semantico tiene bg, border y text en ambos modos:
-
-| Estado   | Variables                                                   |
+| Estado  | Variables                            |
 |---|---|
-| Warning  | `--h-sem-warning-bg/border/text`                            |
-| Danger   | `--h-sem-danger-bg/border/text`                             |
-| Success  | `--h-sem-success-bg/border/text`                            |
-| Info     | `--h-sem-info-bg/border/text`                               |
-
-En dark mode los fondos semanticos usan `rgba` con opacidad para integrarse
-naturalmente con la profundidad del fondo.
+| Warning | `--h-sem-warning-bg/border/text`     |
+| Danger  | `--h-sem-danger-bg/border/text`      |
+| Success | `--h-sem-success-bg/border/text`     |
+| Info    | `--h-sem-info-bg/border/text`        |
 
 ---
 
 ## 4. Sistema de tres capas
 
-La identidad visual de Hestia se construye en tres capas independientes:
-
 ### Layer 1 — Profundidad de color (IMPLEMENTADA)
 
-Los tokens de la seccion 3. Crean la base oscura con sensacion de relieve Z.
-Implementados en `frontend/src/index.css`.
+Los tokens de la seccion 3. Implementados en `frontend/src/index.css`.
 
 ### Layer 2 — Identidad de marca en el Sidebar (IMPLEMENTADA PARCIALMENTE)
 
-El Sidebar es el ancla de identidad de Hestia en la app. Tiene:
-- Logo con filtro CSS teal (`brightness(0) invert(1)` + teal overlay en la variante circular)
+- Logo con filtro CSS teal
 - Nombre "Hestia" prominente cuando expandido
-- Acromino expandido: H·E·S·T·I·A en el footer del sidebar
-- Fondo `--h-bg-surface` que lo diferencia del `--h-bg-base` de la pagina
+- Acromino H·E·S·T·I·A en el footer del sidebar
+- Fondo `--h-bg-surface` diferenciado del `--h-bg-base` de la pagina
 
-**Pendiente en Layer 2:**
-- Gradiente sutil o efecto de aurora muy leve en el header del Sidebar
-- Tratamiento visual del avatar / nombre de usuario en la parte inferior
+**Pendiente:** gradiente/aurora leve en header del Sidebar; tratamiento visual del avatar.
 
-### Layer 3 — Micro-animaciones (IMPLEMENTADA EN LOGIN; PENDIENTE EN INTERIOR)
+### Layer 3 — Micro-animaciones (IMPLEMENTADA EN LOGIN; PARCIAL EN INTERIOR)
 
-Animaciones implementadas en `Login.tsx`:
-- **Blob de fondo reactivo al cursor** en el panel izquierdo (`PanelIzquierdo`)
-  - Tres orbs gaussianos que se desplazan en paralaje segun la posicion del mouse
-  - Glow adicional que sigue al cursor con lag de `0.07s`
-- **Shimmer beam en botones primarios** (`ShimmerButton`)
-  - Borde rotatorio con gradiente conico animado (`@property --h-angle`)
-  - Colores del beam: `#5dcaa5`, `#9fe1cb` (teal claro)
-- **Animacion TOTP** (`TotpInput`)
-  - Los digitos entran con pop y se transforman en las letras H·E·S·T·I·A
-  - Al confirmar, las letras vuelan al centro y explotan en el logo de Hestia
+En `Login.tsx`: blob reactivo al cursor, shimmer beam, animacion TOTP.
 
-**Pendiente en Layer 3:**
-- Fade-in de paginas al navegar (transition entre rutas React Router)
-- Hover states con micro-transicion en rows de tabla
-- Skeleton loaders con shimmer (ya tiene `.skeleton` en index.css, aplicar consistentemente)
-- Transicion suave al colapsar/expandir el Sidebar
+En paginas internas: hover de filas de tabla con `onMouseEnter/Leave` aplicado
+consistentemente en ActivosFijos, Movimientos, UnidadesImplemento, Insumos,
+OrdenesMantenimiento. Pendiente: fade-in entre rutas, skeleton loader consistente,
+transicion suave del Sidebar.
 
 ---
 
-## 5. Componentes con diseno propio
+## 5. Componentes UI reutilizables
 
-### 5.1 ShimmerButton
+### 5.1 HSelect
 
-Archivo: `frontend/src/pages/Login.tsx` (actualmente acoplado al Login).
+Archivo: `frontend/src/components/ui/HSelect.tsx`
 
-**TODO:** extraer a `frontend/src/components/ui/ShimmerButton.tsx` para reutilizar
-en otras paginas donde el CTA principal merece este tratamiento.
+Dropdown 100% custom que reemplaza `<select>` nativo. El `<select>` nativo no permite
+estilizar las `<option>` con CSS — el browser las renderiza con los colores del SO.
+`HSelect` resuelve esto con un `div` + lista controlada.
 
-Funcionamiento:
-- Usa `@property --h-angle` para animar un `conic-gradient` rotatorio
-- El borde gira con `animation: h-spin-border 2.8s linear infinite`
-- El fondo del boton es `--h-teal-rest` en hover cambia a `--h-teal-hover`
-- El texto usa `#e1f5ee` (teal muy claro, casi blanco)
+Props:
+```ts
+value: string
+onChange: (v: string) => void
+options: { value: string; label: string; disabled?: boolean }[]
+placeholder?: string   // opcion vacia
+size?: 'sm' | 'md'    // 'sm' para filtros inline, 'md' para formularios
+disabled?: boolean
+className?: string
+```
 
-Cuando usar ShimmerButton vs boton normal:
-- **ShimmerButton:** CTA principal de la vista ("Ingresar", "Activar 2FA", "Confirmar")
-- **Boton normal teal:** acciones secundarias importantes ("Guardar", "Crear")
-- **Boton outline:** acciones terciarias ("Cancelar", "Volver")
+Uso tipico:
+```tsx
+// Filtro inline (barra de filtros)
+<HSelect
+  value={catFiltro}
+  onChange={v => { setCatFiltro(v); goToPage(0) }}
+  options={catOpts}
+  placeholder="Todas las categorias"
+  size="sm"
+/>
 
-### 5.2 TotpInput
+// Campo de formulario (modal)
+<HSelect
+  value={salaId}
+  onChange={setSalaId}
+  options={salaOpts}
+  placeholder="Sin asignar"
+  className="w-full"
+/>
+```
+
+Paginas donde esta aplicado: Insumos (categoria, tipo, categoria en formulario),
+UnidadesImplemento (filtro sala, sala en modal admin), ActivosFijos (estado, sala,
+proveedor, fidelidad en formulario + filtros estado y sala), OrdenesMantenimiento
+(pendiente aplicacion completa).
+
+### 5.2 useLastUpdated
+
+Archivo: `frontend/src/hooks/useLastUpdated.ts`
+
+Hook que centraliza la logica de "ultima actualizacion" para paginas con boton refresh.
+Resuelve el bug de texto congelado: usa `setInterval(30s)` para recalcular el label
+reactivamente sin tocar el backend.
+
+```ts
+const { labelTiempo, marcarActualizado } = useLastUpdated()
+// Llamar marcarActualizado() despues de cada fetch exitoso.
+// labelTiempo: string reactivo — 'Actualizado hace un momento' / 'hace X min'
+```
+
+**Estandar de UI para paginas con refresh:**
+- `labelTiempo` mostrado bajo el subtitulo del encabezado (`text-xs text-h-tertiary mt-1`)
+- Boton refresh: **solo icono** `<RefreshCw size={15} />`, sin texto
+- Estilo del boton: `p-2 rounded-lg border border-h-subtle bg-h-elevated` con hover
+  `onMouseEnter/Leave`
+
+Paginas donde esta aplicado: Alertas, ActivosFijos, Movimientos, AuditLog,
+OrdenesMantenimiento, Reportes (TabPaquetes).
+
+### 5.3 ShimmerButton
+
+Archivo: `frontend/src/pages/Login.tsx` (acoplado; pendiente extraer a `components/ui/`).
+
+Boton CTA con borde rotatorio animado (`@property --h-angle`, `conic-gradient`).
+Usar solo para el CTA principal de una vista. Ver seccion 7 para jerarquia de botones.
+
+### 5.4 TotpInput
 
 Archivo: `frontend/src/pages/Login.tsx`.
 
-Componente custom que reemplaza el `<input>` estandar para el codigo TOTP.
-Muestra 6 slots con las letras H·E·S·T·I·A como placeholder; al escribir cada
-digito hace pop con animacion y reemplaza la letra. Al confirmar, las letras vuelan
-al centro con animacion staggered.
+6 slots con letras H·E·S·T·I·A como placeholder. Animacion pop al escribir cada digito.
+Al confirmar, las letras vuelan al centro con animacion staggered.
 
-### 5.3 PanelIzquierdo (Login)
+### 5.5 PanelIzquierdo (Login)
 
 Archivo: `frontend/src/pages/Login.tsx`.
 
-Ocupa el 52% del ancho en desktop (oculto en mobile). Contiene:
-- Fondo `--h-bg-surface` con grid de puntos
-- Tres orbs teal gaussianos con paralaje por mouse
-- Glow que sigue al cursor
-- Logo + nombre Hestia en header
-- Headline principal con acento teal en "clinicos"
-- Stats del sistema (18 salas, 5 carreras, 100+ insumos)
-- Footer con creditos DuocUC
+52% del ancho en desktop, oculto en mobile. Blob reactivo al cursor, orbs teal gaussianos,
+stats del sistema, footer DuocUC.
 
-### 5.4 Logo
+### 5.6 Logo
 
 Archivo: `frontend/src/components/ui/Logo.tsx`.
-
-El logo tiene dos variantes:
-- `logo.png` — logo rectangular para uso general
-- `logo_hestia_circular.ico` — version circular para animaciones (TOTP confirm)
-
-Filtro CSS aplicado para tema oscuro (convierte el logo a teal):
+Filtro CSS para tema oscuro:
 ```css
 filter: brightness(0) saturate(100%) invert(45%) sepia(80%)
         saturate(400%) hue-rotate(130deg) brightness(90%);
@@ -230,70 +249,53 @@ filter: brightness(0) saturate(100%) invert(45%) sepia(80%)
 
 ## 6. Estrategia de dark mode
 
-### Como funciona
+1. Zustand (`useThemeStore`) guarda preferencia en `localStorage` con `persist`.
+2. Script anti-FOUC en `index.html` aplica `.dark` en `<html>` antes del primer render.
+3. Tailwind estrategia `class` (no `media`).
 
-1. Zustand (`useThemeStore`) guarda la preferencia en `localStorage` con `persist`
-2. Un script anti-FOUC en `index.html` aplica la clase `.dark` en `<html>` antes
-   del primer render de React, evitando el flash de fondo blanco
-3. Tailwind usa la estrategia `class` (no `media`): el dark mode se activa solo
-   cuando `<html>` tiene la clase `dark`
+`index.css` tiene overrides globales con especificidad `(0,2,0)` para cubrir paginas
+con clases Tailwind estandar sin `!important`.
 
-### Cobertura global de overrides
-
-`index.css` tiene una seccion de overrides globales con especificidad `(0,2,0)`
-(`.dark .clase-tailwind`) que supera la especificidad de Tailwind `(0,1,0)`
-sin necesitar `!important`. Esto permite que paginas con clases Tailwind estandar
-(bg-white, text-slate-800, etc.) hereden el dark mode automaticamente.
-
-**Regla:** al crear un componente nuevo, preferir las clases `h-*` (tokens propios)
-antes que las clases Tailwind de slate/white. Los tokens responden al dark mode
-automaticamente. Las clases Tailwind estandar dependen de los overrides globales.
+**Regla:** preferir clases `h-*` sobre `slate-*` o `white`. Los tokens responden al
+dark mode automaticamente; las clases Tailwind estandar dependen de los overrides globales.
 
 ### Estado de cobertura por pagina
 
-| Pagina            | Dark mode      | Notas                                      |
+| Pagina               | Dark mode | Notas                                    |
 |---|---|---|
-| Login             | Completo       | Diseno propio dark-first                   |
-| Layout / Sidebar  | Completo       | Usa tokens h-*                             |
-| Dashboard         | Parcial        | Overrides globales cubren la mayoria       |
-| Insumos           | Parcial        | Pendiente revision visual                  |
-| Movimientos       | Parcial        | Pendiente revision visual                  |
-| Alertas           | Parcial        | Pendiente revision visual                  |
-| Usuarios          | Parcial        | Pendiente revision visual                  |
-| Paquetes          | Parcial        | Tiene fix especifico de hover (slate-800)  |
-| Reportes          | Parcial        | Pendiente revision visual                  |
-| AuditLog          | Parcial        | Pendiente revision visual                  |
-| ClasesDocente     | Completo       | Se agrego dark mode en sesion anterior     |
+| Login                | Completo  | Dark-first con blob + shimmer            |
+| Layout / Sidebar     | Completo  | Tokens h-*                               |
+| Insumos              | Completo  | Refactorizado a h-* + HSelect            |
+| UnidadesImplemento   | Completo  | Rediseno completo h-*                    |
+| ActivosFijos         | Completo  | Rediseno completo h-* + HSelect          |
+| Alertas              | Completo  | Rediseno completo h-* (sin Vencimientos) |
+| Movimientos          | Completo  | Refactorizado a h-*                      |
+| AuditLog             | Completo  | Refactorizado a h-*                      |
+| OrdenesMantenimiento | Completo  | Refactorizado a h-*                      |
+| Reportes             | Completo  | Refactorizado a h-*                      |
+| Dashboard            | Parcial   | Overrides globales                       |
+| Usuarios             | Parcial   | Pendiente                                |
+| Paquetes             | Parcial   | Pendiente                                |
+| ClasesDocente        | Completo  | Sesion anterior                          |
 
 ---
 
 ## 7. Reglas para trabajo de frontend
 
-1. **Tokens antes que valores crudos.** Usar `var(--h-teal-hover)` o `text-h-primary`,
-   no `#1d9e75` directamente en componentes.
-
-2. **Dark mode por defecto.** Disenar pensando primero en `.dark`. Si algo no tiene
-   sentido en dark mode, es una senial de que el token o la clase estan mal elegidos.
-
-3. **Jerarquia de fondos.** Respetar siempre base → surface → elevated → highlight.
-   Un card sobre la pagina: `bg-h-surface`. Un modal sobre un card: `bg-h-elevated`.
-
-4. **Shimmer solo en CTA principal.** No aplicar el efecto shimmer a botones secundarios
-   o de cancelacion; pierde impacto.
-
-5. **Animaciones con `transition` de Tailwind.** Usar `transition-colors duration-150`
-   para hovers de color. Usar `transition-all duration-200` para cambios de tamano.
-   Evitar transiciones lentas (>300ms) en elementos de UI frecuente.
-
-6. **Layer 3 pendiente.** Antes de agregar animaciones nuevas, consultar si encajan
-   con el estilo de las ya implementadas (suaves, no intrusivas, con cubic-bezier
-   que da sensacion de fisicalidad).
-
-7. **Nunito siempre.** No usar `font-mono` salvo para codigos (TOTP, recovery codes,
-   SKUs). El resto del sistema es Nunito en todos sus pesos.
-
-8. **El teal es de accion, no de decoracion.** Reservarlo para botones primarios,
-   links activos, badges de exito y valores que el usuario debe notar.
+1. **Tokens antes que valores crudos.** `var(--h-teal-hover)` o `text-h-primary`,
+   nunca `#1d9e75` hardcodeado.
+2. **Dark mode por defecto.** Disenar primero en `.dark`.
+3. **Jerarquia de fondos.** base → surface → elevated → highlight.
+4. **Shimmer solo en CTA principal.** No en botones secundarios.
+5. **Animaciones con `transition-colors duration-150`** para hovers. Evitar >300ms.
+6. **Nunito siempre.** `font-mono` solo para codigos (TOTP, SKUs, codigos internos).
+7. **El teal es de accion.** Botones primarios, links activos, valores clave.
+8. **HSelect obligatorio.** No usar `<select>` nativo para dropdowns visibles al usuario.
+   Excepcion: selects dentro de modales muy simples donde el contexto sea inequivoco.
+9. **useLastUpdated en toda pagina con refresh.** Estandar: label bajo subtitulo,
+   boton solo icono `RefreshCw size=15`.
+10. **Hover de filas de tabla.** Siempre con `onMouseEnter/Leave` usando
+    `var(--h-bg-highlight)`. No usar `hover:` de Tailwind para filas (interferencia dark).
 
 ---
 
@@ -301,10 +303,9 @@ automaticamente. Las clases Tailwind estandar dependen de los overrides globales
 
 | Item                                               | Capa    | Prioridad |
 |---|---|---|
-| Dark mode completo en paginas internas             | Layer 1 | Alta      |
-| Extraer ShimmerButton a componente reutilizable    | Layer 3 | Media     |
+| Dark mode en Usuarios y Paquetes                   | Layer 1 | Alta      |
+| Extraer ShimmerButton a components/ui/             | Layer 3 | Media     |
 | Fade-in de paginas al navegar entre rutas          | Layer 3 | Media     |
-| Hover micro-animacion en rows de tabla             | Layer 3 | Media     |
 | Gradiente / aurora leve en header del Sidebar      | Layer 2 | Media     |
 | Tratamiento visual del perfil en footer del Sidebar| Layer 2 | Baja      |
-| Aplicar skeleton loader consistentemente           | Layer 3 | Baja      |
+| Skeleton loader consistente en todas las paginas   | Layer 3 | Baja      |
