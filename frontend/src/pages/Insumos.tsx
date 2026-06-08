@@ -15,6 +15,7 @@ import { TableRowSkeleton } from '../components/ui/Skeleton'
 import { Modal } from '../components/ui/Modal'
 import { SearchWithSuggestions } from '../components/ui/SearchSuggestions'
 import { BarcodeScanner } from '../components/ui/BarcodeScanner'
+import { HSelect } from '../components/ui/HSelect'
 
 const PAGE_SIZE = 15
 
@@ -47,7 +48,7 @@ function insumoAForm(i: InsumoResponse): FormState {
   }
 }
 
-// ─── Paginador con números ───────────────────────────────────────────────────
+// Paginador con numeros
 
 interface PaginatorProps {
   page:       number
@@ -86,23 +87,23 @@ function Paginator({ page, totalPages, onPage }: PaginatorProps) {
     <div className="flex items-center gap-1">
       <button
         onClick={() => onPage(0)} disabled={page === 0}
-        className={`${btnBase} ${btnNav} px-1.5`} title="Primera página">
+        className={`${btnBase} ${btnNav} px-1.5`} title="Primera pagina">
         <ChevronsLeft size={13} />
       </button>
       <button
         onClick={() => onPage(Math.max(0, page - 10))} disabled={page === 0}
-        className={`${btnBase} ${btnNav} px-1.5`} title="Retroceder 10 páginas">
+        className={`${btnBase} ${btnNav} px-1.5`} title="Retroceder 10 paginas">
         <ChevronLeft size={13} />
         <span className="text-[10px] ml-0.5">10</span>
       </button>
       <button
         onClick={() => onPage(page - 1)} disabled={page === 0}
-        className={`${btnBase} ${btnNav} px-1.5`} title="Página anterior">
+        className={`${btnBase} ${btnNav} px-1.5`} title="Pagina anterior">
         <ChevronLeft size={13} />
       </button>
       {pages().map((p, idx) =>
         p === '...'
-          ? <span key={`e${idx}`} className="text-h-tertiary text-xs px-1">…</span>
+          ? <span key={`e${idx}`} className="text-h-tertiary text-xs px-1">...</span>
           : (
             <button
               key={p} onClick={() => onPage(p as number)}
@@ -113,26 +114,26 @@ function Paginator({ page, totalPages, onPage }: PaginatorProps) {
       )}
       <button
         onClick={() => onPage(page + 1)} disabled={page >= totalPages - 1}
-        className={`${btnBase} ${btnNav} px-1.5`} title="Página siguiente">
+        className={`${btnBase} ${btnNav} px-1.5`} title="Pagina siguiente">
         <ChevronRight size={13} />
       </button>
       <button
         onClick={() => onPage(Math.min(totalPages - 1, page + 10))}
         disabled={page >= totalPages - 1}
-        className={`${btnBase} ${btnNav} px-1.5`} title="Avanzar 10 páginas">
+        className={`${btnBase} ${btnNav} px-1.5`} title="Avanzar 10 paginas">
         <span className="text-[10px] mr-0.5">10</span>
         <ChevronRight size={13} />
       </button>
       <button
         onClick={() => onPage(totalPages - 1)} disabled={page >= totalPages - 1}
-        className={`${btnBase} ${btnNav} px-1.5`} title="Última página">
+        className={`${btnBase} ${btnNav} px-1.5`} title="Ultima pagina">
         <ChevronsRight size={13} />
       </button>
     </div>
   )
 }
 
-// ─── Mini barra de stock ─────────────────────────────────────────────────────
+// Mini barra de stock
 
 function StockBar({ actual, minimo }: { actual: number; minimo: number }) {
   if (minimo === 0) {
@@ -155,7 +156,7 @@ function StockBar({ actual, minimo }: { actual: number; minimo: number }) {
   )
 }
 
-// ─── Página principal ────────────────────────────────────────────────────────
+// Pagina principal
 
 export function Insumos() {
   const { user } = useAuthStore()
@@ -194,7 +195,6 @@ export function Insumos() {
   const [showExportMenu, setShowExportMenu] = useState(false)
   const [showScanner, setShowScanner]   = useState(false)
 
-  // Fix hover-ghost: id de fila bajo el cursor, reset al cambiar página
   const [hoveredId, setHoveredId] = useState<number | null>(null)
   const exportRef                 = useRef<HTMLDivElement>(null)
   const mainRef                   = useRef<HTMLDivElement>(null)
@@ -361,12 +361,20 @@ export function Insumos() {
     return <Badge variant="success">OK</Badge>
   }
 
+  // Opciones para HSelect de filtros
+  const catOpts = categorias.map(c => ({ value: String(c.id), label: c.nombre }))
+  const tipoOpts = [
+    { value: 'insumo',      label: 'Insumos desechables' },
+    { value: 'implemento',  label: 'Implementos retornables' },
+  ]
+  // Opciones para HSelect de categoria en formulario
+  const catFormOpts = categorias.map(c => ({ value: String(c.id), label: c.nombre }))
+
   const inputCls = `w-full px-3 py-2.5 rounded-lg text-h-primary text-sm
     focus:outline-none transition-all bg-h-elevated border border-h-visible
     focus:border-h-strong placeholder:text-h-tertiary`
   const labelCls = `block text-[10px] font-semibold text-h-tertiary
     uppercase tracking-widest mb-1.5`
-  const selectCls = `${inputCls} cursor-pointer`
 
   return (
     <div ref={mainRef} className="p-8 max-w-6xl mx-auto">
@@ -392,7 +400,7 @@ export function Insumos() {
         <div>
           <h1 className="text-2xl font-bold text-h-primary">Insumos e Implementos</h1>
           <p className="text-h-secondary text-sm mt-0.5">
-            {loading ? '…' : `${total} ítems`}{hasFilters && ' (filtrado)'}
+            {loading ? '...' : `${total} items`}{hasFilters && ' (filtrado)'}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -404,7 +412,7 @@ export function Insumos() {
                            transition-colors duration-150 disabled:opacity-50
                            text-h-secondary bg-h-elevated border border-h-subtle
                            hover:bg-h-highlight hover:text-h-primary">
-                <Download size={14} />{exporting ? 'Exportando…' : 'Exportar'}
+                <Download size={14} />{exporting ? 'Exportando...' : 'Exportar'}
               </button>
               {showExportMenu && (
                 <div className="absolute right-0 top-full mt-1 bg-h-surface border border-h-subtle
@@ -430,7 +438,7 @@ export function Insumos() {
               style={{ background: 'var(--h-teal-rest)' }}
               onMouseEnter={e => (e.currentTarget.style.background = 'var(--h-teal-hover)')}
               onMouseLeave={e => (e.currentTarget.style.background = 'var(--h-teal-rest)')}>
-              <Plus size={16} /> Nuevo ítem
+              <Plus size={16} /> Nuevo item
             </button>
           )}
         </div>
@@ -448,21 +456,27 @@ export function Insumos() {
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <SlidersHorizontal size={14} className="text-h-tertiary" />
-          <select value={catFiltro} onChange={e => { setCatFiltro(e.target.value); goToPage(0) }}
-            className="flex-1 min-w-36 px-3 py-1.5 rounded-lg border border-h-subtle text-sm
-                       text-h-secondary bg-h-elevated focus:outline-none
-                       focus:border-h-visible cursor-pointer">
-            <option value="">Todas las categorías</option>
-            {categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-          </select>
-          <select value={tipoFiltro} onChange={e => { setTipoFiltro(e.target.value); goToPage(0) }}
-            className="flex-1 min-w-36 px-3 py-1.5 rounded-lg border border-h-subtle text-sm
-                       text-h-secondary bg-h-elevated focus:outline-none
-                       focus:border-h-visible cursor-pointer">
-            <option value="">Todos los tipos</option>
-            <option value="insumo">Insumos desechables</option>
-            <option value="implemento">Implementos retornables</option>
-          </select>
+
+          {/* Filtro categoria con HSelect */}
+          <HSelect
+            value={catFiltro}
+            onChange={v => { setCatFiltro(v); goToPage(0) }}
+            options={catOpts}
+            placeholder="Todas las categorias"
+            size="sm"
+            className="flex-1 min-w-36"
+          />
+
+          {/* Filtro tipo con HSelect */}
+          <HSelect
+            value={tipoFiltro}
+            onChange={v => { setTipoFiltro(v); goToPage(0) }}
+            options={tipoOpts}
+            placeholder="Todos los tipos"
+            size="sm"
+            className="flex-1 min-w-36"
+          />
+
           <label className="flex items-center gap-2 cursor-pointer select-none">
             <input type="checkbox" checked={bajoStock}
               onChange={e => { setBajoStock(e.target.checked); goToPage(0) }}
@@ -498,7 +512,7 @@ export function Insumos() {
               <th className="text-right px-4 py-3 text-[10px] font-semibold
                              text-h-tertiary uppercase tracking-widest">Stock</th>
               <th className="text-right px-4 py-3 text-[10px] font-semibold
-                             text-h-tertiary uppercase tracking-widest">Mínimo</th>
+                             text-h-tertiary uppercase tracking-widest">Minimo</th>
               <th className="text-center px-4 py-3 text-[10px] font-semibold
                              text-h-tertiary uppercase tracking-widest">Estado</th>
               {puedeEscribir && <th className="w-10 px-4 py-3" aria-label="Acciones" />}
@@ -514,7 +528,7 @@ export function Insumos() {
                 <td colSpan={puedeEscribir ? 5 : 4}
                   className="text-center py-16 text-h-tertiary">
                   <Package size={32} className="mx-auto mb-2 opacity-30" />
-                  <p className="font-medium">Sin ítems que mostrar</p>
+                  <p className="font-medium">Sin items que mostrar</p>
                   {hasFilters && (
                     <button onClick={limpiarFiltros}
                       className="text-xs mt-1 font-semibold"
@@ -537,7 +551,6 @@ export function Insumos() {
                     ${!i.activo ? 'opacity-50' : ''}
                   `}
                 >
-                  {/* Nombre + subtexto */}
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-medium text-h-primary">{i.nombre}</span>
@@ -549,7 +562,6 @@ export function Insumos() {
                     </div>
                   </td>
 
-                  {/* Stock + barra */}
                   <td className="px-4 py-3 text-right">
                     <span className="text-sm font-bold" style={{
                       color: i.stock_actual === 0
@@ -563,15 +575,12 @@ export function Insumos() {
                     <StockBar actual={i.stock_actual} minimo={i.stock_minimo} />
                   </td>
 
-                  {/* Mínimo */}
                   <td className="px-4 py-3 text-right text-h-tertiary text-sm">
                     {i.stock_minimo}
                   </td>
 
-                  {/* Estado */}
                   <td className="px-4 py-3 text-center">{stockBadge(i)}</td>
 
-                  {/* Acciones — solo en hover */}
                   {puedeEscribir && (
                     <td className="px-3 py-3 w-10">
                       <div className="flex items-center justify-end gap-1
@@ -580,7 +589,7 @@ export function Insumos() {
                         {i.tipo === 'implemento' && i.activo && (
                           <button
                             onClick={() => navigate(`/insumos/${i.id}/unidades`)}
-                            title="Ver unidades físicas"
+                            title="Ver unidades fisicas"
                             className="p-1.5 rounded-md text-h-tertiary
                                        transition-colors duration-150
                                        hover:bg-h-highlight hover:text-h-secondary">
@@ -639,21 +648,21 @@ export function Insumos() {
           <div className="flex items-center justify-between px-4 py-3
                           border-t border-h-subtle">
             <p className="text-xs text-h-tertiary">
-              Página {page + 1} de {totalPages} · {total} ítems en total
+              Pagina {page + 1} de {totalPages} - {total} items en total
             </p>
             <Paginator page={page} totalPages={totalPages} onPage={goToPage} />
           </div>
         )}
       </div>
 
-      {/* ── Modal crear/editar ── */}
+      {/* Modal crear/editar */}
       {showModal && (
         <Modal
-          title={editTarget ? 'Editar ítem' : 'Nuevo insumo o implemento'}
+          title={editTarget ? 'Editar item' : 'Nuevo insumo o implemento'}
           onClose={cerrarModal} size="lg">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className={labelCls}>Tipo de ítem *</label>
+              <label className={labelCls}>Tipo de item *</label>
               <div className="flex rounded-xl border border-h-subtle overflow-hidden">
                 <button type="button" onClick={() => setField('tipo', 'insumo')}
                   className={`flex-1 py-2.5 text-sm font-semibold transition-colors ${
@@ -676,7 +685,7 @@ export function Insumos() {
               <p className="text-xs text-h-tertiary mt-1">
                 {form.tipo === 'insumo'
                   ? 'Se consume durante la clase y se descuenta del stock en bodega'
-                  : 'Puede asignarse a salas clínicas; sus unidades físicas se rastrean individualmente'}
+                  : 'Puede asignarse a salas clinicas; sus unidades fisicas se rastrean individualmente'}
               </p>
             </div>
 
@@ -694,7 +703,7 @@ export function Insumos() {
                 className={inputCls}
                 placeholder="Ej: caja x100, frasco 500 mL, unidad, par, rollo 5 m" />
               <p className="text-xs text-h-tertiary mt-1">
-                Para líquidos y reactivos, indica el volumen del envase (ej: "frasco 500 mL").
+                Para liquidos y reactivos, indica el volumen del envase (ej: "frasco 500 mL").
               </p>
             </div>
 
@@ -703,10 +712,10 @@ export function Insumos() {
                 <label className={labelCls}>SKU</label>
                 <input type="text" value={form.sku}
                   onChange={e => setField('sku', e.target.value)}
-                  className={inputCls} placeholder="Auto-generado si se deja vacío" />
+                  className={inputCls} placeholder="Auto-generado si se deja vacio" />
               </div>
               <div>
-                <label className={labelCls}>Código de barras</label>
+                <label className={labelCls}>Codigo de barras</label>
                 <div className="flex gap-2">
                   <input type="text" value={form.codigo_barras}
                     onChange={e => setField('codigo_barras', e.target.value)}
@@ -715,7 +724,7 @@ export function Insumos() {
                     className="flex-shrink-0 px-3 rounded-lg border border-h-subtle
                                bg-h-elevated text-h-tertiary transition-colors duration-150
                                hover:border-h-visible hover:text-h-secondary"
-                    title="Escanear con cámara">
+                    title="Escanear con camara">
                     <Camera size={16} />
                   </button>
                 </div>
@@ -731,7 +740,7 @@ export function Insumos() {
                 <p className="text-xs text-h-tertiary mt-1">Total de unidades en bodega y salas.</p>
               </div>
               <div>
-                <label className={labelCls}>Stock mínimo *</label>
+                <label className={labelCls}>Stock minimo *</label>
                 <input type="number" min="0" required value={form.stock_minimo}
                   onChange={e => setField('stock_minimo', e.target.value)}
                   className={inputCls} />
@@ -744,22 +753,24 @@ export function Insumos() {
                 onChange={e => setField('fecha_vencimiento', e.target.value)}
                 className={inputCls} />
               <p className="text-xs text-h-tertiary mt-1">
-                Útil para reactivos, insumos de enfermería y banco de sangre.
+                Util para reactivos, insumos de enfermeria y banco de sangre.
               </p>
             </div>
 
+            {/* Categoria con HSelect */}
             <div>
-              <label className={labelCls}>Categoría</label>
-              <select value={form.categoria_id}
-                onChange={e => setField('categoria_id', e.target.value)}
-                className={selectCls}>
-                <option value="">Sin categoría</option>
-                {categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-              </select>
+              <label className={labelCls}>Categoria</label>
+              <HSelect
+                value={form.categoria_id}
+                onChange={v => setField('categoria_id', v)}
+                options={catFormOpts}
+                placeholder="Sin categoria"
+                className="w-full"
+              />
             </div>
 
             <div>
-              <label className={labelCls}>Descripción</label>
+              <label className={labelCls}>Descripcion</label>
               <input type="text" value={form.descripcion}
                 onChange={e => setField('descripcion', e.target.value)}
                 className={inputCls} placeholder="Opcional" />
@@ -783,26 +794,26 @@ export function Insumos() {
                 style={{ background: 'var(--h-teal-rest)' }}
                 onMouseEnter={e => { if (!saving) (e.currentTarget.style.background = 'var(--h-teal-hover)') }}
                 onMouseLeave={e => { (e.currentTarget.style.background = 'var(--h-teal-rest)') }}>
-                {saving ? 'Guardando…' : editTarget ? 'Guardar cambios' : 'Crear'}
+                {saving ? 'Guardando...' : editTarget ? 'Guardar cambios' : 'Crear'}
               </button>
             </div>
           </form>
         </Modal>
       )}
 
-      {/* ── Modal desactivar ── */}
+      {/* Modal desactivar */}
       {deleteTarget && (
-        <Modal title="Desactivar ítem" onClose={cerrarModal} size="sm">
+        <Modal title="Desactivar item" onClose={cerrarModal} size="sm">
           {deleteStep === 'confirm' ? (
             <div className="text-center">
               <div className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4"
                 style={{ background: 'var(--h-sem-danger-bg)' }}>
                 <Archive size={24} style={{ color: 'var(--h-sem-danger-text)' }} />
               </div>
-              <p className="font-semibold text-h-primary mb-1">¿Desactivar este ítem?</p>
+              <p className="font-semibold text-h-primary mb-1">Desactivar este item?</p>
               <p className="text-h-secondary text-sm mb-3">
-                <strong>{deleteTarget.nombre}</strong> desaparecerá de los listados
-                y no se le podrán registrar movimientos. Su historial se conserva
+                <strong>{deleteTarget.nombre}</strong> desaparecera de los listados
+                y no se le podran registrar movimientos. Su historial se conserva
                 y puede reactivarse cuando quieras.
               </p>
               {userHas2FA === false ? (
@@ -818,7 +829,7 @@ export function Insumos() {
                         style={{ color: 'var(--h-sem-warning-text)' }}>2FA requerido</p>
                       <p className="text-xs mt-0.5"
                         style={{ color: 'var(--h-sem-warning-text)' }}>
-                        Activa la verificación en dos pasos para desactivar ítems.
+                        Activa la verificacion en dos pasos para desactivar items.
                       </p>
                     </div>
                   </div>
@@ -832,7 +843,7 @@ export function Insumos() {
               ) : (
                 <>
                   <p className="text-h-tertiary text-xs mb-5">
-                    Necesitarás tu código TOTP para confirmar.
+                    Necesitaras tu codigo TOTP para confirmar.
                   </p>
                   <div className="flex gap-3">
                     <button onClick={cerrarModal}
@@ -851,7 +862,7 @@ export function Insumos() {
           ) : (
             <div>
               <p className="text-h-secondary text-sm mb-5 text-center">
-                Ingresa tu código TOTP para confirmar la desactivación de
+                Ingresa tu codigo TOTP para confirmar la desactivacion de
                 <strong> {deleteTarget.nombre}</strong>.
               </p>
               <input type="text" inputMode="numeric" maxLength={6} value={deleteTotp}
@@ -872,12 +883,12 @@ export function Insumos() {
                 <button onClick={() => { setDeleteStep('confirm'); setFormError(null) }}
                   className="flex-1 py-2.5 rounded-xl border border-h-subtle
                              text-h-secondary font-medium hover:bg-h-elevated
-                             transition-colors">← Volver</button>
+                             transition-colors">Volver</button>
                 <button onClick={confirmDelete} disabled={deleting || deleteTotp.length !== 6}
                   className="flex-1 py-2.5 rounded-xl text-white font-semibold
                              disabled:opacity-50 transition-colors"
                   style={{ background: 'var(--h-sem-danger-border)' }}>
-                  {deleting ? 'Desactivando…' : 'Desactivar'}
+                  {deleting ? 'Desactivando...' : 'Desactivar'}
                 </button>
               </div>
             </div>
@@ -885,18 +896,18 @@ export function Insumos() {
         </Modal>
       )}
 
-      {/* ── Modal reactivar ── */}
+      {/* Modal reactivar */}
       {reactivarTarget && (
-        <Modal title="Reactivar ítem" onClose={cerrarModal} size="sm">
+        <Modal title="Reactivar item" onClose={cerrarModal} size="sm">
           <div className="text-center">
             <div className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4"
               style={{ background: 'var(--h-sem-success-bg)' }}>
               <ArchiveRestore size={24} style={{ color: 'var(--h-sem-success-text)' }} />
             </div>
-            <p className="font-semibold text-h-primary mb-1">¿Reactivar este ítem?</p>
+            <p className="font-semibold text-h-primary mb-1">Reactivar este item?</p>
             <p className="text-h-secondary text-sm mb-5">
-              <strong>{reactivarTarget.nombre}</strong> volverá a aparecer en
-              los listados y podrá recibir movimientos de stock.
+              <strong>{reactivarTarget.nombre}</strong> volvera a aparecer en
+              los listados y podra recibir movimientos de stock.
             </p>
             {formError && (
               <p className="text-xs px-3 py-2 rounded-lg mb-4" style={{
@@ -914,7 +925,7 @@ export function Insumos() {
                 className="flex-1 py-2.5 rounded-xl text-white font-semibold
                            disabled:opacity-50 transition-colors"
                 style={{ background: 'var(--h-sem-success-border)' }}>
-                {deleting ? 'Reactivando…' : 'Reactivar'}
+                {deleting ? 'Reactivando...' : 'Reactivar'}
               </button>
             </div>
           </div>

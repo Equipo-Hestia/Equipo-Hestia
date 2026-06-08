@@ -13,6 +13,7 @@ import type {
   SalaResponse, PaginatedResponse,
   GenerarLoteRequest, GenerarLoteResponse,
 } from '../types/api'
+import { HSelect } from '../components/ui/HSelect'
 
 // ---------------------------------------------------------------------------
 // Configuracion de estados
@@ -168,6 +169,9 @@ function ModalEditar({ unidad, salas, esAdmin, onClose, onSaved }: ModalEditarPr
   const [guardando, setGuardando] = useState(false)
   const [error, setError]         = useState('')
 
+  // Opciones para el HSelect de sala (solo admin)
+  const salaOpts = salas.map(s => ({ value: String(s.id), label: s.nombre }))
+
   async function handleGuardar() {
     setGuardando(true)
     setError('')
@@ -226,6 +230,7 @@ function ModalEditar({ unidad, salas, esAdmin, onClose, onSaved }: ModalEditarPr
             </div>
           </div>
 
+          {/* Sala — solo admin, usa HSelect */}
           {esAdmin && (
             <div>
               <label className="block text-[10px] font-semibold text-h-tertiary
@@ -241,18 +246,13 @@ function ModalEditar({ unidad, salas, esAdmin, onClose, onSaved }: ModalEditarPr
                   </span>
                 </span>
               </label>
-              <select
+              <HSelect
                 value={salaId}
-                onChange={e => setSalaId(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-lg text-h-primary text-sm
-                           focus:outline-none transition-all cursor-pointer
-                           bg-h-elevated border border-h-visible focus:border-h-strong"
-              >
-                <option value="">Bodega (sin asignar a sala)</option>
-                {salas.map(s => (
-                  <option key={s.id} value={s.id}>{s.nombre}</option>
-                ))}
-              </select>
+                onChange={setSalaId}
+                options={salaOpts}
+                placeholder="Bodega (sin asignar a sala)"
+                className="w-full"
+              />
               <p className="text-[10px] text-h-tertiary mt-1.5 leading-relaxed">
                 La ubicacion normalmente la gestiona el flujo de retiro.
                 Modifica solo si hay un error de registro.
@@ -473,7 +473,11 @@ export function UnidadesImplemento() {
     setCargando(true)
     try {
       const params: Record<string, string | number> = { implemento_id: implementoId }
-      if (filtroSala) params.sala_id = parseInt(filtroSala)
+      if (filtroSala === '0') {
+        params.sala_id = 0
+      } else if (filtroSala) {
+        params.sala_id = parseInt(filtroSala)
+      }
       const res = await api.get<UnidadImplementoResponse[]>(
         '/unidades-implemento/', { params },
       )
@@ -499,16 +503,11 @@ export function UnidadesImplemento() {
   }
 
   // ---------------------------------------------------------------------------
-  // Conteos
-  //
-  // Las unidades "dado_de_baja" se excluyen del stock operativo.
-  // No cuentan ni para la comparacion con el stock contable ni para el
-  // subtotal de "en salas / en bodega".
+  // Conteos — las dadas de baja no cuentan como stock operativo
   // ---------------------------------------------------------------------------
   const totalBaja       = unidades.filter(u => u.estado === 'dado_de_baja').length
   const totalDisp       = unidades.filter(u => u.estado === 'disponible').length
   const totalEnUso      = unidades.filter(u => u.estado === 'en_uso').length
-  // Operativas = disponibles + en uso (excluye dado_de_baja)
   const totalOperativas = totalDisp + totalEnUso
   const totalEnSalas    = unidades.filter(
     u => u.sala_id != null && u.estado !== 'dado_de_baja',
@@ -517,12 +516,15 @@ export function UnidadesImplemento() {
     u => u.sala_id == null && u.estado !== 'dado_de_baja',
   ).length
 
-  // Diferencia entre stock contable y unidades fisicas operativas.
-  // diferencia > 0 => faltan unidades fisicas (generar lote)
-  // diferencia < 0 => sobran unidades fisicas (dar de baja las sobrantes)
   const stockContable       = implemento?.stock_actual ?? 0
   const unidadesRegistradas = totalOperativas
   const diferencia          = stockContable - unidadesRegistradas
+
+  // Opciones del filtro de sala para HSelect
+  const filtroSalaOpts = [
+    { value: '0', label: 'Solo Bodega' },
+    ...salas.map(s => ({ value: String(s.id), label: s.nombre })),
+  ]
 
   if (!implementoId) {
     return (
@@ -676,22 +678,16 @@ export function UnidadesImplemento() {
         ))}
       </div>
 
-      {/* Filtro de sala */}
+      {/* Filtro de sala con HSelect */}
       <div className="flex items-center gap-3">
         <MapPin size={14} className="text-h-tertiary" />
-        <select
+        <HSelect
           value={filtroSala}
-          onChange={e => setFiltroSala(e.target.value)}
-          className="px-3 py-1.5 rounded-lg border text-sm cursor-pointer
-                     bg-h-elevated border-h-visible text-h-primary
-                     focus:outline-none focus:border-h-strong transition-colors"
-        >
-          <option value="">Todas las ubicaciones</option>
-          <option value="0">Solo Bodega</option>
-          {salas.map(s => (
-            <option key={s.id} value={s.id}>{s.nombre}</option>
-          ))}
-        </select>
+          onChange={setFiltroSala}
+          options={filtroSalaOpts}
+          placeholder="Todas las ubicaciones"
+          size="sm"
+        />
       </div>
 
       {/* Tabla */}
