@@ -1,3 +1,76 @@
+// ---------------------------------------------------------------------------
+// EstadoOrden - sincronizado con modelo OrdenMantenimiento (backend)
+// Estados actuales: en_curso | cerrada | cancelada
+// ---------------------------------------------------------------------------
+export type EstadoOrden = 'en_curso' | 'cerrada' | 'cancelada'
+
+export const ETIQUETA_ESTADO_ORDEN: Record<EstadoOrden, string> = {
+  en_curso:  'En curso',
+  cerrada:   'Cerrada',
+  cancelada: 'Cancelada',
+}
+
+export type ResultadoItem = 'pendiente' | 'ok' | 'sale_a_taller' | 'dar_de_baja'
+
+export const ETIQUETA_RESULTADO_ITEM: Record<ResultadoItem, string> = {
+  pendiente:     'Pendiente',
+  ok:            'OK - Operativo',
+  sale_a_taller: 'Sale a taller externo',
+  dar_de_baja:   'Dar de baja',
+}
+
+export interface OrdenItemResponse {
+  id: number
+  activo_fijo_id: number
+  activo_fijo_nombre: string
+  activo_fijo_codigo: string | null
+  resultado: ResultadoItem
+  fecha_envio: string | null
+  fecha_retorno_estimada: string | null
+  fecha_retorno: string | null
+  descripcion_problema: string | null
+  descripcion_trabajo: string | null
+  costo: number | null
+}
+
+export interface OrdenMantenimientoResponse {
+  id: number
+  proveedor_id: number | null
+  proveedor_nombre: string | null
+  creado_por_id: number | null
+  creado_por_nombre: string | null
+  estado: EstadoOrden
+  fecha_visita: string
+  notas: string | null
+  activo: boolean
+  items: OrdenItemResponse[]
+}
+
+export interface OrdenMantenimientoCreate {
+  proveedor_id?: number | null
+  activo_ids: number[]
+  fecha_visita: string
+  notas?: string | null
+}
+
+export interface OrdenMantenimientoUpdate {
+  proveedor_id?: number | null
+  notas?: string | null
+}
+
+export interface OrdenItemUpdate {
+  resultado: ResultadoItem
+  fecha_envio?: string | null
+  fecha_retorno_estimada?: string | null
+  fecha_retorno?: string | null
+  descripcion_problema?: string | null
+  descripcion_trabajo?: string | null
+  costo?: number | null
+}
+
+// ---------------------------------------------------------------------------
+// EstadoUnidad - UnidadImplemento
+// ---------------------------------------------------------------------------
 export type EstadoUnidad = 'disponible' | 'en_uso' | 'dado_de_baja'
 
 export interface UnidadImplementoResponse {
@@ -154,40 +227,30 @@ export interface CategoriaCreate {
   nombre: string
 }
 
-// Tipo base del movimiento: direccion del flujo
 export type TipoMovimiento = 'entrada' | 'salida' | 'interno'
 
-// Subtipo: motivo especifico que detalla el tipo base
 export type SubtipoMovimiento =
-  // Entradas
   | 'compra'
   | 'devolucion_proveedor_entrada'
   | 'ajuste_entrada'
-  // Salidas
   | 'consumo_taller'
   | 'prestamo_implemento'
   | 'devolucion_proveedor_salida'
   | 'baja'
   | 'ajuste_salida'
-  // Internos
   | 'enviado_mantenimiento'
   | 'reingreso_disponible'
   | 'devolucion_interna'
 
-/** Mapa de subtipos validos por tipo base. Util para poblar selects. */
 export const SUBTIPOS_POR_TIPO: Record<TipoMovimiento, SubtipoMovimiento[]> = {
   entrada: ['compra', 'devolucion_proveedor_entrada', 'ajuste_entrada'],
   salida: [
-    'consumo_taller',
-    'prestamo_implemento',
-    'devolucion_proveedor_salida',
-    'baja',
-    'ajuste_salida',
+    'consumo_taller', 'prestamo_implemento',
+    'devolucion_proveedor_salida', 'baja', 'ajuste_salida',
   ],
   interno: ['enviado_mantenimiento', 'reingreso_disponible', 'devolucion_interna'],
 }
 
-/** Etiquetas en espanol para mostrar en la UI */
 export const ETIQUETA_SUBTIPO: Record<SubtipoMovimiento, string> = {
   compra: 'Compra a proveedor',
   devolucion_proveedor_entrada: 'Devolucion de proveedor (reingreso)',
@@ -244,16 +307,8 @@ export interface PaginatedResponse<T> {
   data: T[]
 }
 
-// ---------------------------------------------------------------------------
-// Asignaturas y Clases Docente
-// ---------------------------------------------------------------------------
-
 export type CarreraAsignatura =
-  | 'TENS'
-  | 'TQF'
-  | 'TLCBS'
-  | 'TONS'
-  | 'preparador_fisico'
+  | 'TENS' | 'TQF' | 'TLCBS' | 'TONS' | 'preparador_fisico'
 
 export interface AsignaturaResponse {
   id: number
@@ -278,10 +333,6 @@ export interface ClaseDocenteResponse {
   hora_inicio: string | null
   hora_fin: string | null
 }
-
-// ---------------------------------------------------------------------------
-// Talleres y Paquetes de insumos (Guia de Taller)
-// ---------------------------------------------------------------------------
 
 export interface TallerResponse {
   id: number
@@ -311,9 +362,7 @@ export interface PaqueteItemResponse {
   insumo_id: number
   insumo_nombre: string
   insumo_tipo: TipoInsumo
-  /** Unidad de medida registrada en el insumo (ej: 'caja x100', 'frasco 500 mL') */
   insumo_unidad_medida: string | null
-  /** Costo unitario del insumo para calcular el costo estimado del paquete */
   insumo_costo_unitario: number | null
   cantidad_requerida: number
   notas: string | null
@@ -343,10 +392,6 @@ export interface PaqueteItemCreate {
   cantidad_requerida: number
   notas?: string | null
 }
-
-// ---------------------------------------------------------------------------
-// Checklist de preparacion de taller
-// ---------------------------------------------------------------------------
 
 export interface ChecklistItemResponse {
   item_id: number
@@ -380,13 +425,8 @@ export interface ConfirmarPreparacionCreate {
 export interface ConfirmarPreparacionResponse {
   mensaje: string
   movimientos_generados: number
-  /** Nombres de insumos con stock insuficiente que no pudieron retirarse */
   items_sin_stock: string[]
 }
-
-// ---------------------------------------------------------------------------
-// Reportes
-// ---------------------------------------------------------------------------
 
 export interface InsumoValorizado {
   id: number
@@ -519,10 +559,6 @@ export interface EntregaDirectaResponse {
   retornos_pendientes: number
 }
 
-// ---------------------------------------------------------------------------
-// Proveedores
-// ---------------------------------------------------------------------------
-
 export interface ProveedorResponse {
   id: number
   nombre: string
@@ -530,7 +566,6 @@ export interface ProveedorResponse {
   contacto_nombre: string | null
   contacto_email: string | null
   telefono: string | null
-  /** URL al perfil del proveedor en SeNegocia.com */
   url_seneg: string | null
   notas: string | null
   activo: boolean
@@ -556,57 +591,6 @@ export interface ProveedorUpdate {
   notas?: string | null
   activo?: boolean
 }
-
-// ---------------------------------------------------------------------------
-// Ordenes de Mantenimiento
-// ---------------------------------------------------------------------------
-
-export type EstadoOrden = 'enviado' | 'en_proceso' | 'completado' | 'cancelado'
-
-export const ETIQUETA_ESTADO_ORDEN: Record<EstadoOrden, string> = {
-  enviado: 'Enviado al proveedor',
-  en_proceso: 'En proceso',
-  completado: 'Completado',
-  cancelado: 'Cancelado',
-}
-
-export interface OrdenMantenimientoResponse {
-  id: number
-  activo_fijo_id: number
-  activo_fijo_nombre: string
-  activo_fijo_codigo: string | null
-  proveedor_id: number | null
-  proveedor_nombre: string | null
-  creado_por_id: number | null
-  creado_por_nombre: string | null
-  estado: EstadoOrden
-  fecha_envio: string
-  fecha_retorno: string | null
-  descripcion_problema: string | null
-  descripcion_trabajo: string | null
-  costo: number | null
-  activo: boolean
-}
-
-export interface OrdenMantenimientoCreate {
-  activo_fijo_id: number
-  proveedor_id?: number | null
-  fecha_envio: string
-  descripcion_problema?: string | null
-}
-
-export interface OrdenMantenimientoUpdate {
-  proveedor_id?: number | null
-  estado?: EstadoOrden
-  fecha_retorno?: string | null
-  descripcion_trabajo?: string | null
-  costo?: number | null
-  activo?: boolean
-}
-
-// ---------------------------------------------------------------------------
-// Vencimientos (Alertas)
-// ---------------------------------------------------------------------------
 
 export interface InsumoVencimiento {
   id: number

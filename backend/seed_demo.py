@@ -6,16 +6,16 @@ Uso:
     docker compose exec api python seed_demo.py
 
 Genera:
-    - 18 salas clinicas (numeracion real piso -1 + odontologia), 10 categorias
-    - 5 usuarios (admin, 2 operadores, 2 visores) — sin rol docente
-    - 20 asignaturas representativas de las 5 carreras (mallas 2024-2025)
-    - 88 insumos/implementos en Bodega (sin sala asignada)
-    - Unidades fisicas de implementos: algunas asignadas a salas demo
-    - ~560 movimientos en los ultimos 60 dias (con tipo y subtipo)
-    - 6 activos fijos: 3 muebles clinicos + 3 phantomas de simulacion
-    - 2 proveedores: Laerdal Chile (phantomas) y MedSupply SpA (insumos)
-    - 1 orden de mantenimiento demo (SimMan 3G en proceso)
-    - 10 talleres + 10 paquetes de insumos cubriendo las 5 carreras
+    - 18 salas clinicas, 10 categorias
+    - 5 usuarios (admin, 2 operadores, 2 visores)
+    - 20 asignaturas de 5 carreras
+    - 88 insumos/implementos en Bodega
+    - Unidades fisicas de implementos
+    - ~560 movimientos en los ultimos 60 dias
+    - 6 activos fijos: 3 muebles + 3 phantomas
+    - 2 proveedores: Laerdal Chile y MedSupply SpA
+    - 1 orden de mantenimiento demo (SimMan 3G en_curso con Laerdal)
+    - 10 talleres + 10 paquetes de insumos
 
 Credenciales:
     admin@hestia.duoc.cl          / Admin2024!
@@ -48,13 +48,15 @@ from app.models.activo_fijo import (
 )
 from app.models.unidad_implemento import UnidadImplemento, EstadoUnidad
 # IMPORTANTE: taller y paquete_insumo deben importarse antes de cualquier
-# query ORM. Asignatura tiene relationship('Taller', ...) — si Taller no
-# esta en el mapper registry al momento de ejecutar la primera query,
-# SQLAlchemy lanza InvalidRequestError con KeyError: 'Taller'.
+# query ORM para que el mapper de SQLAlchemy registre las relaciones de
+# Asignatura antes de la primera consulta.
 from app.models.taller import Taller
 from app.models.paquete_insumo import PaqueteInsumo, PaqueteItem
 from app.models.proveedor import Proveedor
-from app.models.orden_mantenimiento import OrdenMantenimiento, EstadoOrden
+from app.models.orden_mantenimiento import (
+    OrdenMantenimiento, OrdenMantenimientoItem,
+    EstadoOrden, ResultadoItem,
+)
 from app.utils.security import hashear_password
 
 try:
@@ -67,33 +69,30 @@ random.seed(42)
 IN = "insumo"
 IM = "implemento"
 TENS = CarreraAsignatura.TENS
-TQF = CarreraAsignatura.TQF
+TQF  = CarreraAsignatura.TQF
 TLCBS = CarreraAsignatura.TLCBS
 TONS = CarreraAsignatura.TONS
-PF = CarreraAsignatura.preparador_fisico
+PF   = CarreraAsignatura.preparador_fisico
 
 SALAS = [
-    ("Sala 010", "simulacion", "Sala de simulacion clinica \u2014 piso -1"),
-    ("Sala 011", "simulacion", "Sala de simulacion clinica \u2014 piso -1"),
-    ("Sala 012", "simulacion", "Sala de simulacion clinica \u2014 piso -1"),
-    ("Sala 013", "simulacion", "Sala de simulacion clinica \u2014 piso -1"),
-    ("Sala 014", "simulacion", "Sala de simulacion clinica \u2014 piso -1"),
-    ("Sala 015", "simulacion", "Sala de simulacion clinica \u2014 piso -1"),
-    ("Sala 016", "simulacion", "Sala de simulacion clinica \u2014 piso -1"),
-    ("Sala 017", "simulacion", "Sala de simulacion clinica \u2014 piso -1"),
-    ("Sala 018", "simulacion", "Sala de simulacion clinica \u2014 piso -1"),
-    ("Sala 019", "simulacion", "Sala de simulacion clinica \u2014 piso -1"),
-    ("Sala 020", "simulacion", "Sala de simulacion clinica \u2014 piso -1"),
-    ("Sala 021", "simulacion", "Sala de simulacion clinica \u2014 piso -1"),
-    ("Sala 022", "simulacion", "Sala de simulacion clinica \u2014 piso -1"),
-    ("Bodega", "bodega", "Bodega central de insumos \u2014 piso -1"),
-    ("Oficina", "oficina", "Oficina de coordinacion \u2014 piso -1"),
-    ("Sala 07 \u2014 Odontologia", "odontologia",
-     "Sala de odontologia \u2014 edificio anexo"),
-    ("Sala 08 \u2014 Odontologia", "odontologia",
-     "Sala de odontologia \u2014 edificio anexo"),
-    ("Sala 09 \u2014 Odontologia", "odontologia",
-     "Sala de odontologia \u2014 edificio anexo"),
+    ("Sala 010", "simulacion", "Sala de simulacion clinica - piso -1"),
+    ("Sala 011", "simulacion", "Sala de simulacion clinica - piso -1"),
+    ("Sala 012", "simulacion", "Sala de simulacion clinica - piso -1"),
+    ("Sala 013", "simulacion", "Sala de simulacion clinica - piso -1"),
+    ("Sala 014", "simulacion", "Sala de simulacion clinica - piso -1"),
+    ("Sala 015", "simulacion", "Sala de simulacion clinica - piso -1"),
+    ("Sala 016", "simulacion", "Sala de simulacion clinica - piso -1"),
+    ("Sala 017", "simulacion", "Sala de simulacion clinica - piso -1"),
+    ("Sala 018", "simulacion", "Sala de simulacion clinica - piso -1"),
+    ("Sala 019", "simulacion", "Sala de simulacion clinica - piso -1"),
+    ("Sala 020", "simulacion", "Sala de simulacion clinica - piso -1"),
+    ("Sala 021", "simulacion", "Sala de simulacion clinica - piso -1"),
+    ("Sala 022", "simulacion", "Sala de simulacion clinica - piso -1"),
+    ("Bodega", "bodega", "Bodega central de insumos - piso -1"),
+    ("Oficina", "oficina", "Oficina de coordinacion - piso -1"),
+    ("Sala 07 - Odontologia", "odontologia", "Sala de odontologia - edificio anexo"),
+    ("Sala 08 - Odontologia", "odontologia", "Sala de odontologia - edificio anexo"),
+    ("Sala 09 - Odontologia", "odontologia", "Sala de odontologia - edificio anexo"),
 ]
 
 CATEGORIAS = [
@@ -112,29 +111,23 @@ USUARIOS = [
 ]
 
 ASIGNATURAS = [
-    # TENS
     ("Primeros Auxilios", "CIS1101", TENS),
     ("Rol del Tecnico en Enfermeria y Cuidados Basicos", "CIS1102", TENS),
     ("Anatomofisiologia", "CIS1103", TENS),
-    ("Atencion de Personas con Alteraciones de Salud Medicas y Quirurgicas",
-     "CIS1104", TENS),
+    ("Atencion de Personas con Alteraciones de Salud", "CIS1104", TENS),
     ("Atencion de la Mujer y Recien Nacido", "CIS1103B", TENS),
-    # TQF
     ("Quimica Analitica e Instrumental", "PFS1115", TQF),
     ("Bioseguridad Farmaceutica", "BIS1102", TQF),
     ("Legislacion Farmaceutica", "LFS1112", TQF),
     ("Farmacologia", "AVS2132", TQF),
-    # TLCBS
     ("Preparacion de Laboratorio Clinico", "LCS1111", TLCBS),
     ("Administracion de Toma de Muestra", "ATS1111", TLCBS),
     ("Bioseguridad Clinica", "BIS1111", TLCBS),
     ("Microbiologia para Laboratorio Clinico", "LCS3111", TLCBS),
-    # TONS
     ("Anatomo Fisiopatologia Estomatognatica", "ACS1101", TONS),
     ("Tecnicas de Primeros Auxilios y Procedimientos Basicos", "ACS1102", TONS),
     ("Servicios de Salud Generales y Odontologicos", "GAS1101", TONS),
     ("Asistencia en Cirugia Maxilofacial e Implantologia", "ACS1105", TONS),
-    # Preparador Fisico
     ("Anatomia Funcional del Aparato Locomotor", "FES1101", PF),
     ("Teoria del Entrenamiento", "EAS1101", PF),
     ("Evaluacion para la Condicion Fisica", "EAS1102", PF),
@@ -251,26 +244,23 @@ INSUMOS = [
     ("Gasas con clorhexidina CHG", "Sobre", 40, 15, 9, IN, 1200),
 ]
 
-# Formato: (nombre, descripcion, tipo, sala_idx, fidelidad, notas,
-#            proveedor_key)
-# proveedor_key: 'laerdal' | 'medsupply' | None
+# Formato: (nombre, descripcion, tipo, sala_idx, fidelidad, notas, proveedor_key)
 ACTIVOS_FIJOS_DEMO = [
     ("Camilla articulada con barandas",
      "Camilla electrica 3 secciones, barandas abatibles",
      TipoActivo.mueble, 0, None,
-     "Revision anual programada marzo 2027", None),
+     "Revision anual programada marzo 2027", "medsupply"),
     ("Carro de paro de emergencia",
      "Carro equipado con desfibrilador y medicamentos de emergencia",
      TipoActivo.mueble, 3, None,
-     "Revision mensual de contenido obligatoria", None),
+     "Revision mensual de contenido obligatoria", "medsupply"),
     ("Mesa de procedimientos Mayo",
      "Mesa auxiliar acero inoxidable con ruedas",
      TipoActivo.mueble, 2, None, None, None),
     ("SimMan 3G",
      "Maniqui de alta fidelidad adulto Laerdal",
      TipoActivo.phantoma, 0, FidelidadPhantoma.alta,
-     "Mantenimiento preventivo semestral por Laerdal Chile",
-     "laerdal"),
+     "Mantenimiento preventivo semestral por Laerdal Chile", "laerdal"),
     ("Nursing Anne",
      "Maniqui para entrenamiento de enfermeria Laerdal",
      TipoActivo.phantoma, 1, FidelidadPhantoma.media,
@@ -278,12 +268,11 @@ ACTIVOS_FIJOS_DEMO = [
     ("ALS Simulator neonatal",
      "Maniqui neonatal de soporte vital avanzado",
      TipoActivo.phantoma, 6, FidelidadPhantoma.alta,
-     "Solo para clase de Obstetricia y Ginecologia",
-     "laerdal"),
+     "Solo para clase de Obstetricia y Ginecologia", "laerdal"),
 ]
 
 MOTIVOS_SALIDA = [
-    "Practica clinica \u2014 Enfermeria",
+    "Practica clinica - Enfermeria",
     "Practica simulacion alta fidelidad",
     "Uso en procedimiento de simulacion",
     "Practica de sutura y cierre de heridas",
@@ -303,12 +292,7 @@ MOTIVOS_ENTRADA = [
     "Recepcion pedido proveedor",
 ]
 
-# ---------------------------------------------------------------------------
-# Talleres y paquetes de insumos
-# ---------------------------------------------------------------------------
-# Formato: (nombre, descripcion, asig_idx)
 TALLERES_DATA = [
-    # TENS — 4 talleres
     ("Taller de venopuncion",
      "Practica de cateterizacion venosa periferica", 0),
     ("Taller de sutura basica",
@@ -317,80 +301,64 @@ TALLERES_DATA = [
      "Reanimacion cardiopulmonar con maniqui de alta fidelidad", 2),
     ("Taller de cuidados al recien nacido",
      "Atencion y cuidados del recien nacido en simulador neonatal", 4),
-    # TQF — 2 talleres
     ("Taller de bioseguridad y EPP",
      "Uso correcto de equipos de proteccion personal", 6),
     ("Taller de quimica analitica",
      "Preparacion de reactivos y tecnicas de laboratorio farmaceutico", 5),
-    # TLCBS — 2 talleres
     ("Taller de toma de muestra",
      "Tecnicas de extraccion de muestra y flebotomia", 10),
     ("Taller de bioseguridad de laboratorio",
      "Uso correcto de EPP y manejo de residuos en laboratorio clinico", 11),
-    # TONS — 1 taller
     ("Taller de primeros auxilios odontologicos",
      "Manejo de emergencias y primeros auxilios en clinica dental", 14),
-    # Preparador Fisico — 1 taller
     ("Taller de evaluacion de condicion fisica",
      "Medicion de parametros antropometricos y test de capacidad fisica", 19),
 ]
 
-# Paquetes: (taller_idx, semestre, notas, items_list)
-# items_list: [(insumo_idx, cantidad, nota_opcional)]
 PAQUETES_DATA = [
-    # P1: Venopuncion — TENS 2026-1
     (0, "2026-1",
      "Para 30 alumnos. Verificar stock de catetes 20G antes del semestre.",
      [(0, 30, "Talla S/M segun alumno"), (1, 30, None), (4, 30, None),
       (40, 5, None), (41, 10, None), (49, 15, None),
       (51, 5, "Torniquete"), (11, 30, None)]),
-    # P2: Sutura — TENS 2026-1
     (1, "2026-1",
      "Incluye set de instrumental de sutura por pareja de alumnos.",
      [(0, 20, None), (1, 20, None), (22, 15, None), (23, 10, None),
       (24, 8, None), (27, 4, "Una pinza por pareja"),
       (28, 4, "Una tijera por pareja"), (29, 4, None), (11, 20, None)]),
-    # P3: RCP avanzado — TENS 2026-1
     (2, "2026-1",
      "Usar SimMan 3G y Nursing Anne. Verificar AMBU antes de la clase.",
      [(0, 20, None), (1, 20, None), (4, 20, None),
       (57, 4, None), (59, 4, None), (62, 2, None),
       (63, 2, None), (64, 2, None)]),
-    # P4: Cuidados recien nacido — TENS 2026-1
     (3, "2026-1",
      "Requiere simulador neonatal. Coordinar con Maritza.",
      [(0, 25, "Talla S/XS"), (4, 25, None), (11, 20, None),
       (13, 15, None), (33, 5, None), (32, 5, None)]),
-    # P5: EPP y bioseguridad — TQF 2026-1
     (4, "2026-1",
      "EPP completo por alumno. Verificar stock de mascarillas N95.",
      [(0, 25, None), (1, 25, None), (4, 25, None), (5, 25, None),
       (6, 25, None), (7, 25, None), (8, 25, None)]),
-    # P6: Quimica analitica — TQF 2026-1
     (5, "2026-1",
      "Insumos de higiene y seguridad para laboratorio quimico.",
      [(0, 20, None), (1, 20, None), (4, 20, None),
       (78, 5, "Frasco 1L"), (79, 5, None), (84, 4, None),
       (85, 4, None), (65, 10, None), (66, 10, None)]),
-    # P7: Toma de muestra — TLCBS 2026-1
     (6, "2026-1",
      "Tecnicas de flebotomia. Cada alumno usa su propio kit de puncion.",
      [(0, 28, None), (1, 28, None), (4, 28, None),
       (41, 10, None), (49, 15, None), (51, 8, None),
       (52, 80, None), (53, 80, None), (55, 10, None)]),
-    # P8: Bioseguridad laboratorio — TLCBS 2026-1
     (7, "2026-1",
      "Manejo correcto de residuos biologicos y EPP de laboratorio.",
      [(0, 25, None), (4, 25, None), (6, 10, None),
       (65, 5, None), (66, 5, None), (67, 10, None),
       (68, 6, None), (83, 8, None)]),
-    # P9: Primeros auxilios odontologicos — TONS 2026-1
     (8, "2026-1",
      "Protocolo de emergencias en clinica dental.",
      [(0, 20, None), (4, 20, None), (11, 10, None),
       (30, 5, None), (31, 5, None), (33, 5, None),
       (70, 3, None), (71, 3, None)]),
-    # P10: Evaluacion condicion fisica — PF 2026-1
     (9, "2026-1",
      "Test de capacidad fisica y mediciones antropometricas.",
      [(0, 18, None), (4, 18, None),
@@ -401,9 +369,11 @@ PAQUETES_DATA = [
 
 def _prefijo_codigo(nombre: str) -> str:
     """Misma logica que el backend para generar prefijo de 3 chars."""
-    n = (nombre.upper()
-         .replace("\u00c1", "A").replace("\u00c9", "E").replace("\u00cd", "I")
-         .replace("\u00d3", "O").replace("\u00da", "U").replace("\u00d1", "N"))
+    n = (
+        nombre.upper()
+        .replace("\u00c1", "A").replace("\u00c9", "E").replace("\u00cd", "I")
+        .replace("\u00d3", "O").replace("\u00da", "U").replace("\u00d1", "N")
+    )
     return re.sub(r"[^A-Z0-9]", "", n)[:3].ljust(3, "X")
 
 
@@ -420,10 +390,8 @@ def _crear_paquete(db, taller_id, semestre, notas, usuario_id,
                    items, insumos_db):
     """Crea un PaqueteInsumo con sus items. Ignora items fuera de rango."""
     p = PaqueteInsumo(
-        taller_id=taller_id,
-        semestre=semestre,
-        creado_por_id=usuario_id,
-        notas=notas,
+        taller_id=taller_id, semestre=semestre,
+        creado_por_id=usuario_id, notas=notas,
     )
     db.add(p)
     db.flush()
@@ -441,7 +409,7 @@ def _crear_paquete(db, taller_id, semestre, notas, usuario_id,
 def main():
     db = SessionLocal()
     try:
-        print("\nHestia \u2014 Cargador de datos de demo")
+        print("\nHestia - Cargador de datos de demo")
         print("=" * 40)
         if input(
             "Esto eliminara TODOS los datos existentes. Continuar? (s/N): "
@@ -451,6 +419,8 @@ def main():
 
         # --- Limpiar en orden FK ---
         print("\nLimpiando datos existentes...")
+        from app.models.orden_mantenimiento import OrdenMantenimientoItem
+        db.query(OrdenMantenimientoItem).delete()
         db.query(PaqueteItem).delete()
         db.query(PaqueteInsumo).delete()
         db.query(Taller).delete()
@@ -536,7 +506,7 @@ def main():
             "laerdal": prov_laerdal.id,
             "medsupply": prov_medsupply.id,
         }
-        print(f"  2 proveedores (Laerdal Chile, MedSupply SpA)")
+        print("  2 proveedores (Laerdal Chile, MedSupply SpA)")
 
         # --- Asignaturas ---
         print("Insertando asignaturas...")
@@ -592,7 +562,7 @@ def main():
         # --- Unidades fisicas de implementos ---
         print("Insertando unidades fisicas de implementos...")
         total_unidades = 0
-        salas_clinicas = salas[:3]  # 010, 011, 012
+        salas_clinicas = salas[:3]
         for impl in implementos_list:
             prefijo = _prefijo_codigo(impl.nombre)
             cantidad = random.randint(2, 5)
@@ -640,43 +610,62 @@ def main():
             prefijo_af = "MUE" if tipo == TipoActivo.mueble else "PHN"
             af.codigo_interno = f"{prefijo_af}-{af.id:05d}"
         db.commit()
-        n_muebles = sum(1 for a in ACTIVOS_FIJOS_DEMO if a[2] == TipoActivo.mueble)
+        n_muebles   = sum(1 for a in ACTIVOS_FIJOS_DEMO if a[2] == TipoActivo.mueble)
         n_phantomas = len(ACTIVOS_FIJOS_DEMO) - n_muebles
         print(
             f"  {len(activos_db)} activos fijos "
-            f"({n_muebles} muebles, {n_phantomas} phantomas con proveedor Laerdal)"
+            f"({n_muebles} muebles, {n_phantomas} phantomas)"
         )
 
         # --- Orden de mantenimiento demo ---
-        # SimMan 3G (activos_db[3]) en mantenimiento con Laerdal
+        # Modelo actual: OrdenMantenimiento es la cabecera de una visita.
+        # OrdenMantenimientoItem es un Phantoma dentro de esa visita.
+        # Estado: en_curso | cerrada | cancelada
         print("Insertando orden de mantenimiento demo...")
-        simman = activos_db[3]
+        simman = activos_db[3]   # SimMan 3G
+        als    = activos_db[5]   # ALS Simulator neonatal
         simman.estado = EstadoActivo.en_mantenimiento
+        als.estado    = EstadoActivo.en_mantenimiento
+
         orden_demo = OrdenMantenimiento(
-            activo_fijo_id=simman.id,
             proveedor_id=prov_laerdal.id,
-            creado_por_id=usuarios[1].id,   # mgonzalez
-            estado=EstadoOrden.en_proceso,
-            fecha_envio=date.today() - timedelta(days=12),
-            descripcion_problema=(
-                "Falla en modulo de sonidos respiratorios. "
-                "El SimMan no reproduce correctamente los ruidos pulmonares "
-                "durante la simulacion de insuficiencia respiratoria."
+            creado_por_id=usuarios[1].id,
+            estado=EstadoOrden.en_curso,
+            fecha_visita=date.today() - timedelta(days=12),
+            notas=(
+                "Visita semestral preventiva Laerdal Chile. "
+                "SimMan con falla en modulo de sonidos respiratorios. "
+                "ALS Neonatal: revision de bateria y sensores."
             ),
-            descripcion_trabajo=None,
-            costo=None,
         )
         db.add(orden_demo)
+        db.flush()
+
+        # Items: uno por Phantoma incluido en la visita
+        db.add(OrdenMantenimientoItem(
+            orden_id=orden_demo.id,
+            activo_fijo_id=simman.id,
+            resultado=ResultadoItem.pendiente,
+            descripcion_problema=(
+                "Falla en modulo de sonidos respiratorios. "
+                "No reproduce ruidos pulmonares durante simulacion "
+                "de insuficiencia respiratoria."
+            ),
+        ))
+        db.add(OrdenMantenimientoItem(
+            orden_id=orden_demo.id,
+            activo_fijo_id=als.id,
+            resultado=ResultadoItem.pendiente,
+            descripcion_problema=(
+                "Revision preventiva de bateria y calibracion de sensores."
+            ),
+        ))
         db.commit()
         print(
-            f"  1 orden: SimMan 3G \u2192 Laerdal Chile "
-            f"(en_proceso, {orden_demo.fecha_envio})"
+            f"  1 orden (2 items: SimMan 3G + ALS Neonatal, en_curso)"
         )
 
         # --- Movimientos ---
-        # Usa los nuevos tipos: subtipo obligatorio.
-        # Entradas historicas -> compra
-        # Salidas historicas -> consumo_taller (insumos) / prestamo_implemento
         print("Insertando movimientos...")
         total_movs = 0
         for insumo in insumos_db:
@@ -685,13 +674,11 @@ def main():
             ns = random.randint(5, 9) if en_alerta else random.randint(3, 7)
             rne = (40, 60) if en_alerta else (3, 50)
             rns = (0, 25) if en_alerta else (0, 50)
-
             subtipo_salida = (
                 SubtipoMovimiento.prestamo_implemento
                 if insumo.tipo == TipoInsumo.implemento
                 else SubtipoMovimiento.consumo_taller
             )
-
             for _ in range(ne):
                 db.add(Movimiento(
                     tipo=TipoMovimiento.entrada,
@@ -715,15 +702,14 @@ def main():
                 ))
                 total_movs += 1
         db.commit()
-        print(f"  {total_movs} movimientos (con tipo + subtipo)")
+        print(f"  {total_movs} movimientos (tipo + subtipo)")
 
         # --- Talleres ---
         print("Insertando talleres...")
         talleres_db = []
         for nombre, desc, asig_idx in TALLERES_DATA:
             t = Taller(
-                nombre=nombre,
-                descripcion=desc,
+                nombre=nombre, descripcion=desc,
                 asignatura_id=asignaturas[asig_idx].id,
             )
             db.add(t)
@@ -738,11 +724,9 @@ def main():
             _crear_paquete(
                 db,
                 taller_id=talleres_db[taller_idx].id,
-                semestre=semestre,
-                notas=notas,
+                semestre=semestre, notas=notas,
                 usuario_id=usuarios[1].id,
-                items=items,
-                insumos_db=insumos_db,
+                items=items, insumos_db=insumos_db,
             )
             total_paquetes += 1
         db.commit()
@@ -760,7 +744,7 @@ def main():
         print(f"  Clases:            {len(clases)}")
         print(
             f"  Insumos:           {len(insumos_db)} "
-            f"({alertas} en alerta) \u2014 todos en Bodega"
+            f"({alertas} en alerta) - todos en Bodega"
         )
         print(
             f"  Implementos:       {len(implementos_list)} "
@@ -770,7 +754,7 @@ def main():
             f"  Activos fijos:     {len(activos_db)} "
             f"({n_muebles} muebles, {n_phantomas} phantomas)"
         )
-        print(f"  Ordenes mant.:     1 (SimMan 3G en proceso con Laerdal)")
+        print("  Ordenes mant.:     1 (SimMan 3G + ALS Neonatal, en_curso)")
         print(f"  Movimientos:       {total_movs} (tipo + subtipo)")
         print(f"  Talleres:          {len(talleres_db)}")
         print(f"  Paquetes:          {total_paquetes}")
