@@ -6,36 +6,32 @@ import {
 import { api } from '../api/client'
 import { useAuthStore } from '../store/auth'
 import type {
-  OrdenMantenimientoResponse, OrdenMantenimientoCreate, OrdenMantenimientoUpdate,
-  EstadoOrden, ActivoFijoResponse, ProveedorResponse,
+  OrdenMantenimientoResponse, OrdenMantenimientoCreate,
+  OrdenMantenimientoUpdate, EstadoOrden, ResultadoItem,
+  ActivoFijoResponse, ProveedorResponse,
   PaginatedResponse,
 } from '../types/api'
-import { ETIQUETA_ESTADO_ORDEN as ETIQUETAS_ORDEN } from '../types/api'
+import {
+  ETIQUETA_ESTADO_ORDEN as ETIQUETAS_ORDEN,
+  ETIQUETA_RESULTADO_ITEM,
+} from '../types/api'
 import { useLastUpdated } from '../hooks/useLastUpdated'
 
 // ---------------------------------------------------------------------------
-// Tipos locales
+// Constantes
 // ---------------------------------------------------------------------------
 
-type TipoMant = 'preventivo' | 'correctivo' | 'validacion_tecnica'
-
-const ETIQUETA_TIPO: Record<TipoMant, string> = {
-  preventivo: 'Preventivo',
-  correctivo: 'Correctivo',
-  validacion_tecnica: 'Validacion tecnica',
-}
-
-const TIPO_COLOR: Record<TipoMant, string> = {
-  preventivo: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300',
-  correctivo: 'bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300',
-  validacion_tecnica: 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300',
-}
-
 const ESTADO_COLOR: Record<EstadoOrden, string> = {
-  enviado: 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300',
-  en_proceso: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
-  completado: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300',
-  cancelado: 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-400',
+  en_curso: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
+  cerrada: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300',
+  cancelada: 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-400',
+}
+
+const RESULTADO_COLOR: Record<ResultadoItem, string> = {
+  pendiente: 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300',
+  ok: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300',
+  sale_a_taller: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300',
+  dar_de_baja: 'bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300',
 }
 
 function BadgeLocal({ label, cls }: { label: string; cls: string }) {
@@ -47,208 +43,211 @@ function BadgeLocal({ label, cls }: { label: string; cls: string }) {
   )
 }
 
-function diasEnMantenimiento(fechaEnvio: string, fechaRetorno?: string | null): number {
-  const inicio = new Date(fechaEnvio)
-  const fin = fechaRetorno ? new Date(fechaRetorno) : new Date()
-  return Math.max(0, Math.round((fin.getTime() - inicio.getTime()) / 86400000))
-}
-
 function formatFecha(f: string | null | undefined): string {
-  if (!f) return '—'
+  if (!f) return '\u2014'
   return new Date(f + 'T00:00:00').toLocaleDateString('es-CL', {
     day: '2-digit', month: '2-digit', year: 'numeric',
   })
 }
 
+function diasDesde(fecha: string): number {
+  return Math.max(0, Math.round(
+    (Date.now() - new Date(fecha + 'T00:00:00').getTime()) / 86400000
+  ))
+}
+
 // ---------------------------------------------------------------------------
-// Modal crear / editar
+// Modal Nueva orden
 // ---------------------------------------------------------------------------
 
-interface ModalOrdenProps {
-  orden: OrdenMantenimientoResponse | null
+interface ModalNuevaOrdenProps {
   activos: ActivoFijoResponse[]
   proveedores: ProveedorResponse[]
   onClose: () => void
   onSaved: () => void
 }
 
-function ModalOrden({ orden, activos, proveedores, onClose, onSaved }: ModalOrdenProps) {
-  const esNueva = orden === null
-  const [activoId, setActivoId]   = useState(orden?.activo_fijo_id.toString() ?? '')
-  const [proveedorId, setProveedorId] = useState(orden?.proveedor_id?.toString() ?? '')
-  const [tipo, setTipo]           = useState<TipoMant | ''>(orden?.tipo_mantenimiento as TipoMant ?? '')
-  const [estado, setEstado]       = useState<EstadoOrden>(orden?.estado ?? 'enviado')
-  const [fechaEnvio, setFechaEnvio] = useState(orden?.fecha_envio ?? '')
-  const [fechaRetornoEst, setFechaRetornoEst] = useState(orden?.fecha_retorno_estimada ?? '')
-  const [fechaRetorno, setFechaRetorno] = useState(orden?.fecha_retorno ?? '')
-  const [descripcionProblema, setDescripcionProblema] = useState(orden?.descripcion_problema ?? '')
-  const [descripcionTrabajo, setDescripcionTrabajo] = useState(orden?.descripcion_trabajo ?? '')
-  const [costo, setCosto]         = useState(orden?.costo?.toString() ?? '')
+function ModalNuevaOrden(
+  { activos, proveedores, onClose, onSaved }: ModalNuevaOrdenProps,
+) {
+  const [proveedorId, setProveedorId] = useState('')
+  const [fechaVisita, setFechaVisita] = useState(''
+  )
+  const [notas, setNotas] = useState('')
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [guardando, setGuardando] = useState(false)
-  const [error, setError]         = useState('')
+  const [error, setError] = useState('')
+
+  const activosDisponibles = activos.filter(
+    a => a.activo && a.estado !== 'en_mantenimiento' && a.estado !== 'dado_de_baja'
+  )
+
+  function toggleActivo(id: number) {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
 
   async function handleGuardar() {
-    if (esNueva && !activoId) { setError('Selecciona un activo fijo'); return }
-    if (esNueva && !fechaEnvio) { setError('La fecha de envio es obligatoria'); return }
+    if (selectedIds.size === 0) {
+      setError('Selecciona al menos un activo fijo'); return
+    }
+    if (!fechaVisita) { setError('La fecha de visita es obligatoria'); return }
     setGuardando(true); setError('')
     try {
-      if (esNueva) {
-        const body: OrdenMantenimientoCreate = {
-          activo_fijo_id: parseInt(activoId),
-          proveedor_id: proveedorId ? parseInt(proveedorId) : null,
-          tipo_mantenimiento: tipo || null,
-          fecha_envio: fechaEnvio,
-          fecha_retorno_estimada: fechaRetornoEst || null,
-          descripcion_problema: descripcionProblema.trim() || null,
-        }
-        await api.post('/ordenes-mantenimiento/', body)
-      } else {
-        const body: OrdenMantenimientoUpdate = {
-          proveedor_id: proveedorId ? parseInt(proveedorId) : null,
-          tipo_mantenimiento: tipo || null,
-          estado,
-          fecha_retorno_estimada: fechaRetornoEst || null,
-          fecha_retorno: fechaRetorno || null,
-          descripcion_trabajo: descripcionTrabajo.trim() || null,
-          costo: costo ? parseFloat(costo) : null,
-        }
-        await api.put(`/ordenes-mantenimiento/${orden!.id}`, body)
+      const body: OrdenMantenimientoCreate = {
+        proveedor_id: proveedorId ? parseInt(proveedorId) : null,
+        activo_ids: Array.from(selectedIds),
+        fecha_visita: fechaVisita,
+        notas: notas.trim() || null,
       }
+      await api.post('/ordenes-mantenimiento/', body)
       onSaved()
     } catch (err: unknown) {
-      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      const detail = (
+        err as { response?: { data?: { detail?: string } } }
+      )?.response?.data?.detail
       setError(detail ?? 'Error al guardar')
     } finally { setGuardando(false) }
   }
 
-  const labelCls = 'block text-[10px] font-semibold text-h-tertiary mb-1.5 uppercase tracking-widest'
-  const inputCls = `w-full px-3 py-2.5 rounded-lg text-h-primary text-sm
-    focus:outline-none transition-all bg-h-elevated border border-h-visible
-    focus:border-h-strong placeholder:text-h-tertiary`
-
-  const activosDisponibles = activos.filter(
-    a => a.activo && (esNueva
-      ? a.estado !== 'en_mantenimiento' && a.estado !== 'dado_de_baja'
-      : true)
+  const labelCls = (
+    'block text-[10px] font-semibold text-h-tertiary mb-1.5 '
+    + 'uppercase tracking-widest'
+  )
+  const inputCls = (
+    'w-full px-3 py-2.5 rounded-lg text-h-primary text-sm '
+    + 'focus:outline-none transition-all bg-h-elevated border '
+    + 'border-h-visible focus:border-h-strong placeholder:text-h-tertiary'
   )
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60
-                    backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center
+                    bg-black/60 backdrop-blur-sm p-4">
       <div className="bg-h-surface border border-h-subtle rounded-2xl shadow-2xl
                       w-full max-w-lg max-h-[90vh] flex flex-col">
         <div className="flex items-center justify-between px-6 py-4
                         border-b border-h-subtle flex-shrink-0">
           <h2 className="text-base font-semibold text-h-primary">
-            {esNueva ? 'Nueva orden de mantenimiento' : 'Actualizar orden'}
+            Nueva orden de mantenimiento
           </h2>
           <button onClick={onClose}
             className="text-h-tertiary hover:text-h-secondary text-xl font-bold
-                       transition-colors">x</button>
+                       transition-colors"
+            aria-label="Cerrar">x</button>
         </div>
+
         <div className="px-6 py-5 space-y-4 overflow-y-auto flex-1">
 
-          {esNueva && (
-            <div>
-              <label className={labelCls}>Activo fijo *</label>
-              <select className={`${inputCls} cursor-pointer`}
-                value={activoId} onChange={e => setActivoId(e.target.value)}>
-                <option value="">Seleccionar activo...</option>
-                {activosDisponibles.map(a => (
-                  <option key={a.id} value={a.id}>
-                    {a.codigo_interno} — {a.nombre}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          <div>
-            <label className={labelCls}>Tipo de mantenimiento</label>
-            <div className="grid grid-cols-3 gap-2">
-              {(['preventivo', 'correctivo', 'validacion_tecnica'] as TipoMant[]).map(t => (
-                <button key={t} type="button"
-                  onClick={() => setTipo(prev => prev === t ? '' : t)}
-                  className={[
-                    'py-2 px-1 rounded-xl border-2 text-xs font-bold transition-all text-center',
-                    tipo === t
-                      ? TIPO_COLOR[t] + ' border-current'
-                      : 'border-h-subtle text-h-secondary',
-                  ].join(' ')}>
-                  {ETIQUETA_TIPO[t]}
-                </button>
-              ))}
-            </div>
-          </div>
-
+          {/* Proveedor */}
           <div>
             <label className={labelCls}>Proveedor</label>
             <select className={`${inputCls} cursor-pointer`}
-              value={proveedorId} onChange={e => setProveedorId(e.target.value)}>
+              value={proveedorId}
+              onChange={e => setProveedorId(e.target.value)}>
               <option value="">Sin proveedor asignado</option>
-              {proveedores.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+              {proveedores.map(p => (
+                <option key={p.id} value={p.id}>{p.nombre}</option>
+              ))}
             </select>
           </div>
 
-          {!esNueva && (
-            <div>
-              <label className={labelCls}>Estado</label>
-              <select className={`${inputCls} cursor-pointer`}
-                value={estado} onChange={e => setEstado(e.target.value as EstadoOrden)}>
-                <option value="enviado">Enviado al proveedor</option>
-                <option value="en_proceso">En proceso</option>
-                <option value="completado">Completado</option>
-                <option value="cancelado">Cancelado</option>
-              </select>
-            </div>
-          )}
-
-          <div className="grid grid-cols-2 gap-3">
-            {esNueva && (
-              <div>
-                <label className={labelCls}>Fecha de envio *</label>
-                <input type="date" className={inputCls} value={fechaEnvio}
-                  onChange={e => setFechaEnvio(e.target.value)} />
-              </div>
-            )}
-            <div>
-              <label className={labelCls}>Retorno estimado</label>
-              <input type="date" className={inputCls} value={fechaRetornoEst}
-                onChange={e => setFechaRetornoEst(e.target.value)} />
-            </div>
-            {!esNueva && (
-              <div>
-                <label className={labelCls}>Fecha de retorno real</label>
-                <input type="date" className={inputCls} value={fechaRetorno}
-                  onChange={e => setFechaRetorno(e.target.value)} />
-              </div>
-            )}
+          {/* Fecha de visita */}
+          <div>
+            <label className={labelCls}>Fecha de visita *</label>
+            <input type="date" className={inputCls}
+              value={fechaVisita}
+              onChange={e => setFechaVisita(e.target.value)} />
           </div>
 
+          {/* Activos a incluir */}
           <div>
             <label className={labelCls}>
-              {esNueva ? 'Descripcion del problema' : 'Trabajo realizado'}
+              Activos fijos a incluir *
+              {selectedIds.size > 0 && (
+                <span className="ml-2 normal-case font-normal
+                                 text-h-secondary">
+                  ({selectedIds.size} seleccionado{selectedIds.size > 1 ? 's' : ''})
+                </span>
+              )}
             </label>
-            <textarea className={`${inputCls} resize-none`} rows={3}
-              value={esNueva ? descripcionProblema : descripcionTrabajo}
-              onChange={e => esNueva
-                ? setDescripcionProblema(e.target.value)
-                : setDescripcionTrabajo(e.target.value)
-              }
-              placeholder={esNueva
-                ? 'Ej: Falla en modulo de sonidos. Mantenimiento semestral...'
-                : 'Descripcion del trabajo realizado por el proveedor...'
-              }
-            />
+            {activosDisponibles.length === 0 ? (
+              <p className="text-xs text-h-tertiary py-3">
+                No hay activos disponibles para mantenimiento.
+              </p>
+            ) : (
+              <div className="rounded-xl border border-h-subtle overflow-hidden"
+                style={{ background: 'var(--h-bg-elevated)', maxHeight: '200px',
+                  overflowY: 'auto' }}>
+                {activosDisponibles.map(a => {
+                  const checked = selectedIds.has(a.id)
+                  return (
+                    <button key={a.id} type="button"
+                      onClick={() => toggleActivo(a.id)}
+                      className="w-full flex items-center gap-3 px-4 py-2.5
+                                 text-left transition-colors
+                                 border-b border-h-subtle last:border-b-0"
+                      style={{
+                        background: checked
+                          ? 'var(--h-teal-subtle)'
+                          : 'transparent',
+                      }}
+                      onMouseEnter={e => {
+                        if (!checked)
+                          e.currentTarget.style.background =
+                            'var(--h-bg-highlight)'
+                      }}
+                      onMouseLeave={e => {
+                        if (!checked)
+                          e.currentTarget.style.background = 'transparent'
+                      }}
+                    >
+                      <div className="w-4 h-4 rounded border-2 flex-shrink-0
+                                      flex items-center justify-center"
+                        style={{
+                          borderColor: checked
+                            ? 'var(--h-teal-rest)'
+                            : 'var(--h-border-visible)',
+                          background: checked
+                            ? 'var(--h-teal-rest)'
+                            : 'transparent',
+                        }}>
+                        {checked && (
+                          <svg viewBox="0 0 10 8" fill="none"
+                            className="w-2.5 h-2.5">
+                            <path d="M1 4l3 3 5-6" stroke="white"
+                              strokeWidth="1.5" strokeLinecap="round"
+                              strokeLinejoin="round" />
+                          </svg>
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-h-primary
+                                       truncate">
+                          {a.nombre}
+                        </p>
+                        <p className="text-xs text-h-tertiary font-mono">
+                          {a.codigo_interno ?? '—'}
+                        </p>
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
           </div>
 
-          {!esNueva && (
-            <div>
-              <label className={labelCls}>Costo (CLP)</label>
-              <input type="number" min="0" step="1" className={inputCls} value={costo}
-                onChange={e => setCosto(e.target.value)} placeholder="Ej: 150000" />
-            </div>
-          )}
+          {/* Notas */}
+          <div>
+            <label className={labelCls}>Notas (opcional)</label>
+            <textarea className={`${inputCls} resize-none`} rows={2}
+              value={notas}
+              onChange={e => setNotas(e.target.value)}
+              placeholder="Observaciones generales de la visita..." />
+          </div>
 
           {error && (
             <p className="text-xs font-medium px-3 py-2 rounded-lg"
@@ -261,10 +260,15 @@ function ModalOrden({ orden, activos, proveedores, onClose, onSaved }: ModalOrde
             </p>
           )}
         </div>
-        <div className="flex justify-end gap-3 px-6 py-4 border-t border-h-subtle flex-shrink-0">
+
+        <div className="flex justify-end gap-3 px-6 py-4
+                        border-t border-h-subtle flex-shrink-0">
           <button onClick={onClose} disabled={guardando}
-            className="px-4 py-2 rounded-lg text-sm font-semibold text-h-secondary
-                       hover:bg-h-elevated transition-colors">Cancelar</button>
+            className="px-4 py-2 rounded-lg text-sm font-semibold
+                       text-h-secondary hover:bg-h-elevated
+                       transition-colors">
+            Cancelar
+          </button>
           <button onClick={handleGuardar} disabled={guardando}
             className="px-5 py-2 rounded-lg text-sm font-semibold text-white
                        transition-colors disabled:opacity-50"
@@ -274,7 +278,135 @@ function ModalOrden({ orden, activos, proveedores, onClose, onSaved }: ModalOrde
             onMouseLeave={e =>
               (e.currentTarget.style.background = 'var(--h-teal-rest)')}
           >
-            {guardando ? 'Guardando...' : esNueva ? 'Crear orden' : 'Guardar cambios'}
+            {guardando ? 'Creando...' : 'Crear orden'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Modal Editar cabecera (proveedor y notas)
+// ---------------------------------------------------------------------------
+
+interface ModalEditarCabeceraProps {
+  orden: OrdenMantenimientoResponse
+  proveedores: ProveedorResponse[]
+  onClose: () => void
+  onSaved: () => void
+}
+
+function ModalEditarCabecera(
+  { orden, proveedores, onClose, onSaved }: ModalEditarCabeceraProps,
+) {
+  const [proveedorId, setProveedorId] = useState(
+    orden.proveedor_id?.toString() ?? ''
+  )
+  const [notas, setNotas] = useState(orden.notas ?? '')
+  const [guardando, setGuardando] = useState(false)
+  const [error, setError] = useState('')
+
+  async function handleGuardar() {
+    setGuardando(true); setError('')
+    try {
+      const body: OrdenMantenimientoUpdate = {
+        proveedor_id: proveedorId ? parseInt(proveedorId) : null,
+        notas: notas.trim() || null,
+      }
+      await api.put(`/ordenes-mantenimiento/${orden.id}`, body)
+      onSaved()
+    } catch (err: unknown) {
+      const detail = (
+        err as { response?: { data?: { detail?: string } } }
+      )?.response?.data?.detail
+      setError(detail ?? 'Error al guardar')
+    } finally { setGuardando(false) }
+  }
+
+  const labelCls = (
+    'block text-[10px] font-semibold text-h-tertiary mb-1.5 '
+    + 'uppercase tracking-widest'
+  )
+  const inputCls = (
+    'w-full px-3 py-2.5 rounded-lg text-h-primary text-sm '
+    + 'focus:outline-none transition-all bg-h-elevated border '
+    + 'border-h-visible focus:border-h-strong placeholder:text-h-tertiary'
+  )
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center
+                    bg-black/60 backdrop-blur-sm p-4">
+      <div className="bg-h-surface border border-h-subtle rounded-2xl shadow-2xl
+                      w-full max-w-md flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4
+                        border-b border-h-subtle">
+          <div>
+            <h2 className="text-base font-semibold text-h-primary">
+              Editar orden #{orden.id}
+            </h2>
+            <p className="text-xs text-h-tertiary mt-0.5">
+              Visita: {formatFecha(orden.fecha_visita)}
+            </p>
+          </div>
+          <button onClick={onClose}
+            className="text-h-tertiary hover:text-h-secondary text-xl font-bold
+                       transition-colors"
+            aria-label="Cerrar">x</button>
+        </div>
+
+        <div className="px-6 py-5 space-y-4">
+
+          <div>
+            <label className={labelCls}>Proveedor</label>
+            <select className={`${inputCls} cursor-pointer`}
+              value={proveedorId}
+              onChange={e => setProveedorId(e.target.value)}>
+              <option value="">Sin proveedor asignado</option>
+              {proveedores.map(p => (
+                <option key={p.id} value={p.id}>{p.nombre}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className={labelCls}>Notas</label>
+            <textarea className={`${inputCls} resize-none`} rows={3}
+              value={notas}
+              onChange={e => setNotas(e.target.value)}
+              placeholder="Observaciones generales..." />
+          </div>
+
+          {error && (
+            <p className="text-xs font-medium px-3 py-2 rounded-lg"
+              style={{
+                background: 'var(--h-sem-danger-bg)',
+                color: 'var(--h-sem-danger-text)',
+                border: '1px solid var(--h-sem-danger-border)',
+              }}>
+              {error}
+            </p>
+          )}
+        </div>
+
+        <div className="flex justify-end gap-3 px-6 py-4
+                        border-t border-h-subtle">
+          <button onClick={onClose} disabled={guardando}
+            className="px-4 py-2 rounded-lg text-sm font-semibold
+                       text-h-secondary hover:bg-h-elevated
+                       transition-colors">
+            Cancelar
+          </button>
+          <button onClick={handleGuardar} disabled={guardando}
+            className="px-5 py-2 rounded-lg text-sm font-semibold text-white
+                       transition-colors disabled:opacity-50"
+            style={{ background: 'var(--h-teal-rest)' }}
+            onMouseEnter={e => !guardando &&
+              (e.currentTarget.style.background = 'var(--h-teal-hover)')}
+            onMouseLeave={e =>
+              (e.currentTarget.style.background = 'var(--h-teal-rest)')}
+          >
+            {guardando ? 'Guardando...' : 'Guardar cambios'}
           </button>
         </div>
       </div>
@@ -292,14 +424,16 @@ export function OrdenesMantenimiento() {
   const { user } = useAuthStore()
   const puedeEscribir = user?.rol ? ROLES_ESCRITURA.includes(user.rol) : false
 
-  const [ordenes, setOrdenes]     = useState<OrdenMantenimientoResponse[]>([])
-  const [activos, setActivos]     = useState<ActivoFijoResponse[]>([])
+  const [ordenes, setOrdenes] = useState<OrdenMantenimientoResponse[]>([])
+  const [activos, setActivos] = useState<ActivoFijoResponse[]>([])
   const [proveedores, setProveedores] = useState<ProveedorResponse[]>([])
-  const [cargando, setCargando]   = useState(true)
+  const [cargando, setCargando] = useState(true)
   const [filtroEstado, setFiltroEstado] = useState<EstadoOrden | ''>('')
-  const [modal, setModal]         = useState<OrdenMantenimientoResponse | null | undefined>(undefined)
-  const [toast, setToast]         = useState('')
-  const [hoveredId, setHoveredId] = useState<number | null>(null)
+  const [modalNueva, setModalNueva] = useState(false)
+  const [modalEditar, setModalEditar] =
+    useState<OrdenMantenimientoResponse | null>(null)
+  const [toast, setToast] = useState('')
+  const [hoveredRow, setHoveredRow] = useState<string | null>(null)
   const { labelTiempo, marcarActualizado } = useLastUpdated()
 
   function mostrarToast(msg: string) {
@@ -326,19 +460,64 @@ export function OrdenesMantenimiento() {
   useEffect(() => {
     api.get<ActivoFijoResponse[]>('/activos-fijos/')
       .then(r => setActivos(r.data)).catch(() => {})
-    api.get<PaginatedResponse<ProveedorResponse>>('/proveedores/', { params: { limit: 100 } })
-      .then(r => setProveedores(r.data.data ?? [])).catch(() => {})
+    api.get<PaginatedResponse<ProveedorResponse>>(
+      '/proveedores/', { params: { limit: 100 } }
+    ).then(r => setProveedores(r.data.data ?? [])).catch(() => {})
   }, [])
 
-  const abiertasCount = ordenes.filter(
-    o => o.estado === 'enviado' || o.estado === 'en_proceso'
-  ).length
+  const enCursoCount = ordenes.filter(o => o.estado === 'en_curso').length
+
+  // Construir filas: una fila por item de cada orden
+  type Fila = {
+    rowKey: string
+    orden: OrdenMantenimientoResponse
+    item: OrdenMantenimientoResponse['items'][0]
+    rowspan: number
+    isFirst: boolean
+  }
+
+  const filas: Fila[] = []
+  ordenes.forEach(orden => {
+    if (orden.items.length === 0) {
+      // Orden sin items (no deberia ocurrir pero se defiende)
+      filas.push({
+        rowKey: `${orden.id}-empty`,
+        orden,
+        item: {
+          id: -1,
+          activo_fijo_id: -1,
+          activo_fijo_nombre: '(sin activos)',
+          activo_fijo_codigo: null,
+          resultado: 'pendiente',
+          fecha_envio: null,
+          fecha_retorno_estimada: null,
+          fecha_retorno: null,
+          descripcion_problema: null,
+          descripcion_trabajo: null,
+          costo: null,
+        },
+        rowspan: 1,
+        isFirst: true,
+      })
+    } else {
+      orden.items.forEach((item, idx) => {
+        filas.push({
+          rowKey: `${orden.id}-${item.id}`,
+          orden,
+          item,
+          rowspan: orden.items.length,
+          isFirst: idx === 0,
+        })
+      })
+    }
+  })
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-5">
 
       {/* Encabezado */}
-      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-start
+                      justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-h-primary">
             Ordenes de Mantenimiento
@@ -351,22 +530,23 @@ export function OrdenesMantenimiento() {
           )}
         </div>
         <div className="flex items-center gap-3">
-          {abiertasCount > 0 && (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full
-                             text-xs font-bold"
+          {enCursoCount > 0 && (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5
+                             rounded-full text-xs font-bold"
               style={{
                 background: 'var(--h-sem-warning-bg)',
                 color: 'var(--h-sem-warning-text)',
                 border: '1px solid var(--h-sem-warning-border)',
               }}>
               <CalendarClock size={13} />
-              {abiertasCount} en curso
+              {enCursoCount} en curso
             </span>
           )}
           {puedeEscribir && (
-            <button onClick={() => setModal(null)}
+            <button onClick={() => setModalNueva(true)}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl
-                         text-white text-sm font-semibold transition-colors shadow-sm"
+                         text-white text-sm font-semibold
+                         transition-colors shadow-sm"
               style={{ background: 'var(--h-teal-rest)' }}
               onMouseEnter={e =>
                 (e.currentTarget.style.background = 'var(--h-teal-hover)')}
@@ -382,20 +562,23 @@ export function OrdenesMantenimiento() {
       {/* Filtro de estado */}
       <div className="flex items-center gap-2 flex-wrap">
         <span className="text-xs text-h-tertiary font-semibold">Estado:</span>
-        {(['', 'enviado', 'en_proceso', 'completado', 'cancelado'] as const).map(e => (
-          <button key={e} onClick={() => setFiltroEstado(e as EstadoOrden | '')}
-            className="px-3 py-1 rounded-full text-xs font-bold transition-colors"
+        {(['', 'en_curso', 'cerrada', 'cancelada'] as const).map(e => (
+          <button key={e}
+            onClick={() => setFiltroEstado(e as EstadoOrden | '')}
+            className="px-3 py-1 rounded-full text-xs font-bold
+                       transition-colors"
             style={filtroEstado === e ? {
               background: 'var(--h-teal-rest)', color: 'white',
             } : {
-              background: 'var(--h-bg-elevated)', color: 'var(--h-text-secondary)',
+              background: 'var(--h-bg-elevated)',
+              color: 'var(--h-text-secondary)',
             }}>
             {e === '' ? 'Todos' : ETIQUETAS_ORDEN[e as EstadoOrden]}
           </button>
         ))}
         <button onClick={cargar}
-          className="ml-auto p-2 rounded-lg border border-h-subtle text-h-tertiary
-                     transition-colors"
+          className="ml-auto p-2 rounded-lg border border-h-subtle
+                     text-h-tertiary transition-colors"
           style={{ background: 'var(--h-bg-elevated)' }}
           onMouseEnter={e => {
             e.currentTarget.style.background = 'var(--h-bg-highlight)'
@@ -438,99 +621,141 @@ export function OrdenesMantenimiento() {
                 <tr className="border-b border-h-subtle"
                   style={{ background: 'var(--h-bg-elevated)' }}>
                   {[
-                    'Activo', 'Tipo', 'Estado', 'Proveedor',
-                    'Envio', 'Retorno est.', 'Dias', 'Acciones',
+                    'Orden / Proveedor', 'Activo', 'Estado',
+                    'Resultado', 'Fecha visita', 'Retorno est.', 'Dias', 'Acciones',
                   ].map(col => (
-                    <th key={col} className="text-left px-4 py-3 text-[10px] font-semibold
-                                            text-h-tertiary uppercase tracking-widest">
+                    <th key={col}
+                      className="text-left px-4 py-3 text-[10px] font-semibold
+                                 text-h-tertiary uppercase tracking-widest">
                       {col}
                     </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {ordenes.map((o, idx) => {
-                  const dias = diasEnMantenimiento(
-                    o.fecha_envio, o.fecha_retorno ?? undefined
-                  )
+                {filas.map(({ rowKey, orden, item, rowspan, isFirst }) => {
+                  const dias = diasDesde(orden.fecha_visita)
+                  const rowHovered = hoveredRow === rowKey
                   return (
-                    <tr key={o.id}
+                    <tr key={rowKey}
                       className="border-b border-h-subtle transition-colors"
                       style={{
-                        background: hoveredId === o.id
+                        background: rowHovered
                           ? 'var(--h-bg-highlight)'
-                          : idx % 2 === 0
-                            ? 'var(--h-bg-surface)'
-                            : 'var(--h-bg-elevated)',
+                          : 'var(--h-bg-surface)',
                       }}
-                      onMouseEnter={() => setHoveredId(o.id)}
-                      onMouseLeave={() => setHoveredId(null)}
+                      onMouseEnter={() => setHoveredRow(rowKey)}
+                      onMouseLeave={() => setHoveredRow(null)}
                     >
+                      {/* Celda de cabecera (rowspan por orden) */}
+                      {isFirst && (
+                        <td className="px-4 py-3 align-top"
+                          rowSpan={rowspan}>
+                          <p className="font-mono text-xs text-h-tertiary">
+                            #ORD-{String(orden.id).padStart(4, '0')}
+                          </p>
+                          {orden.proveedor_nombre ? (
+                            <span className="flex items-center gap-1
+                                             text-xs text-h-secondary
+                                             font-semibold mt-0.5">
+                              <Building2 size={11}
+                                className="text-h-tertiary" />
+                              {orden.proveedor_nombre}
+                            </span>
+                          ) : (
+                            <span className="text-xs italic
+                                             text-h-tertiary mt-0.5">
+                              Sin proveedor
+                            </span>
+                          )}
+                          {orden.notas && (
+                            <p className="text-xs text-h-tertiary mt-1
+                                          max-w-[160px] truncate"
+                              title={orden.notas}>
+                              {orden.notas}
+                            </p>
+                          )}
+                        </td>
+                      )}
+
+                      {/* Activo */}
                       <td className="px-4 py-3">
-                        <p className="font-semibold text-h-primary">{o.activo_fijo_nombre}</p>
-                        <p className="text-xs text-h-tertiary mt-0.5 font-mono">
-                          {o.activo_fijo_codigo ?? '—'}
+                        <p className="font-semibold text-h-primary">
+                          {item.activo_fijo_nombre}
                         </p>
-                        {o.descripcion_problema && (
-                          <p className="text-xs text-h-tertiary mt-0.5 max-w-[220px] truncate"
-                            title={o.descripcion_problema}>
-                            {o.descripcion_problema}
+                        <p className="text-xs text-h-tertiary mt-0.5 font-mono">
+                          {item.activo_fijo_codigo ?? '\u2014'}
+                        </p>
+                        {item.descripcion_problema && (
+                          <p className="text-xs text-h-tertiary mt-0.5
+                                        max-w-[200px] truncate"
+                            title={item.descripcion_problema}>
+                            {item.descripcion_problema}
                           </p>
                         )}
                       </td>
-                      <td className="px-4 py-3">
-                        {o.tipo_mantenimiento ? (
+
+                      {/* Estado orden (rowspan) */}
+                      {isFirst && (
+                        <td className="px-4 py-3 align-top" rowSpan={rowspan}>
                           <BadgeLocal
-                            label={ETIQUETA_TIPO[o.tipo_mantenimiento as TipoMant]}
-                            cls={TIPO_COLOR[o.tipo_mantenimiento as TipoMant]}
+                            label={ETIQUETAS_ORDEN[orden.estado]}
+                            cls={ESTADO_COLOR[orden.estado]}
                           />
-                        ) : (
-                          <span className="text-xs italic text-h-tertiary">Sin especificar</span>
-                        )}
-                      </td>
+                        </td>
+                      )}
+
+                      {/* Resultado item */}
                       <td className="px-4 py-3">
-                        <BadgeLocal label={ETIQUETAS_ORDEN[o.estado]} cls={ESTADO_COLOR[o.estado]} />
+                        <BadgeLocal
+                          label={ETIQUETA_RESULTADO_ITEM[item.resultado]}
+                          cls={RESULTADO_COLOR[item.resultado]}
+                        />
                       </td>
-                      <td className="px-4 py-3">
-                        {o.proveedor_nombre ? (
-                          <span className="flex items-center gap-1 text-xs
-                                           text-h-secondary font-semibold">
-                            <Building2 size={11} className="text-h-tertiary" />
-                            {o.proveedor_nombre}
+
+                      {/* Fecha visita (rowspan) */}
+                      {isFirst && (
+                        <td className="px-4 py-3 text-h-secondary whitespace-nowrap
+                                       align-top" rowSpan={rowspan}>
+                          {formatFecha(orden.fecha_visita)}
+                        </td>
+                      )}
+
+                      {/* Retorno estimado (por item) */}
+                      <td className="px-4 py-3 text-h-secondary whitespace-nowrap">
+                        {formatFecha(item.fecha_retorno_estimada)}
+                      </td>
+
+                      {/* Dias (rowspan) */}
+                      {isFirst && (
+                        <td className="px-4 py-3 align-top" rowSpan={rowspan}>
+                          <span className={`text-xs font-bold ${
+                            orden.estado !== 'en_curso'
+                              ? 'text-h-tertiary'
+                              : dias > 30 ? 'text-rose-500'
+                              : dias > 14 ? 'text-amber-500'
+                              : 'text-h-secondary'
+                          }`}>
+                            {dias}d
+                            {orden.estado !== 'en_curso' ? ' (cerrada)' : ''}
                           </span>
-                        ) : (
-                          <span className="text-xs italic text-h-tertiary">Sin asignar</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-h-secondary whitespace-nowrap">
-                        {formatFecha(o.fecha_envio)}
-                      </td>
-                      <td className="px-4 py-3 text-h-secondary whitespace-nowrap">
-                        {formatFecha(o.fecha_retorno_estimada)}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`text-xs font-bold ${
-                          o.estado === 'completado' || o.estado === 'cancelado'
-                            ? 'text-h-tertiary'
-                            : dias > 30 ? 'text-rose-500'
-                            : dias > 14 ? 'text-amber-500'
-                            : 'text-h-secondary'
-                        }`}>
-                          {dias}d
-                          {(o.estado === 'completado' || o.estado === 'cancelado')
-                            ? ' (cerrada)' : ''}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        {puedeEscribir &&
-                          o.estado !== 'completado' &&
-                          o.estado !== 'cancelado' && (
-                            <button onClick={() => setModal(o)}
-                              title="Actualizar orden"
-                              className="p-1.5 rounded-lg text-h-tertiary transition-colors"
+                        </td>
+                      )}
+
+                      {/* Acciones (rowspan, solo en primera fila del grupo) */}
+                      {isFirst && (
+                        <td className="px-4 py-3 align-top" rowSpan={rowspan}>
+                          {puedeEscribir && orden.estado === 'en_curso' && (
+                            <button
+                              onClick={() => setModalEditar(orden)}
+                              title="Editar cabecera de la orden"
+                              className="p-1.5 rounded-lg text-h-tertiary
+                                         transition-colors"
                               onMouseEnter={e => {
-                                e.currentTarget.style.color = 'var(--h-teal-hover)'
-                                e.currentTarget.style.background = 'var(--h-teal-subtle)'
+                                e.currentTarget.style.color =
+                                  'var(--h-teal-hover)'
+                                e.currentTarget.style.background =
+                                  'var(--h-teal-subtle)'
                               }}
                               onMouseLeave={e => {
                                 e.currentTarget.style.color = ''
@@ -540,7 +765,8 @@ export function OrdenesMantenimiento() {
                               <Pencil size={14} />
                             </button>
                           )}
-                      </td>
+                        </td>
+                      )}
                     </tr>
                   )
                 })}
@@ -550,13 +776,29 @@ export function OrdenesMantenimiento() {
         )}
       </div>
 
-      {modal !== undefined && (
-        <ModalOrden
-          orden={modal} activos={activos} proveedores={proveedores}
-          onClose={() => setModal(undefined)}
+      {/* Modal nueva orden */}
+      {modalNueva && (
+        <ModalNuevaOrden
+          activos={activos}
+          proveedores={proveedores}
+          onClose={() => setModalNueva(false)}
           onSaved={() => {
-            setModal(undefined)
-            mostrarToast(modal === null ? 'Orden creada' : 'Orden actualizada')
+            setModalNueva(false)
+            mostrarToast('Orden creada exitosamente')
+            cargar()
+          }}
+        />
+      )}
+
+      {/* Modal editar cabecera */}
+      {modalEditar && (
+        <ModalEditarCabecera
+          orden={modalEditar}
+          proveedores={proveedores}
+          onClose={() => setModalEditar(null)}
+          onSaved={() => {
+            setModalEditar(null)
+            mostrarToast('Orden actualizada')
             cargar()
           }}
         />
@@ -564,7 +806,8 @@ export function OrdenesMantenimiento() {
 
       {toast && (
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2
-                        text-white text-sm font-medium px-4 py-3 rounded-xl shadow-lg"
+                        text-white text-sm font-medium px-4 py-3
+                        rounded-xl shadow-lg"
           style={{ background: 'var(--h-bg-highlight)' }}>
           {toast}
         </div>

@@ -64,7 +64,7 @@ function ModalAcercaDe({ onClose }: { onClose: () => void }) {
         <button onClick={onClose}
           className="absolute top-4 right-4 text-h-tertiary hover:text-h-secondary
                      text-xl leading-none transition-colors"
-          aria-label="Cerrar">×</button>
+          aria-label="Cerrar">x</button>
         <div className="flex flex-col items-center mb-6">
           <Logo className="w-16 h-16 mb-3" />
           <h2 className="text-xl font-bold text-h-primary tracking-tight">Hestia</h2>
@@ -75,11 +75,11 @@ function ModalAcercaDe({ onClose }: { onClose: () => void }) {
         <div className="space-y-3 text-xs text-h-secondary">
           <div className="bg-h-elevated rounded-xl border border-h-subtle px-4 py-3 space-y-2">
             {[
-              ['Institucion', 'DuocUC — Sede San Bernardo'],
+              ['Institucion', 'DuocUC \u2014 Sede San Bernardo'],
               ['Escuela',     'Escuela de Salud'],
               ['Carrera',     'Informatica Biomedica'],
-              ['Tipo',        'Proyecto de Titulo · Ruta IE'],
-              ['Periodo',     '2024 – 2025'],
+              ['Tipo',        'Proyecto de Titulo \u00b7 Ruta IE'],
+              ['Periodo',     '2024 \u2013 2025'],
             ].map(([k, v]) => (
               <p key={k}><span className="text-h-primary font-medium">{k}</span><br />{v}</p>
             ))}
@@ -95,11 +95,11 @@ function ModalAcercaDe({ onClose }: { onClose: () => void }) {
           </div>
         </div>
         <p className="text-center text-h-tertiary text-[10px] mt-5">
-          <strong className="text-h-secondary">H</strong>ospitalidad·
-          <strong className="text-h-secondary">E</strong>ficacia·
-          <strong className="text-h-secondary">S</strong>ervicio·
-          <strong className="text-h-secondary">T</strong>ransparencia·
-          <strong className="text-h-secondary">I</strong>nsumos·
+          <strong className="text-h-secondary">H</strong>ospitalidad\u00b7
+          <strong className="text-h-secondary">E</strong>ficacia\u00b7
+          <strong className="text-h-secondary">S</strong>ervicio\u00b7
+          <strong className="text-h-secondary">T</strong>ransparencia\u00b7
+          <strong className="text-h-secondary">I</strong>nsumos\u00b7
           <strong className="text-h-secondary">A</strong>postolado
         </p>
       </div>
@@ -142,18 +142,18 @@ function ModalSoporte({ onClose }: { onClose: () => void }) {
                         border-b border-h-subtle flex-shrink-0">
           <div>
             <h2 className="text-base font-semibold text-h-primary">Centro de soporte</h2>
-            <p className="text-xs text-h-tertiary mt-0.5">Hestia — Escuela de Salud DuocUC</p>
+            <p className="text-xs text-h-tertiary mt-0.5">Hestia \u2014 Escuela de Salud DuocUC</p>
           </div>
           <button onClick={onClose}
             className="text-h-tertiary hover:text-h-secondary text-xl
-                       leading-none transition-colors" aria-label="Cerrar">×</button>
+                       leading-none transition-colors" aria-label="Cerrar">x</button>
         </div>
         <div className="overflow-y-auto flex-1 px-7 py-5 space-y-6">
           {enviado ? (
             <div className="text-center py-4">
               <div className="w-12 h-12 rounded-full flex items-center justify-center
                              mx-auto mb-4 text-xl border"
-                style={{ background: 'var(--h-sem-success-bg)', borderColor: 'var(--h-sem-success-border)' }}>✉️</div>
+                style={{ background: 'var(--h-sem-success-bg)', borderColor: 'var(--h-sem-success-border)' }}>\u2709\ufe0f</div>
               <h3 className="text-base font-semibold text-h-primary mb-2">Ticket enviado</h3>
               <p className="text-h-secondary text-xs mb-4">
                 Se abrio tu cliente de correo con el mensaje listo para enviar a{' '}
@@ -208,7 +208,7 @@ function ModalSoporte({ onClose }: { onClose: () => void }) {
                                px-4 py-3 text-left hover:bg-h-elevated transition-colors">
                     <span className="text-xs font-medium text-h-secondary">{item.q}</span>
                     <span className="text-h-tertiary flex-shrink-0 text-sm">
-                      {expandFaq === i ? '−' : '+'}
+                      {expandFaq === i ? '\u2212' : '+'}
                     </span>
                   </button>
                   {expandFaq === i && (
@@ -359,7 +359,7 @@ function PanelIzquierdo() {
           ))}
         </div>
         <p className="text-[11px] text-h-tertiary">
-          DuocUC San Bernardo · Informatica Biomedica · 2024–2025
+          DuocUC San Bernardo \u00b7 Informatica Biomedica \u00b7 2024\u20132025
         </p>
       </div>
     </div>
@@ -453,7 +453,7 @@ export function Login() {
   const [recovery,  setRecovery]  = useState('')
   const [modo2FA,   setModo2FA]   = useState<Modo2FA>('totp')
 
-  // Ref que TotpInput expone para disparar la animacion desde el padre
+  // Ref que TotpInput expone para disparar la animacion desde el padre (flujo 2FA normal)
   const totpAnimRef = useRef<(() => void) | null>(null)
 
   const [isSetup2FA,   setIsSetup2FA]   = useState(false)
@@ -461,6 +461,8 @@ export function Login() {
   const [setupQR,      setSetupQR]      = useState<Setup2FAResponse | null>(null)
   const [setupStep,    setSetupStep]    = useState<SetupStep>('qr')
   const [setupTotp,    setSetupTotp]    = useState('')
+  // Ref para la animacion TotpInput en el paso de confirmacion del setup
+  const setupAnimRef = useRef<(() => void) | null>(null)
   const [setupCodes,   setSetupCodes]   = useState<string[]>([])
   const [showSecret,   setShowSecret]   = useState(false)
   const [setupLoading, setSetupLoading] = useState(false)
@@ -520,7 +522,7 @@ export function Login() {
     } finally { setLoading(false) }
   }
 
-  // Llamado por TotpInput desde DENTRO de la animacion, en el momento correcto
+  // Llamado por TotpInput desde DENTRO de la animacion, en el momento correcto (2FA normal)
   async function handleTotp() {
     setLoading(true)
     try {
@@ -561,8 +563,9 @@ export function Login() {
     } finally { setLoading(false) }
   }
 
-  async function handleSetupActivar(e: React.FormEvent) {
-    e.preventDefault(); setLoading(true)
+  // Llamado por TotpInput del setup desde DENTRO de la animacion
+  async function handleSetupActivar() {
+    setLoading(true)
     try {
       const { data } = await api.post<LoginResponse>('/auth/2fa/activar-inicial', {
         setup_token: setupToken, codigo: setupTotp,
@@ -599,6 +602,17 @@ export function Login() {
   function volverAlLogin() {
     setPreToken(null); setError(null); setTotpValue(''); setRecovery('')
   }
+
+  // Vuelve al formulario de credenciales desde el setup de 2FA
+  function cancelarSetup() {
+    setIsSetup2FA(false)
+    setSetupToken(null)
+    setSetupQR(null)
+    setSetupStep('qr')
+    setSetupTotp('')
+    setError(null)
+  }
+
   function abrirForgot() {
     setIsForgot(true); setForgotEmail(email); setForgotError(null); setForgotOk(false)
   }
@@ -644,7 +658,7 @@ export function Login() {
         <div className="lg:hidden flex flex-col items-center mb-8">
           <Logo className="w-14 h-14 mb-3" />
           <h1 className="text-2xl font-bold text-h-primary">Hestia</h1>
-          <p className="text-h-tertiary text-xs mt-1">Escuela de Salud · DuocUC</p>
+          <p className="text-h-tertiary text-xs mt-1">Escuela de Salud \u00b7 DuocUC</p>
         </div>
 
         {showAbout   && <ModalAcercaDe onClose={() => setShowAbout(false)} />}
@@ -668,6 +682,11 @@ export function Login() {
 
             ) : setupStep === 'qr' ? (
               <>
+                {/* Boton volver al formulario de credenciales */}
+                <button type="button" onClick={cancelarSetup}
+                  className={backBtnCls}>
+                  \u2190 Volver al inicio de sesion
+                </button>
                 <div className="flex items-center gap-2 mb-3">
                   <span className="w-6 h-6 rounded-full text-white text-xs font-bold
                                    flex items-center justify-center flex-shrink-0"
@@ -691,7 +710,7 @@ export function Login() {
                 <button type="button" onClick={() => setShowSecret(!showSecret)}
                   className="text-xs text-h-tertiary hover:text-h-accent font-medium
                              transition-colors flex items-center gap-1 mb-3">
-                  {showSecret ? '▲' : '▼'} Ingresar clave manual en la app
+                  {showSecret ? '\u25b2' : '\u25bc'} Ingresar clave manual en la app
                 </button>
                 {showSecret && setupQR && (
                   <div className="mb-4 rounded-lg border border-h-subtle px-3 py-2
@@ -703,7 +722,7 @@ export function Login() {
                       onClick={() => navigator.clipboard.writeText(setupQR.secret)}
                       className="text-xs text-h-tertiary hover:text-h-secondary
                                  flex-shrink-0 transition-colors"
-                      title="Copiar clave">📋</button>
+                      title="Copiar clave">\ud83d\udccb</button>
                   </div>
                 )}
                 {error && <p className={errorCls() + ' mb-3'}>{error}</p>}
@@ -711,7 +730,7 @@ export function Login() {
                   onClick={() => { setSetupStep('code'); setError(null) }}
                   disabled={!setupQR} className={stdBtnCls}
                   style={{ background: 'var(--h-teal-rest)' }}>
-                  Ya escanee el QR →
+                  Ya escanee el QR \u2192
                 </button>
               </>
 
@@ -719,7 +738,7 @@ export function Login() {
               <>
                 <button type="button"
                   onClick={() => { setSetupStep('qr'); setError(null) }}
-                  className={backBtnCls}>← Volver al QR</button>
+                  className={backBtnCls}>\u2190 Volver al QR</button>
                 <div className="flex items-center gap-2 mb-3">
                   <span className="w-6 h-6 rounded-full text-white text-xs font-bold
                                    flex items-center justify-center flex-shrink-0"
@@ -732,26 +751,23 @@ export function Login() {
                   Ingresa el codigo de 6 digitos que muestra
                   Google Authenticator ahora.
                 </p>
-                <form onSubmit={handleSetupActivar} className="space-y-4">
-                  <input type="text" inputMode="numeric" pattern="[0-9]{6}"
-                    maxLength={6} value={setupTotp}
-                    onChange={e => {
-                      setSetupTotp(e.target.value.replace(/\D/g, ''))
-                      setError(null)
-                    }}
-                    className="w-full px-4 py-4 rounded-lg text-h-primary text-3xl
-                               text-center font-bold tracking-[0.6em] focus:outline-none
-                               placeholder:text-h-tertiary bg-h-elevated border
-                               border-h-visible focus:border-h-strong transition-all"
-                    placeholder="000000" autoFocus required />
+                <div className="space-y-4">
+                  <TotpInput
+                    value={setupTotp}
+                    onChange={v => { setSetupTotp(v); setError(null) }}
+                    onConfirm={handleSetupActivar}
+                    animRef={setupAnimRef}
+                    disabled={loading}
+                  />
                   {error && <p className={errorCls()}>{error}</p>}
                   <ShimmerButton
-                    type="submit"
+                    type="button"
                     disabled={loading || setupTotp.length !== 6}
+                    onClick={() => setupAnimRef.current?.()}
                   >
                     {loading ? 'Activando...' : 'Activar verificacion en dos pasos'}
                   </ShimmerButton>
-                </form>
+                </div>
               </>
 
             ) : (
@@ -783,10 +799,10 @@ export function Login() {
                   className="w-full mb-3 border border-h-visible text-h-secondary
                              font-semibold py-2 rounded-lg hover:bg-h-elevated
                              transition-colors text-sm">
-                  {copiado ? 'Copiados! ✓' : '📋 Copiar todos los codigos'}
+                  {copiado ? 'Copiados! \u2713' : '\ud83d\udccb Copiar todos los codigos'}
                 </button>
                 <ShimmerButton type="button" onClick={handleSetupFinalizar}>
-                  He guardado mis codigos — Ingresar al panel
+                  He guardado mis codigos \u2014 Ingresar al panel
                 </ShimmerButton>
               </>
             )
@@ -809,7 +825,7 @@ export function Login() {
                   <label className={labelCls}>Contrasena</label>
                   <input type="password" value={password}
                     onChange={e => { setPassword(e.target.value); setError(null) }}
-                    className={inputCls} placeholder="••••••••" required />
+                    className={inputCls} placeholder="\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022" required />
                 </div>
                 {error && <p className={errorCls(error.includes('intento'))}>{error}</p>}
                 <ShimmerButton type="submit" disabled={loading}>
@@ -826,7 +842,7 @@ export function Login() {
           /* ────── Recuperar contrasena ────── */
           ) : !is2FA && isForgot ? (
             <>
-              <button onClick={cerrarForgot} className={backBtnCls}>← Volver</button>
+              <button onClick={cerrarForgot} className={backBtnCls}>\u2190 Volver</button>
               {forgotOk ? (
                 <div className="text-center py-2">
                   <div className="w-12 h-12 rounded-full flex items-center
@@ -834,7 +850,7 @@ export function Login() {
                     style={{
                       background: 'var(--h-sem-success-bg)',
                       borderColor: 'var(--h-sem-success-border)',
-                    }}>✉️</div>
+                    }}>\u2709\ufe0f</div>
                   <h2 className="text-base font-semibold text-h-primary mb-2">
                     Revisa tu correo
                   </h2>
@@ -881,10 +897,12 @@ export function Login() {
               )}
             </>
 
-          /* ────── 2FA TOTP — con animacion HESTIA ────── */
+          /* ────── 2FA TOTP ── con animacion HESTIA ────── */
           ) : modo2FA === 'totp' ? (
             <>
-              <button onClick={volverAlLogin} className={backBtnCls}>← Volver</button>
+              <button onClick={volverAlLogin} className={backBtnCls}>
+                \u2190 Volver
+              </button>
               <h2 className="text-base font-semibold text-h-primary mb-1">
                 Verificacion 2FA
               </h2>
@@ -911,7 +929,7 @@ export function Login() {
               <button onClick={() => { setModo2FA('recovery'); setError(null) }}
                 className="w-full mt-4 text-xs text-h-tertiary hover:text-h-secondary
                            font-medium transition-colors duration-150">
-                Perdi acceso a mi app — usar codigo de recuperacion
+                Perdi acceso a mi app \u2014 usar codigo de recuperacion
               </button>
             </>
 
@@ -919,7 +937,7 @@ export function Login() {
           ) : (
             <>
               <button onClick={() => { setModo2FA('totp'); setError(null) }}
-                className={backBtnCls}>← Volver</button>
+                className={backBtnCls}>\u2190 Volver</button>
               <h2 className="text-base font-semibold text-h-primary mb-1">
                 Codigo de recuperacion
               </h2>
@@ -965,7 +983,7 @@ export function Login() {
             onMouseLeave={e => (e.currentTarget.style.opacity = '0.4')}>
             Acerca de
           </button>
-          <span className="text-h-tertiary text-[11px]" style={{ opacity: 0.25 }}>·</span>
+          <span className="text-h-tertiary text-[11px]" style={{ opacity: 0.25 }}>\u00b7</span>
           <button type="button" onClick={() => setShowSoporte(true)}
             className="text-[11px] text-h-tertiary hover:text-h-secondary
                        transition-colors duration-150 px-1"

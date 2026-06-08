@@ -46,6 +46,7 @@ export interface OrdenMantenimientoResponse {
   items: OrdenItemResponse[]
 }
 
+// Crear orden: lista de activos + fecha de visita del proveedor
 export interface OrdenMantenimientoCreate {
   proveedor_id?: number | null
   activo_ids: number[]
@@ -53,6 +54,7 @@ export interface OrdenMantenimientoCreate {
   notas?: string | null
 }
 
+// Actualizar cabecera: solo proveedor y notas
 export interface OrdenMantenimientoUpdate {
   proveedor_id?: number | null
   notas?: string | null
