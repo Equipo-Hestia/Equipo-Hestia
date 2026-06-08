@@ -10,7 +10,6 @@ import type {
   MovimientoEnriquecido, MovimientoCreate,
   InsumoResponse, PaginatedResponse,
   TipoMovimiento, SubtipoMovimiento,
-  SUBTIPOS_POR_TIPO,
 } from '../types/api'
 import {
   ETIQUETA_SUBTIPO,
@@ -20,40 +19,25 @@ import { Badge } from '../components/ui/Badge'
 import { Modal } from '../components/ui/Modal'
 import { TableRowSkeleton } from '../components/ui/Skeleton'
 import { SearchWithSuggestions } from '../components/ui/SearchSuggestions'
+import { useLastUpdated } from '../hooks/useLastUpdated'
 
 const PAGE_SIZE = 20
 
 function formatFecha(fecha: string) {
   return new Date(fecha).toLocaleString('es-CL', {
     day: '2-digit', month: '2-digit', year: 'numeric',
-    hour: '2-digit', minute: '2-digit'
+    hour: '2-digit', minute: '2-digit',
   })
 }
 
-function formatAntiguedad(fecha: Date): string {
-  const diff = Math.floor((Date.now() - fecha.getTime()) / 1000)
-  if (diff < 60) return 'Actualizado hace un momento'
-  if (diff < 3600) return `Actualizado hace ${Math.floor(diff / 60)} min`
-  return `Actualizado el ${fecha.toLocaleString('es-CL', {
-    day: '2-digit', month: '2-digit', year: 'numeric',
-    hour: '2-digit', minute: '2-digit'
-  })}`
-}
-
-/** Badge e ícono según tipo base del movimiento */
 function TipoBadge({ tipo, subtipo }: { tipo: TipoMovimiento; subtipo: SubtipoMovimiento | null }) {
   const icono = tipo === 'entrada'
     ? <ArrowUpCircle size={14} className="text-teal-600" />
     : tipo === 'salida'
       ? <ArrowDownCircle size={14} className="text-amber-500" />
       : <ArrowRightLeft size={14} className="text-blue-500" />
-
-  const variante = tipo === 'entrada' ? 'success'
-    : tipo === 'salida' ? 'warning'
-    : 'info'
-
+  const variante = tipo === 'entrada' ? 'success' : tipo === 'salida' ? 'warning' : 'info'
   const etiquetaSubtipo = subtipo ? ETIQUETA_SUBTIPO[subtipo] : null
-
   return (
     <div className="flex flex-col gap-0.5">
       <div className="flex items-center gap-1.5">
@@ -63,9 +47,7 @@ function TipoBadge({ tipo, subtipo }: { tipo: TipoMovimiento; subtipo: SubtipoMo
         </Badge>
       </div>
       {etiquetaSubtipo && (
-        <span className="text-xs text-slate-400 dark:text-slate-500 pl-0.5">
-          {etiquetaSubtipo}
-        </span>
+        <span className="text-xs text-h-tertiary pl-0.5">{etiquetaSubtipo}</span>
       )}
     </div>
   )
@@ -89,7 +71,7 @@ export function Movimientos() {
   const [total, setTotal]             = useState(0)
   const [page, setPage]               = useState(0)
   const [loading, setLoading]         = useState(true)
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  const { labelTiempo, marcarActualizado } = useLastUpdated()
 
   const [filtros, setFiltros]         = useState<Filtros>(FILTROS_VACIOS)
   const [searchInput, setSearchInput] = useState('')
@@ -112,7 +94,6 @@ export function Movimientos() {
 
   function showToast(msg: string) { setToast(msg); setTimeout(() => setToast(null), 3000) }
 
-  // Cuando cambia el tipo, resetear subtipo al primer valor válido
   useEffect(() => {
     const opciones = SUBTIPOS_MAP[tipo]
     if (opciones.length > 0) setSubtipo(opciones[0])
@@ -140,21 +121,17 @@ export function Movimientos() {
         '/movimientos/', { params }
       )
       setMovimientos(data.data); setTotal(data.total)
-      setLastUpdated(new Date())
+      marcarActualizado()
     } finally { setLoading(false) }
-  }, [])
+  }, [marcarActualizado])
 
   useEffect(() => { load(page * PAGE_SIZE, filtros) }, [page, filtros, load])
 
-  function aplicarBusqueda(val: string) {
-    setFiltros(f => ({ ...f, insumo: val })); setPage(0)
-  }
+  function aplicarBusqueda(val: string) { setFiltros(f => ({ ...f, insumo: val })); setPage(0) }
   function setFiltro<K extends keyof Filtros>(key: K, value: Filtros[K]) {
     setFiltros(f => ({ ...f, [key]: value })); setPage(0)
   }
-  function limpiarFiltros() {
-    setFiltros(FILTROS_VACIOS); setSearchInput(''); setPage(0)
-  }
+  function limpiarFiltros() { setFiltros(FILTROS_VACIOS); setSearchInput(''); setPage(0) }
 
   async function handleExportar(formato: 'csv' | 'xlsx') {
     setExporting(true); setShowExportMenu(false)
@@ -191,10 +168,8 @@ export function Movimientos() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault(); setSaving(true); setFormError(null)
     const payload: MovimientoCreate = {
-      tipo, subtipo,
-      insumo_id: parseInt(insumoId),
-      cantidad: parseInt(cantidad),
-      motivo: motivo.trim() || null,
+      tipo, subtipo, insumo_id: parseInt(insumoId),
+      cantidad: parseInt(cantidad), motivo: motivo.trim() || null,
     }
     try {
       await api.post('/movimientos/', payload)
@@ -208,65 +183,81 @@ export function Movimientos() {
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
-  const inputCls = `w-full px-3 py-2.5 rounded-lg border border-slate-200 text-slate-900 text-sm
-    focus:outline-none focus:ring-2 focus:ring-teal-500 bg-slate-50 focus:bg-white
-    placeholder:text-slate-400 transition-all`
-  const labelCls = "block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5"
-  const dateCls  = `px-3 py-1.5 rounded-lg border border-slate-200 text-sm text-slate-600
-    bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 cursor-pointer`
+  const inputCls = `w-full px-3 py-2.5 rounded-lg text-h-primary text-sm
+    focus:outline-none transition-all bg-h-elevated border border-h-visible
+    focus:border-h-strong placeholder:text-h-tertiary`
+  const labelCls = 'block text-[10px] font-semibold text-h-tertiary uppercase tracking-widest mb-1.5'
+  const dateCls  = `px-3 py-1.5 rounded-lg border text-sm cursor-pointer
+    bg-h-elevated border-h-subtle text-h-primary
+    focus:outline-none focus:border-h-visible transition-colors`
 
   return (
     <div className="p-8 max-w-6xl mx-auto">
       {toast && (
-        <div className="fixed top-6 right-6 z-50 flex items-center gap-2 bg-teal-600
-                        text-white px-4 py-3 rounded-xl shadow-lg text-sm font-semibold">
+        <div className="fixed top-6 right-6 z-50 flex items-center gap-2
+                        text-white px-4 py-3 rounded-xl shadow-lg text-sm font-semibold"
+          style={{ background: 'var(--h-teal-rest)' }}>
           <CheckCircle size={16} />{toast}
         </div>
       )}
 
-      <div className="flex items-center justify-between mb-6">
+      {/* Header */}
+      <div className="flex items-start justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 dark:text-slate-50">Movimientos</h1>
-          <p className="text-slate-500 dark:text-slate-400 text-sm mt-0.5">
+          <h1 className="text-2xl font-bold text-h-primary">Movimientos</h1>
+          <p className="text-h-secondary text-sm mt-0.5">
             {loading ? '...' : `${total} movimientos`}{hasFilters && ' (filtrado)'}
           </p>
-          {lastUpdated && (
-            <p className="text-xs text-slate-400 mt-0.5">{formatAntiguedad(lastUpdated)}</p>
+          {labelTiempo && (
+            <p className="text-xs text-h-tertiary mt-1">{labelTiempo}</p>
           )}
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => load(page * PAGE_SIZE, filtros)}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200
-                       text-slate-500 hover:bg-slate-50 text-sm transition-colors">
-            <RefreshCw size={14} /> Actualizar
+            className="p-2 rounded-lg border border-h-subtle text-h-tertiary transition-colors"
+            style={{ background: 'var(--h-bg-elevated)' }}
+            onMouseEnter={e => {
+              e.currentTarget.style.background = 'var(--h-bg-highlight)'
+              e.currentTarget.style.color = 'var(--h-text-secondary)'
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.background = 'var(--h-bg-elevated)'
+              e.currentTarget.style.color = ''
+            }}
+            title="Actualizar">
+            <RefreshCw size={15} />
           </button>
           <div className="relative" ref={exportRef}>
             <button onClick={() => setShowExportMenu(v => !v)} disabled={exporting}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200
-                         text-slate-600 hover:bg-slate-50 text-sm font-semibold
-                         transition-colors disabled:opacity-50">
+              className="flex items-center gap-2 px-3 py-2 rounded-lg border border-h-subtle
+                         text-h-secondary text-sm font-semibold transition-colors
+                         disabled:opacity-50 bg-h-elevated hover:bg-h-highlight">
               <Download size={14} />{exporting ? 'Exportando...' : 'Exportar'}
             </button>
             {showExportMenu && (
-              <div className="absolute right-0 top-full mt-1 bg-white border border-slate-200
-                              rounded-xl shadow-lg z-20 overflow-hidden min-w-36">
+              <div className="absolute right-0 top-full mt-1 border rounded-xl shadow-lg z-20
+                              overflow-hidden min-w-36"
+                style={{ background: 'var(--h-bg-surface)', borderColor: 'var(--h-border-subtle)' }}>
                 <button onClick={() => handleExportar('csv')}
                   className="w-full flex items-center gap-2 px-4 py-2.5 text-sm
-                             text-slate-700 hover:bg-slate-50 font-semibold">
-                  <FileText size={14} className="text-slate-400" /> CSV
+                             text-h-secondary hover:bg-h-elevated font-medium">
+                  <FileText size={14} className="text-h-tertiary" /> CSV
                 </button>
                 <button onClick={() => handleExportar('xlsx')}
                   className="w-full flex items-center gap-2 px-4 py-2.5 text-sm
-                             text-slate-700 hover:bg-slate-50 font-semibold">
-                  <FileText size={14} className="text-teal-500" /> Excel (.xlsx)
+                             text-h-secondary hover:bg-h-elevated font-medium">
+                  <FileText size={14} style={{ color: 'var(--h-teal-hover)' }} /> Excel (.xlsx)
                 </button>
               </div>
             )}
           </div>
           {puedeRegistrar && (
             <button onClick={abrirModal}
-              className="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white
-                         font-bold px-4 py-2.5 rounded-xl text-sm transition-colors">
+              className="flex items-center gap-2 text-white font-semibold
+                         px-4 py-2.5 rounded-xl text-sm transition-colors"
+              style={{ background: 'var(--h-teal-rest)' }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'var(--h-teal-hover)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'var(--h-teal-rest)')}>
               <Plus size={16} /> Registrar
             </button>
           )}
@@ -274,8 +265,8 @@ export function Movimientos() {
       </div>
 
       {/* Filtros */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200
-                      dark:border-slate-700 shadow-sm p-4 mb-5">
+      <div className="rounded-xl border border-h-subtle p-4 mb-5"
+        style={{ background: 'var(--h-bg-surface)' }}>
         <div className="flex gap-2 mb-3">
           <SearchWithSuggestions
             value={searchInput}
@@ -285,15 +276,16 @@ export function Movimientos() {
           />
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <SlidersHorizontal size={14} className="text-slate-400" />
+          <SlidersHorizontal size={14} className="text-h-tertiary" />
           <div className="flex gap-1">
             {(['todos', 'entrada', 'salida', 'interno'] as const).map(f => (
               <button key={f} onClick={() => setFiltro('tipo', f)}
-                className={`px-3 py-1 rounded-full text-xs font-bold transition-colors ${
-                  filtros.tipo === f
-                    ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900'
-                    : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-200'
-                }`}>
+                className={`px-3 py-1 rounded-full text-xs font-bold transition-colors`}
+                style={filtros.tipo === f ? {
+                  background: 'var(--h-teal-rest)', color: 'white',
+                } : {
+                  background: 'var(--h-bg-elevated)', color: 'var(--h-text-secondary)',
+                }}>
                 {f === 'todos' ? 'Todos'
                   : f === 'entrada' ? 'Entradas'
                   : f === 'salida' ? 'Salidas'
@@ -302,19 +294,19 @@ export function Movimientos() {
             ))}
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-400 font-semibold">Desde</span>
+            <span className="text-xs text-h-tertiary font-semibold">Desde</span>
             <input type="date" value={filtros.fecha_desde}
               onChange={e => setFiltro('fecha_desde', e.target.value)} className={dateCls} />
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-400 font-semibold">Hasta</span>
+            <span className="text-xs text-h-tertiary font-semibold">Hasta</span>
             <input type="date" value={filtros.fecha_hasta}
               onChange={e => setFiltro('fecha_hasta', e.target.value)} className={dateCls} />
           </div>
           {hasFilters && (
             <button onClick={limpiarFiltros}
-              className="flex items-center gap-1 text-xs font-bold text-rose-500
-                         hover:text-rose-700 transition-colors ml-auto">
+              className="flex items-center gap-1 text-xs font-bold ml-auto transition-colors"
+              style={{ color: 'var(--h-sem-danger-text)' }}>
               <X size={12} /> Limpiar filtros
             </button>
           )}
@@ -322,88 +314,83 @@ export function Movimientos() {
       </div>
 
       {/* Tabla */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200
-                      dark:border-slate-700 shadow-sm overflow-x-auto">
+      <div className="rounded-xl border border-h-subtle overflow-x-auto"
+        style={{ background: 'var(--h-bg-surface)' }}>
         <table className="w-full min-w-[780px] text-sm">
           <thead>
-            <tr className="border-b border-slate-200 dark:border-slate-700
-                           bg-slate-50 dark:bg-slate-900/50">
+            <tr className="border-b border-h-subtle"
+              style={{ background: 'var(--h-bg-elevated)' }}>
               {['Tipo / Subtipo', 'Insumo', 'Sala', 'Cantidad', 'Motivo', 'Fecha', 'Usuario']
                 .map(col => (
-                  <th key={col} className="text-left px-4 py-3 text-xs font-bold
-                                           text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+                  <th key={col} className="text-left px-4 py-3 text-[10px] font-semibold
+                                           text-h-tertiary uppercase tracking-widest">
                     {col}
                   </th>
                 ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
+          <tbody>
             {loading ? (
               Array.from({ length: 10 }).map((_, i) => <TableRowSkeleton key={i} cols={7} />)
             ) : movimientos.length === 0 ? (
-              <tr><td colSpan={7} className="text-center py-16 text-slate-400">
+              <tr><td colSpan={7} className="text-center py-16 text-h-secondary">
                 <ArrowUpCircle size={32} className="mx-auto mb-2 opacity-30" />
                 <p className="font-semibold">Sin movimientos que mostrar</p>
                 {hasFilters && (
-                  <button onClick={limpiarFiltros} className="text-teal-600 text-xs mt-1 font-bold">
+                  <button onClick={limpiarFiltros}
+                    className="text-xs mt-1 font-bold"
+                    style={{ color: 'var(--h-teal-hover)' }}>
                     Limpiar filtros
                   </button>
                 )}
               </td></tr>
             ) : movimientos.map(m => (
               <tr key={m.id}
-                className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
-                <td className="px-4 py-3">
-                  <TipoBadge tipo={m.tipo} subtipo={m.subtipo} />
-                </td>
-                <td className="px-4 py-3 font-semibold text-slate-900 dark:text-slate-50
-                               max-w-xs truncate">{m.insumo}</td>
-                <td className="px-4 py-3 text-slate-500 dark:text-slate-400 whitespace-nowrap">
-                  {m.sala ?? <span className="text-slate-300 dark:text-slate-600">—</span>}
+                className="border-b border-h-subtle transition-colors"
+                style={{}}
+                onMouseEnter={e => (e.currentTarget.style.background = 'var(--h-bg-elevated)')}
+                onMouseLeave={e => (e.currentTarget.style.background = '')}
+              >
+                <td className="px-4 py-3"><TipoBadge tipo={m.tipo} subtipo={m.subtipo} /></td>
+                <td className="px-4 py-3 font-semibold text-h-primary max-w-xs truncate">{m.insumo}</td>
+                <td className="px-4 py-3 text-h-secondary whitespace-nowrap">
+                  {m.sala ?? <span className="text-h-tertiary">—</span>}
                 </td>
                 <td className="px-4 py-3 text-center">
                   <span className={`font-bold ${
-                    m.tipo === 'entrada' ? 'text-teal-600 dark:text-teal-400'
-                      : m.tipo === 'salida' ? 'text-amber-600 dark:text-amber-400'
-                      : 'text-blue-600 dark:text-blue-400'
+                    m.tipo === 'entrada' ? 'text-teal-500'
+                      : m.tipo === 'salida' ? 'text-amber-500'
+                      : 'text-blue-500'
                   }`}>
                     {m.tipo === 'entrada' ? '+' : m.tipo === 'salida' ? '-' : '⇄'}{m.cantidad}
                   </span>
                 </td>
-                <td className="px-4 py-3 text-slate-500 dark:text-slate-400 max-w-xs truncate">
-                  {m.motivo ?? <span className="text-slate-300 dark:text-slate-600">—</span>}
+                <td className="px-4 py-3 text-h-secondary max-w-xs truncate">
+                  {m.motivo ?? <span className="text-h-tertiary">—</span>}
                 </td>
-                <td className="px-4 py-3 text-slate-500 dark:text-slate-400 whitespace-nowrap">
-                  {formatFecha(m.fecha)}
-                </td>
-                <td className="px-4 py-3 text-slate-500 dark:text-slate-400 whitespace-nowrap">
-                  {m.usuario}
-                </td>
+                <td className="px-4 py-3 text-h-secondary whitespace-nowrap">{formatFecha(m.fecha)}</td>
+                <td className="px-4 py-3 text-h-secondary whitespace-nowrap">{m.usuario}</td>
               </tr>
             ))}
           </tbody>
         </table>
 
         {!loading && totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t
-                          border-slate-200 dark:border-slate-700">
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Página {page + 1} de {totalPages}
-            </p>
+          <div className="flex items-center justify-between px-4 py-3 border-t border-h-subtle">
+            <p className="text-xs text-h-tertiary">Pagina {page + 1} de {totalPages}</p>
             <div className="flex gap-1">
               <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}
-                className="px-3 py-1 text-xs rounded-lg border border-slate-200
-                           disabled:opacity-40 hover:bg-slate-50">←</button>
+                className="px-3 py-1 text-xs rounded-lg border border-h-subtle text-h-secondary
+                           disabled:opacity-40 hover:bg-h-elevated">&#8592;</button>
               <button onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
                 disabled={page >= totalPages - 1}
-                className="px-3 py-1 text-xs rounded-lg border border-slate-200
-                           disabled:opacity-40 hover:bg-slate-50">→</button>
+                className="px-3 py-1 text-xs rounded-lg border border-h-subtle text-h-secondary
+                           disabled:opacity-40 hover:bg-h-elevated">&#8594;</button>
             </div>
           </div>
         )}
       </div>
 
-      {/* Modal registrar movimiento */}
       {showModal && (
         <Modal title="Registrar movimiento" onClose={() => setShowModal(false)}>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -416,12 +403,16 @@ export function Movimientos() {
                                 flex items-center justify-center gap-1.5 transition-all ${
                       tipo === t
                         ? t === 'entrada'
-                          ? 'border-teal-500 bg-teal-50 text-teal-700'
+                          ? 'border-teal-500 text-white'
                           : t === 'salida'
-                            ? 'border-amber-500 bg-amber-50 text-amber-700'
-                            : 'border-blue-500 bg-blue-50 text-blue-700'
-                        : 'border-slate-200 text-slate-500 hover:border-slate-300'
-                    }`}>
+                            ? 'border-amber-500 text-white'
+                            : 'border-blue-500 text-white'
+                        : 'border-h-subtle text-h-secondary hover:border-h-visible'
+                    }`}
+                    style={tipo === t ? {
+                      background: t === 'entrada' ? 'var(--h-teal-rest)'
+                        : t === 'salida' ? '#d97706' : '#3b82f6',
+                    } : {}}>
                     {t === 'entrada' ? <ArrowUpCircle size={14} />
                       : t === 'salida' ? <ArrowDownCircle size={14} />
                       : <ArrowRightLeft size={14} />}
@@ -461,19 +452,26 @@ export function Movimientos() {
               <label className={labelCls}>Motivo</label>
               <input type="text" value={motivo} onChange={e => setMotivo(e.target.value)}
                 className={inputCls}
-                placeholder="Ej: Reposición mensual, Uso en práctica clínica..." />
+                placeholder="Ej: Reposicion mensual, Uso en practica clinica..." />
             </div>
             {formError && (
-              <p className="text-rose-600 text-sm bg-rose-50 border border-rose-200
-                            px-3 py-2 rounded-lg font-semibold">{formError}</p>
+              <p className="text-xs px-3 py-2 rounded-lg font-medium"
+                style={{
+                  background: 'var(--h-sem-danger-bg)',
+                  color: 'var(--h-sem-danger-text)',
+                  border: '1px solid var(--h-sem-danger-border)',
+                }}>{formError}</p>
             )}
             <div className="flex gap-3 pt-2">
               <button type="button" onClick={() => setShowModal(false)}
-                className="flex-1 py-2.5 rounded-xl border border-slate-200
-                           text-slate-600 font-bold hover:bg-slate-50">Cancelar</button>
+                className="flex-1 py-2.5 rounded-xl border border-h-subtle
+                           text-h-secondary font-bold hover:bg-h-elevated">Cancelar</button>
               <button type="submit" disabled={saving || !insumoId || !cantidad}
-                className="flex-1 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700
-                           text-white font-bold disabled:opacity-50">
+                className="flex-1 py-2.5 rounded-xl text-white font-bold
+                           disabled:opacity-50 transition-colors"
+                style={{ background: 'var(--h-teal-rest)' }}
+                onMouseEnter={e => { if (!saving) (e.currentTarget.style.background = 'var(--h-teal-hover)') }}
+                onMouseLeave={e => { (e.currentTarget.style.background = 'var(--h-teal-rest)') }}>
                 {saving ? 'Registrando...' : 'Registrar'}
               </button>
             </div>

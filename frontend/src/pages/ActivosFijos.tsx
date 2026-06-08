@@ -11,10 +11,7 @@ import type {
   SalaResponse, ProveedorResponse, PaginatedResponse,
 } from '../types/api'
 import { HSelect } from '../components/ui/HSelect'
-
-// ---------------------------------------------------------------------------
-// Configuracion de badges
-// ---------------------------------------------------------------------------
+import { useLastUpdated } from '../hooks/useLastUpdated'
 
 const ESTADO_CFG: Record<EstadoActivo, { label: string; cls: string }> = {
   disponible: {
@@ -71,10 +68,6 @@ function FidelidadBadge({ fidelidad }: { fidelidad: FidelidadPhantoma | null }) 
   )
 }
 
-// ---------------------------------------------------------------------------
-// Opciones fijas para HSelect
-// ---------------------------------------------------------------------------
-
 const ESTADO_OPTS = [
   { value: 'disponible',       label: 'Disponible' },
   { value: 'en_uso',           label: 'En uso' },
@@ -87,10 +80,6 @@ const FIDELIDAD_OPTS = [
   { value: 'media', label: 'Media' },
   { value: 'alta',  label: 'Alta' },
 ]
-
-// ---------------------------------------------------------------------------
-// Modal crear / editar activo fijo
-// ---------------------------------------------------------------------------
 
 interface ModalProps {
   activo: ActivoFijoResponse | null
@@ -123,11 +112,8 @@ function ActivoModal({ activo, salas, proveedores, onClose, onSaved }: ModalProp
     try {
       if (esNuevo) {
         const body: ActivoFijoCreate = {
-          nombre: nombre.trim(),
-          descripcion: descripcion.trim() || null,
-          tipo,
-          codigo_barras: codigoBarras.trim() || null,
-          estado: estado as EstadoActivo,
+          nombre: nombre.trim(), descripcion: descripcion.trim() || null, tipo,
+          codigo_barras: codigoBarras.trim() || null, estado: estado as EstadoActivo,
           fidelidad: (fidelidad as FidelidadPhantoma) || null,
           sala_id: salaId ? parseInt(salaId) : null,
           proveedor_id: proveedorId ? parseInt(proveedorId) : null,
@@ -136,10 +122,8 @@ function ActivoModal({ activo, salas, proveedores, onClose, onSaved }: ModalProp
         await api.post('/activos-fijos/', body)
       } else {
         const body: ActivoFijoUpdate = {
-          nombre: nombre.trim(),
-          descripcion: descripcion.trim() || null,
-          codigo_barras: codigoBarras.trim() || null,
-          estado: estado as EstadoActivo,
+          nombre: nombre.trim(), descripcion: descripcion.trim() || null,
+          codigo_barras: codigoBarras.trim() || null, estado: estado as EstadoActivo,
           fidelidad: (fidelidad as FidelidadPhantoma) || null,
           sala_id: salaId ? parseInt(salaId) : null,
           proveedor_id: proveedorId ? parseInt(proveedorId) : null,
@@ -165,7 +149,6 @@ function ActivoModal({ activo, salas, proveedores, onClose, onSaved }: ModalProp
                     backdrop-blur-sm p-4">
       <div className="bg-h-surface border border-h-subtle rounded-2xl shadow-2xl
                       w-full max-w-lg max-h-[90vh] flex flex-col">
-
         <div className="flex items-center justify-between px-6 py-4
                         border-b border-h-subtle flex-shrink-0">
           <h2 className="text-base font-semibold text-h-primary">
@@ -175,7 +158,6 @@ function ActivoModal({ activo, salas, proveedores, onClose, onSaved }: ModalProp
             className="text-h-tertiary hover:text-h-secondary text-xl font-bold
                        transition-colors">x</button>
         </div>
-
         <div className="px-6 py-5 space-y-4 overflow-y-auto flex-1">
           <div>
             <label className={labelCls}>Nombre *</label>
@@ -183,7 +165,6 @@ function ActivoModal({ activo, salas, proveedores, onClose, onSaved }: ModalProp
               onChange={e => setNombre(e.target.value)}
               placeholder="Ej: Camilla articulada, SimMan 3G" />
           </div>
-
           {esNuevo && (
             <div>
               <label className={labelCls}>Tipo *</label>
@@ -205,59 +186,45 @@ function ActivoModal({ activo, salas, proveedores, onClose, onSaved }: ModalProp
               </div>
             </div>
           )}
-
           <div>
             <label className={labelCls}>Estado</label>
             <HSelect value={estado} onChange={setEstado} options={ESTADO_OPTS} className="w-full" />
           </div>
-
           {(tipo === 'phantoma' || activo?.tipo === 'phantoma') && (
             <div>
               <label className={labelCls}>Fidelidad del simulador</label>
-              <HSelect
-                value={fidelidad} onChange={setFidelidad}
-                options={FIDELIDAD_OPTS} placeholder="Sin especificar" className="w-full"
-              />
+              <HSelect value={fidelidad} onChange={setFidelidad}
+                options={FIDELIDAD_OPTS} placeholder="Sin especificar" className="w-full" />
             </div>
           )}
-
           <div>
             <label className={labelCls}>Sala de origen</label>
-            <HSelect
-              value={salaId} onChange={setSalaId}
-              options={salaOpts} placeholder="Sin asignar" className="w-full"
-            />
+            <HSelect value={salaId} onChange={setSalaId}
+              options={salaOpts} placeholder="Sin asignar" className="w-full" />
           </div>
-
           <div>
             <label className={labelCls}>Proveedor</label>
-            <HSelect
-              value={proveedorId} onChange={setProveedorId}
-              options={proveedorOpts} placeholder="Sin proveedor asignado" className="w-full"
-            />
+            <HSelect value={proveedorId} onChange={setProveedorId}
+              options={proveedorOpts} placeholder="Sin proveedor asignado" className="w-full" />
           </div>
-
           <div>
             <label className={labelCls}>Codigo de barras</label>
             <input className={inputCls} value={codigoBarras}
               onChange={e => setCodigoBarras(e.target.value)}
               placeholder="Escanear o ingresar manualmente" />
           </div>
-
           <div>
             <label className={labelCls}>Descripcion</label>
             <textarea className={`${inputCls} resize-none`} rows={2} value={descripcion}
               onChange={e => setDescripcion(e.target.value)}
               placeholder="Caracteristicas adicionales..." />
           </div>
-
           <div>
             <label className={labelCls}>Notas internas</label>
             <textarea className={`${inputCls} resize-none`} rows={2} value={notas}
               onChange={e => setNotas(e.target.value)}
               placeholder="Observaciones del operador..." />
           </div>
-
           {error && (
             <p className="text-xs font-medium px-3 py-2 rounded-lg"
               style={{
@@ -269,13 +236,10 @@ function ActivoModal({ activo, salas, proveedores, onClose, onSaved }: ModalProp
             </p>
           )}
         </div>
-
         <div className="flex justify-end gap-3 px-6 py-4 border-t border-h-subtle flex-shrink-0">
           <button onClick={onClose} disabled={guardando}
             className="px-4 py-2 rounded-lg text-sm font-semibold text-h-secondary
-                       hover:bg-h-elevated transition-colors">
-            Cancelar
-          </button>
+                       hover:bg-h-elevated transition-colors">Cancelar</button>
           <button onClick={handleGuardar} disabled={guardando}
             className="px-5 py-2 rounded-lg text-sm font-semibold text-white
                        transition-colors disabled:opacity-50"
@@ -293,10 +257,6 @@ function ActivoModal({ activo, salas, proveedores, onClose, onSaved }: ModalProp
   )
 }
 
-// ---------------------------------------------------------------------------
-// Pagina principal
-// ---------------------------------------------------------------------------
-
 type FiltroTipo = 'todos' | TipoActivo
 const ROLES_ESCRITURA = ['admin', 'operador_coordinador', 'operador']
 
@@ -312,25 +272,24 @@ export function ActivosFijos() {
   const puedeEscribir = user?.rol ? ROLES_ESCRITURA.includes(user.rol) : false
   const esAdmin       = user?.rol === 'admin'
 
-  const [activos, setActivos]       = useState<ActivoFijoResponse[]>([])
-  // todos: lista completa sin filtro de tipo, usada solo para los conteos de los tabs
-  const [todos, setTodos]           = useState<ActivoFijoResponse[]>([])
-  const [salas, setSalas]           = useState<SalaResponse[]>([])
+  const [activos, setActivos]         = useState<ActivoFijoResponse[]>([])
+  const [todos, setTodos]             = useState<ActivoFijoResponse[]>([])
+  const [salas, setSalas]             = useState<SalaResponse[]>([])
   const [proveedores, setProveedores] = useState<ProveedorResponse[]>([])
-  const [cargando, setCargando]     = useState(true)
-  const [filtroTipo, setFiltroTipo] = useState<FiltroTipo>('todos')
+  const [cargando, setCargando]       = useState(true)
+  const [filtroTipo, setFiltroTipo]   = useState<FiltroTipo>('todos')
   const [filtroEstado, setFiltroEstado] = useState<string>('')
-  const [filtroSala, setFiltroSala] = useState<string>('')
-  const [busqueda, setBusqueda]     = useState('')
+  const [filtroSala, setFiltroSala]   = useState<string>('')
+  const [busqueda, setBusqueda]       = useState('')
   const [modalActivo, setModalActivo] = useState<ActivoFijoResponse | null | undefined>(undefined)
-  const [toast, setToast]           = useState('')
-  const [hoveredId, setHoveredId]   = useState<number | null>(null)
+  const [toast, setToast]             = useState('')
+  const [hoveredId, setHoveredId]     = useState<number | null>(null)
+  const { labelTiempo, marcarActualizado } = useLastUpdated()
 
   function mostrarToast(msg: string) {
     setToast(msg); setTimeout(() => setToast(''), 3000)
   }
 
-  // Carga la lista filtrada (para la tabla)
   const cargar = useCallback(async () => {
     setCargando(true)
     try {
@@ -341,13 +300,12 @@ export function ActivosFijos() {
       if (busqueda.trim()) params.q = busqueda.trim()
       const res = await api.get<ActivoFijoResponse[]>('/activos-fijos/', { params })
       setActivos(res.data)
+      marcarActualizado()
     } catch {
       mostrarToast('Error al cargar activos fijos')
     } finally { setCargando(false) }
-  }, [filtroTipo, filtroEstado, filtroSala, busqueda])
+  }, [filtroTipo, filtroEstado, filtroSala, busqueda, marcarActualizado])
 
-  // Carga la lista completa sin filtro de tipo, para conteos de tabs.
-  // Solo se actualiza cuando cambian el estado, sala o busqueda (no el tipo).
   const cargarTodos = useCallback(async () => {
     try {
       const params: Record<string, string> = {}
@@ -373,9 +331,7 @@ export function ActivosFijos() {
     if (!confirm(`Dar de baja a "${af.nombre}"?`)) return
     try {
       await api.put(`/activos-fijos/${af.id}`, { estado: 'dado_de_baja' })
-      mostrarToast('Activo dado de baja')
-      cargar()
-      cargarTodos()
+      mostrarToast('Activo dado de baja'); cargar(); cargarTodos()
     } catch { mostrarToast('Error al dar de baja') }
   }
 
@@ -385,7 +341,6 @@ export function ActivosFijos() {
     { key: 'phantoma', label: 'Phantomas', icon: <Brain size={14} /> },
   ]
 
-  // Conteos calculados sobre la lista completa (sin filtro de tipo)
   const conteos = {
     todos:    todos.length,
     mueble:   todos.filter(a => a.tipo === 'mueble').length,
@@ -393,15 +348,10 @@ export function ActivosFijos() {
   }
 
   const salaFiltroOpts = salas.map(s => ({ value: String(s.id), label: s.nombre }))
-
-  const COLS = [
-    'Codigo', 'Nombre', 'Proveedor', 'Tipo',
-    'Estado', 'Sala de origen', 'Fidelidad', 'Acciones',
-  ]
+  const COLS = ['Codigo', 'Nombre', 'Proveedor', 'Tipo', 'Estado', 'Sala de origen', 'Fidelidad', 'Acciones']
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-5">
-
       {toast && (
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2
                         text-white text-sm font-medium px-4 py-3 rounded-xl shadow-lg"
@@ -411,12 +361,16 @@ export function ActivosFijos() {
         </div>
       )}
 
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* Encabezado */}
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-h-primary">Activos Fijos</h1>
           <p className="text-sm text-h-secondary mt-0.5">
             Muebles clinicos y phantomas de simulacion
           </p>
+          {labelTiempo && (
+            <p className="text-xs text-h-tertiary mt-1">{labelTiempo}</p>
+          )}
         </div>
         {puedeEscribir && (
           <button onClick={() => setModalActivo(null)}
@@ -448,8 +402,7 @@ export function ActivosFijos() {
               style={isActive ? { background: 'var(--h-bg-surface)' } : {}}>
               {tab.icon}
               {tab.label}
-              <span
-                className="ml-1 text-xs px-1.5 py-0.5 rounded-full"
+              <span className="ml-1 text-xs px-1.5 py-0.5 rounded-full"
                 style={{
                   background: isActive ? 'var(--h-teal-subtle)' : 'var(--h-bg-highlight)',
                   color: isActive ? 'var(--h-teal-hover)' : 'var(--h-text-tertiary)',
@@ -472,18 +425,13 @@ export function ActivosFijos() {
                        focus:outline-none focus:border-h-visible
                        placeholder:text-h-tertiary transition-colors"
             placeholder="Buscar por nombre o codigo..."
-            value={busqueda}
-            onChange={e => setBusqueda(e.target.value)}
+            value={busqueda} onChange={e => setBusqueda(e.target.value)}
           />
         </div>
-        <HSelect
-          value={filtroEstado} onChange={setFiltroEstado}
-          options={ESTADO_FILTRO_OPTS} placeholder="Todos los estados" size="sm"
-        />
-        <HSelect
-          value={filtroSala} onChange={setFiltroSala}
-          options={salaFiltroOpts} placeholder="Todas las salas" size="sm"
-        />
+        <HSelect value={filtroEstado} onChange={setFiltroEstado}
+          options={ESTADO_FILTRO_OPTS} placeholder="Todos los estados" size="sm" />
+        <HSelect value={filtroSala} onChange={setFiltroSala}
+          options={salaFiltroOpts} placeholder="Todas las salas" size="sm" />
         <button onClick={() => { cargar(); cargarTodos() }}
           className="p-2 rounded-lg border border-h-subtle text-h-tertiary transition-colors"
           style={{ background: 'var(--h-bg-elevated)' }}
@@ -512,9 +460,7 @@ export function ActivosFijos() {
         ) : activos.length === 0 ? (
           <div className="p-12 text-center">
             <p className="text-3xl mb-3">🏥</p>
-            <p className="text-h-secondary font-medium text-sm">
-              No se encontraron activos fijos
-            </p>
+            <p className="text-h-secondary font-medium text-sm">No se encontraron activos fijos</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -576,8 +522,7 @@ export function ActivosFijos() {
                     </td>
                     <td className="px-4 py-3">
                       <span className={[
-                        'inline-flex items-center gap-1.5 text-xs font-semibold',
-                        'px-2.5 py-1 rounded-full',
+                        'inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full',
                         af.tipo === 'mueble'
                           ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300'
                           : 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300',
@@ -593,9 +538,7 @@ export function ActivosFijos() {
                         <span className="text-h-tertiary italic text-xs">Sin asignar</span>
                       )}
                     </td>
-                    <td className="px-4 py-3">
-                      <FidelidadBadge fidelidad={af.fidelidad} />
-                    </td>
+                    <td className="px-4 py-3"><FidelidadBadge fidelidad={af.fidelidad} /></td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
                         {puedeEscribir && (
@@ -640,15 +583,12 @@ export function ActivosFijos() {
 
       {modalActivo !== undefined && (
         <ActivoModal
-          activo={modalActivo}
-          salas={salas}
-          proveedores={proveedores}
+          activo={modalActivo} salas={salas} proveedores={proveedores}
           onClose={() => setModalActivo(undefined)}
           onSaved={() => {
             setModalActivo(undefined)
             mostrarToast('Activo guardado')
-            cargar()
-            cargarTodos()
+            cargar(); cargarTodos()
           }}
         />
       )}

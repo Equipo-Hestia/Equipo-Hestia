@@ -3,33 +3,22 @@ import { ScrollText, Search, RefreshCw, AlertCircle } from 'lucide-react'
 import { api } from '../api/client'
 import type { AuditLogEntry, PaginatedResponse } from '../types/api'
 import { Badge } from '../components/ui/Badge'
+import { useLastUpdated } from '../hooks/useLastUpdated'
 
 const PAGE_SIZE = 50
-
 const ENTIDADES = ['insumo', 'usuario', 'movimiento', 'solicitud', 'categoria', 'sala']
 
 function BadgeAccion({ accion }: { accion: string }) {
-  if (
-    accion.includes('FALLIDO') ||
-    accion.includes('ELIMINAR')
-  ) {
+  if (accion.includes('FALLIDO') || accion.includes('ELIMINAR')) {
     return <Badge variant="danger">{accion}</Badge>
   }
-  if (
-    accion.includes('ALERTA') ||
-    accion.includes('DESACTIVAR') ||
-    accion.includes('EDITAR') ||
-    accion.includes('RESET') ||
-    accion.includes('UPDATE')
-  ) {
+  if (accion.includes('ALERTA') || accion.includes('DESACTIVAR') ||
+      accion.includes('EDITAR') || accion.includes('RESET') ||
+      accion.includes('UPDATE')) {
     return <Badge variant="warning">{accion}</Badge>
   }
-  if (
-    accion.includes('EXITOSO') ||
-    accion.includes('CREAR') ||
-    accion.includes('REACTIVAR') ||
-    accion.includes('COMPLETAR')
-  ) {
+  if (accion.includes('EXITOSO') || accion.includes('CREAR') ||
+      accion.includes('REACTIVAR') || accion.includes('COMPLETAR')) {
     return <Badge variant="success">{accion}</Badge>
   }
   return <Badge variant="info">{accion}</Badge>
@@ -43,16 +32,17 @@ function formatFecha(iso: string): string {
 }
 
 export function AuditLog() {
-  const [logs, setLogs] = useState<AuditLogEntry[]>([])
-  const [total, setTotal] = useState(0)
-  const [page, setPage] = useState(0)
-  const [loading, setLoading] = useState(true)
+  const [logs, setLogs]           = useState<AuditLogEntry[]>([])
+  const [total, setTotal]         = useState(0)
+  const [page, setPage]           = useState(0)
+  const [loading, setLoading]     = useState(true)
   const [refreshing, setRefreshing] = useState(false)
-  const [inputAccion, setInputAccion] = useState('')
+  const [inputAccion, setInputAccion]   = useState('')
   const [filtroAccion, setFiltroAccion] = useState('')
   const [filtroEntidad, setFiltroEntidad] = useState('')
-  const [refetchKey, setRefetchKey] = useState(0)
-  const [apiError, setApiError] = useState<string | null>(null)
+  const [refetchKey, setRefetchKey]     = useState(0)
+  const [apiError, setApiError]         = useState<string | null>(null)
+  const { labelTiempo, marcarActualizado } = useLastUpdated()
 
   const load = useCallback(async (skip: number, accion: string, entidad: string) => {
     setLoading(true); setApiError(null)
@@ -64,14 +54,15 @@ export function AuditLog() {
         '/audit-log/', { params }
       )
       setLogs(data.data); setTotal(data.total)
+      marcarActualizado()
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { detail?: string } } })
         .response?.data?.detail
-      setApiError(msg ?? 'No se pudo conectar con el servidor. Revisa que la API esté activa.')
+      setApiError(msg ?? 'No se pudo conectar con el servidor. Revisa que la API este activa.')
     } finally {
       setLoading(false); setRefreshing(false)
     }
-  }, [])
+  }, [marcarActualizado])
 
   useEffect(() => {
     load(page * PAGE_SIZE, filtroAccion, filtroEntidad)
@@ -93,90 +84,110 @@ export function AuditLog() {
 
   return (
     <div className="p-8 max-w-6xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-start justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-black text-slate-900">Audit Log</h1>
-          <p className="text-slate-500 text-sm mt-0.5">
+          <h1 className="text-2xl font-bold text-h-primary">Audit Log</h1>
+          <p className="text-h-secondary text-sm mt-0.5">
             Registro de todas las acciones realizadas en el sistema.
           </p>
+          {labelTiempo && (
+            <p className="text-xs text-h-tertiary mt-1">{labelTiempo}</p>
+          )}
         </div>
         <button
           onClick={handleRefresh} disabled={refreshing || loading}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-200
-                     text-slate-600 hover:bg-slate-100 text-sm font-semibold transition-colors"
+          className="p-2 rounded-lg border border-h-subtle text-h-tertiary
+                     transition-colors flex-shrink-0 disabled:opacity-50"
+          style={{ background: 'var(--h-bg-elevated)' }}
+          onMouseEnter={e => {
+            e.currentTarget.style.background = 'var(--h-bg-highlight)'
+            e.currentTarget.style.color = 'var(--h-text-secondary)'
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.background = 'var(--h-bg-elevated)'
+            e.currentTarget.style.color = ''
+          }}
+          title="Actualizar"
         >
-          <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
-          Actualizar
+          <RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} />
         </button>
       </div>
 
       <form onSubmit={handleBuscar} className="flex flex-wrap gap-3 mb-5">
         <div className="relative flex-1 min-w-48 max-w-xs">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-h-tertiary" />
           <input
             type="text" value={inputAccion}
             onChange={e => setInputAccion(e.target.value)}
-            placeholder="Filtrar por acción (ej: LOGIN)"
-            className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-slate-200
-                       focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
+            placeholder="Filtrar por accion (ej: LOGIN)"
+            className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-h-subtle
+                       focus:outline-none focus:border-h-visible bg-h-elevated
+                       text-h-primary placeholder:text-h-tertiary"
           />
         </div>
         <select
           value={filtroEntidad}
           onChange={e => { setFiltroEntidad(e.target.value); setPage(0) }}
-          className="py-2 px-3 text-sm rounded-lg border border-slate-200
-                     focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white text-slate-700"
+          className="py-2 px-3 text-sm rounded-lg border border-h-subtle
+                     focus:outline-none focus:border-h-visible
+                     bg-h-elevated text-h-primary"
         >
           <option value="">Todas las entidades</option>
-          {ENTIDADES.map(e => (
-            <option key={e} value={e}>{e}</option>
-          ))}
+          {ENTIDADES.map(e => <option key={e} value={e}>{e}</option>)}
         </select>
         <button type="submit"
-          className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-sm
-                     font-bold rounded-lg transition-colors">
+          className="px-4 py-2 text-white text-sm font-bold rounded-lg transition-colors"
+          style={{ background: 'var(--h-teal-rest)' }}
+          onMouseEnter={e => (e.currentTarget.style.background = 'var(--h-teal-hover)')}
+          onMouseLeave={e => (e.currentTarget.style.background = 'var(--h-teal-rest)')}>
           Buscar
         </button>
         {hayFiltros && (
           <button type="button" onClick={handleLimpiar}
-            className="px-4 py-2 border border-slate-200 text-slate-600 text-sm
-                       font-bold rounded-lg hover:bg-slate-50 transition-colors">
+            className="px-4 py-2 border border-h-subtle text-h-secondary text-sm
+                       font-bold rounded-lg hover:bg-h-elevated transition-colors">
             Limpiar
           </button>
         )}
       </form>
 
       {apiError && (
-        <div className="flex items-center gap-3 bg-rose-50 border border-rose-200
-                        rounded-xl px-4 py-3 mb-5 text-rose-700 text-sm">
+        <div className="flex items-center gap-3 rounded-xl px-4 py-3 mb-5 text-sm"
+          style={{
+            background: 'var(--h-sem-danger-bg)',
+            color: 'var(--h-sem-danger-text)',
+            border: '1px solid var(--h-sem-danger-border)',
+          }}>
           <AlertCircle size={16} className="flex-shrink-0" />
           {apiError}
         </div>
       )}
 
       {!loading && !apiError && (
-        <p className="text-sm text-slate-500 mb-4">
+        <p className="text-sm text-h-secondary mb-4">
           {total} registro{total !== 1 ? 's' : ''}
           {filtroAccion ? ` para "${filtroAccion}"` : ''}
-          {filtroEntidad ? ` · entidad: ${filtroEntidad}` : ''}
+          {filtroEntidad ? ` - entidad: ${filtroEntidad}` : ''}
         </p>
       )}
 
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="rounded-xl border border-h-subtle overflow-hidden"
+        style={{ background: 'var(--h-bg-surface)' }}>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-200 bg-slate-50">
-                {['Fecha', 'Acción', 'Usuario', 'Entidad', 'Detalle', 'IP'].map(h => (
+              <tr className="border-b border-h-subtle"
+                style={{ background: 'var(--h-bg-elevated)' }}>
+                {['Fecha', 'Accion', 'Usuario', 'Entidad', 'Detalle', 'IP'].map(h => (
                   <th key={h}
-                    className="text-left px-4 py-3 text-xs font-bold
-                               text-slate-500 uppercase tracking-wide whitespace-nowrap">
+                    className="text-left px-4 py-3 text-[10px] font-semibold
+                               text-h-tertiary uppercase tracking-widest whitespace-nowrap">
                     {h}
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody>
               {loading ? (
                 Array.from({ length: 8 }).map((_, i) => (
                   <tr key={i}>
@@ -189,32 +200,35 @@ export function AuditLog() {
                 ))
               ) : logs.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-16 text-slate-400">
+                  <td colSpan={6} className="text-center py-16 text-h-secondary">
                     <ScrollText size={32} className="mx-auto mb-2 opacity-30" />
                     <p className="font-semibold">Sin registros</p>
                   </td>
                 </tr>
               ) : logs.map(log => (
-                <tr key={log.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-4 py-3 text-slate-500 whitespace-nowrap text-xs">
+                <tr key={log.id}
+                  className="border-b border-h-subtle transition-colors"
+                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--h-bg-elevated)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = '')}>
+                  <td className="px-4 py-3 text-h-tertiary whitespace-nowrap text-xs">
                     {formatFecha(log.fecha)}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
                     <BadgeAccion accion={log.accion} />
                   </td>
-                  <td className="px-4 py-3 font-semibold text-slate-900 whitespace-nowrap">
+                  <td className="px-4 py-3 font-semibold text-h-primary whitespace-nowrap">
                     {log.usuario_nombre}
                   </td>
-                  <td className="px-4 py-3 text-slate-500 text-xs">
+                  <td className="px-4 py-3 text-h-secondary text-xs">
                     {log.entidad
                       ? <span>{log.entidad}{log.entidad_id ? ` #${log.entidad_id}` : ''}</span>
-                      : <span className="text-slate-300">—</span>
+                      : <span className="text-h-tertiary">—</span>
                     }
                   </td>
-                  <td className="px-4 py-3 text-slate-500 text-xs max-w-xs truncate">
-                    {log.detalle ?? <span className="text-slate-300">—</span>}
+                  <td className="px-4 py-3 text-h-secondary text-xs max-w-xs truncate">
+                    {log.detalle ?? <span className="text-h-tertiary">—</span>}
                   </td>
-                  <td className="px-4 py-3 text-slate-400 text-xs font-mono whitespace-nowrap">
+                  <td className="px-4 py-3 text-h-tertiary text-xs font-mono whitespace-nowrap">
                     {log.ip ?? '—'}
                   </td>
                 </tr>
@@ -224,16 +238,16 @@ export function AuditLog() {
         </div>
 
         {!loading && totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200">
-            <p className="text-xs text-slate-500">Página {page + 1} de {totalPages}</p>
+          <div className="flex items-center justify-between px-4 py-3 border-t border-h-subtle">
+            <p className="text-xs text-h-tertiary">Pagina {page + 1} de {totalPages}</p>
             <div className="flex gap-1">
               <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}
-                className="px-3 py-1 text-xs rounded-lg border border-slate-200
-                           disabled:opacity-40 hover:bg-slate-50">←</button>
+                className="px-3 py-1 text-xs rounded-lg border border-h-subtle text-h-secondary
+                           disabled:opacity-40 hover:bg-h-elevated">&#8592;</button>
               <button onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
                 disabled={page >= totalPages - 1}
-                className="px-3 py-1 text-xs rounded-lg border border-slate-200
-                           disabled:opacity-40 hover:bg-slate-50">→</button>
+                className="px-3 py-1 text-xs rounded-lg border border-h-subtle text-h-secondary
+                           disabled:opacity-40 hover:bg-h-elevated">&#8594;</button>
             </div>
           </div>
         )}
