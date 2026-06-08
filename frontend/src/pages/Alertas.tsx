@@ -99,7 +99,7 @@ export function Alertas() {
             ].join(' ')}
             style={tab === t ? { background: 'var(--h-bg-surface)' } : {}}
           >
-            {t === 'activas' ? 'Stock activas' : 'Stock resueltas'}
+            {t === 'activas' ? 'Alertas activas' : 'Alertas resueltas'}
           </button>
         ))}
       </div>
