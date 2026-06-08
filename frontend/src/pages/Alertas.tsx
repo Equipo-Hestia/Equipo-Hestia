@@ -4,19 +4,10 @@ import { api } from '../api/client'
 import type { InsumoAlerta } from '../types/api'
 import { Badge } from '../components/ui/Badge'
 import { AlertaCardSkeleton } from '../components/ui/Skeleton'
+import { useLastUpdated } from '../hooks/useLastUpdated'
 
 type Tab = 'activas' | 'resueltas'
 const DIAS_OPTIONS = [7, 14, 30] as const
-
-function formatAntiguedad(fecha: Date): string {
-  const diff = Math.floor((Date.now() - fecha.getTime()) / 1000)
-  if (diff < 60) return 'Actualizado hace un momento'
-  if (diff < 3600) return `Actualizado hace ${Math.floor(diff / 60)} min`
-  return `Actualizado el ${fecha.toLocaleString('es-CL', {
-    day: '2-digit', month: '2-digit', year: 'numeric',
-    hour: '2-digit', minute: '2-digit',
-  })}`
-}
 
 export function Alertas() {
   const [tab, setTab]               = useState<Tab>('activas')
@@ -28,7 +19,7 @@ export function Alertas() {
 
   const [loading, setLoading]       = useState(true)
   const [refreshing, setRefreshing] = useState(false)
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  const { labelTiempo, marcarActualizado } = useLastUpdated()
 
   useEffect(() => {
     setLoading(true)
@@ -40,13 +31,13 @@ export function Alertas() {
       .then(({ data }) => {
         if (tab === 'activas') setActivas(data)
         else setResueltas(data)
-        setLastUpdated(new Date())
+        marcarActualizado()
       })
       .finally(() => {
         setLoading(false)
         setRefreshing(false)
       })
-  }, [tab, dias, refetchKey])
+  }, [tab, dias, refetchKey, marcarActualizado])
 
   function refresh() {
     setRefreshing(true)
@@ -63,7 +54,7 @@ export function Alertas() {
     <div className="p-8 max-w-4xl mx-auto">
 
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-start justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-h-primary">Alertas de stock</h1>
           <p className="text-h-secondary text-sm mt-0.5">
@@ -71,28 +62,27 @@ export function Alertas() {
               ? 'Insumos con stock igual o por debajo del minimo establecido.'
               : 'Insumos que superaron el minimo y recibieron entradas recientemente.'}
           </p>
-          {lastUpdated && (
-            <p className="text-xs text-h-tertiary mt-0.5">{formatAntiguedad(lastUpdated)}</p>
+          {labelTiempo && (
+            <p className="text-xs text-h-tertiary mt-1">{labelTiempo}</p>
           )}
         </div>
         <button
           onClick={refresh}
           disabled={refreshing || loading}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold
-                     border border-h-subtle text-h-secondary transition-colors
-                     disabled:opacity-50"
+          className="p-2 rounded-lg border border-h-subtle text-h-tertiary
+                     transition-colors flex-shrink-0 disabled:opacity-50"
           style={{ background: 'var(--h-bg-elevated)' }}
           onMouseEnter={e => {
             e.currentTarget.style.background = 'var(--h-bg-highlight)'
-            e.currentTarget.style.color = 'var(--h-text-primary)'
+            e.currentTarget.style.color = 'var(--h-text-secondary)'
           }}
           onMouseLeave={e => {
             e.currentTarget.style.background = 'var(--h-bg-elevated)'
             e.currentTarget.style.color = ''
           }}
+          title="Actualizar"
         >
-          <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
-          Actualizar
+          <RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} />
         </button>
       </div>
 
@@ -259,7 +249,6 @@ export function Alertas() {
                 }
               </div>
 
-              {/* Barra de stock */}
               <div className="mt-4">
                 <div className="flex justify-between text-xs text-h-tertiary mb-1.5">
                   <span>
