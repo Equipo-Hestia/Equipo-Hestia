@@ -33,6 +33,11 @@ def get_db():
 
 # ---------------------------------------------------------------------------
 # Mini-migraciones idempotentes
+#
+# REGLA CRITICA: MIGRACIONES_COLUMNAS solo debe contener ALTER TABLE y CREATE
+# INDEX sobre tablas que ya existen (creadas por Base.metadata.create_all).
+# Nunca CREATE TABLE aqui: las tablas nuevas deben ser modelos ORM para que
+# create_all las cree en el orden correcto segun las FK.
 # ---------------------------------------------------------------------------
 
 MIGRACIONES_COLUMNAS = [
@@ -115,7 +120,7 @@ MIGRACIONES_COLUMNAS = [
     "ALTER TABLE IF EXISTS activos_fijos "
     "ADD COLUMN IF NOT EXISTS proveedor_id INTEGER "
     "REFERENCES proveedores(id) ON DELETE SET NULL",
-    # TipoMantenimiento (legacy, se mantiene por compatibilidad)
+    # TipoMantenimiento
     (
         "DO $$ BEGIN "
         "CREATE TYPE tipomantenimiento AS ENUM ("
@@ -127,7 +132,7 @@ MIGRACIONES_COLUMNAS = [
     "ADD COLUMN IF NOT EXISTS tipo_mantenimiento tipomantenimiento",
     "ALTER TABLE IF EXISTS ordenes_mantenimiento "
     "ADD COLUMN IF NOT EXISTS fecha_retorno_estimada DATE",
-    # Nuevos enums para el refactor de mantenimiento
+    # Enums para el modelo de mantenimiento por items
     (
         "DO $$ BEGIN "
         "CREATE TYPE estadoordenitem AS ENUM ("
@@ -142,29 +147,14 @@ MIGRACIONES_COLUMNAS = [
         "); "
         "EXCEPTION WHEN duplicate_object THEN NULL; END $$"
     ),
-    # Nuevas columnas en la cabecera de ordenes_mantenimiento
+    # Columnas adicionales en cabecera de ordenes_mantenimiento
+    # (orden_mantenimiento_items es un modelo ORM; create_all lo crea)
     "ALTER TABLE IF EXISTS ordenes_mantenimiento "
     "ADD COLUMN IF NOT EXISTS fecha_visita DATE",
     "ALTER TABLE IF EXISTS ordenes_mantenimiento "
     "ADD COLUMN IF NOT EXISTS notas TEXT",
-    # Tabla de items: un Phantoma por fila, resultado individual
-    (
-        "CREATE TABLE IF NOT EXISTS orden_mantenimiento_items ("
-        "  id                     SERIAL PRIMARY KEY,"
-        "  orden_id               INTEGER NOT NULL "
-        "    REFERENCES ordenes_mantenimiento(id) ON DELETE CASCADE,"
-        "  activo_fijo_id         INTEGER NOT NULL "
-        "    REFERENCES activos_fijos(id) ON DELETE RESTRICT,"
-        "  resultado              resultadoitem NOT NULL DEFAULT 'pendiente',"
-        "  fecha_envio            DATE,"
-        "  fecha_retorno_estimada DATE,"
-        "  fecha_retorno          DATE,"
-        "  descripcion_problema   TEXT,"
-        "  descripcion_trabajo    TEXT,"
-        "  costo                  NUMERIC(12,2)"
-        ")"
-    ),
     # Eliminar FK huerfana activo_fijo_id si aun existe en la cabecera
+    # (columna que existia en el esquema antiguo antes del refactor a items)
     (
         "DO $$ BEGIN "
         "IF EXISTS ("
@@ -268,7 +258,6 @@ def _aplicar_migraciones_enum() -> None:
                     )
 
         # -- Migrar ordenes_mantenimiento.estado al nuevo enum --
-        # Detecta si la columna sigue usando el tipo 'estadoorden' (el viejo).
         cur.execute(
             "SELECT t.typname "
             "FROM pg_attribute a "
@@ -290,8 +279,6 @@ def _aplicar_migraciones_enum() -> None:
                 "[Hestia] Migrando columna estado de '%s' a estadoordenitem...",
                 tipo_actual,
             )
-            # Datos de demo: se borran para poder cambiar el tipo.
-            # En produccion esta tabla estara vacia en este punto.
             cur.execute("DELETE FROM orden_mantenimiento_items")
             cur.execute("DELETE FROM ordenes_mantenimiento")
             cur.execute(
@@ -308,7 +295,7 @@ def _aplicar_migraciones_enum() -> None:
                 "ALTER COLUMN estado SET DEFAULT 'en_curso'::estadoordenitem"
             )
             log.info(
-                "[Hestia] Columna estado migrada a estadoordenitem correctamente."
+                "[Hestia] Columna estado migrada a estadoordenitem."
             )
         else:
             log.info(
