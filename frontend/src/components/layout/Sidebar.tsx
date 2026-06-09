@@ -8,14 +8,12 @@ import {
   Calendar, CalendarDays, BarChart2,
   ChevronLeft, ChevronRight, Sun, Moon,
   Sofa, FlaskConical, ClipboardCheck, Wrench,
-  Building2,
+  Building2, MapPin,
 } from 'lucide-react'
 import { useAuthStore } from '../../store/auth'
 import { useThemeStore } from '../../store/theme'
 import { Logo } from '../ui/Logo'
 import { useState, useEffect, useCallback } from 'react'
-
-// ─── Tipos ──────────────────────────────────────────────────────────────────
 
 type NavSection = {
   label: string
@@ -24,69 +22,74 @@ type NavSection = {
 }
 
 type NavItem = {
-  to: string
-  icon: React.ElementType
+  to:    string
+  icon:  React.ElementType
   label: string
   roles: string[]
 }
 
-// ─── Estructura de navegación agrupada por sección ──────────────────────────
+const TODOS_ROLES = ['admin', 'operador_coordinador', 'operador', 'visor']
+const NO_VISOR    = ['admin', 'operador_coordinador', 'operador']
+const SOLO_ADMIN  = ['admin']
+const COORD_ADMIN = ['admin', 'operador_coordinador']
 
 const NAV_SECTIONS: NavSection[] = [
   {
     label: 'General',
-    roles: ['admin', 'operador_coordinador', 'operador', 'visor'],
+    roles: TODOS_ROLES,
     items: [
       { to: '/dashboard',    icon: LayoutDashboard, label: 'Dashboard',
-        roles: ['admin', 'operador_coordinador', 'operador', 'visor'] },
+        roles: TODOS_ROLES },
       { to: '/alertas',      icon: AlertTriangle,   label: 'Alertas',
-        roles: ['admin', 'operador_coordinador', 'operador', 'visor'] },
+        roles: TODOS_ROLES },
       { to: '/insumos',      icon: Package,         label: 'Insumos e Implementos',
-        roles: ['admin', 'operador_coordinador', 'operador', 'visor'] },
+        roles: TODOS_ROLES },
       { to: '/activos-fijos', icon: Sofa,           label: 'Activos Fijos',
-        roles: ['admin', 'operador_coordinador', 'operador', 'visor'] },
+        roles: TODOS_ROLES },
       { to: '/mantenimiento', icon: Wrench,         label: 'Mantenimiento',
-        roles: ['admin', 'operador_coordinador', 'operador'] },
+        roles: NO_VISOR },
       { to: '/movimientos',  icon: ArrowLeftRight,  label: 'Movimientos',
-        roles: ['admin', 'operador_coordinador', 'operador', 'visor'] },
+        roles: TODOS_ROLES },
       { to: '/salas',        icon: DoorOpen,        label: 'Salas',
-        roles: ['admin', 'operador_coordinador', 'operador', 'visor'] },
-      { to: '/categorias',   icon: Tag,             label: 'Categorías',
-        roles: ['admin', 'operador_coordinador', 'operador', 'visor'] },
+        roles: TODOS_ROLES },
+      { to: '/categorias',   icon: Tag,             label: 'Categorias',
+        roles: TODOS_ROLES },
     ],
   },
   {
-    label: 'Planificación',
-    roles: ['admin', 'operador_coordinador', 'operador'],
+    label: 'Planificacion',
+    roles: TODOS_ROLES,
     items: [
+      { to: '/vista-salas',    icon: MapPin,          label: 'Vista de Salas',
+        roles: TODOS_ROLES },
       { to: '/preparar-taller', icon: ClipboardCheck, label: 'Preparar taller',
-        roles: ['admin', 'operador_coordinador', 'operador'] },
-      { to: '/paquetes',     icon: FlaskConical,    label: 'Paquetes de insumos',
-        roles: ['admin', 'operador_coordinador', 'operador'] },
-      { to: '/reportes',     icon: BarChart2,       label: 'Reportes',
+        roles: NO_VISOR },
+      { to: '/paquetes',       icon: FlaskConical,    label: 'Paquetes de insumos',
+        roles: NO_VISOR },
+      { to: '/reportes',       icon: BarChart2,       label: 'Reportes',
         roles: ['admin', 'operador_coordinador', 'visor'] },
     ],
   },
   {
-    label: 'Administración',
-    roles: ['admin', 'operador_coordinador'],
+    label: 'Administracion',
+    roles: COORD_ADMIN,
     items: [
       { to: '/proveedores',      icon: Building2,     label: 'Proveedores',
-        roles: ['admin', 'operador_coordinador'] },
+        roles: COORD_ADMIN },
       { to: '/asignaturas',      icon: BookOpen,      label: 'Asignaturas',
-        roles: ['admin'] },
+        roles: SOLO_ADMIN },
       { to: '/clases-docente',   icon: GraduationCap, label: 'Clases Docentes',
-        roles: ['admin'] },
+        roles: SOLO_ADMIN },
       { to: '/horario',          icon: CalendarDays,  label: 'Ver Horario',
-        roles: ['admin'] },
+        roles: SOLO_ADMIN },
       { to: '/importar-horario', icon: Calendar,      label: 'Importar Horario',
-        roles: ['admin'] },
+        roles: SOLO_ADMIN },
       { to: '/importar',         icon: Upload,        label: 'Importar Insumos',
-        roles: ['admin'] },
+        roles: SOLO_ADMIN },
       { to: '/usuarios',         icon: Users,         label: 'Usuarios',
-        roles: ['admin'] },
+        roles: SOLO_ADMIN },
       { to: '/audit-log',        icon: ScrollText,    label: 'Audit Log',
-        roles: ['admin'] },
+        roles: SOLO_ADMIN },
     ],
   },
 ]
@@ -98,27 +101,22 @@ const ROL_LABELS: Record<string, string> = {
   visor:                'Visor',
 }
 
-const SIDEBAR_KEY = 'hestia-sidebar-collapsed'
-
+const SIDEBAR_KEY   = 'hestia-sidebar-collapsed'
 const LABEL_OUT_MS  = 110
 const WIDTH_MS      = 260
 const LABEL_IN_MS   = 140
 
-// ─── Sub-componentes ────────────────────────────────────────────────────────
-
 function Tooltip({ label }: { label: string }) {
   return (
-    <span
-      className="
-        absolute left-full ml-2.5 px-2.5 py-1.5
-        bg-h-elevated border border-h-visible
-        text-h-primary text-xs font-medium
-        rounded-md pointer-events-none whitespace-nowrap
-        opacity-0 group-hover:opacity-100
-        transition-opacity duration-150
-        top-1/2 -translate-y-1/2 z-50
-      "
-    >
+    <span className="
+      absolute left-full ml-2.5 px-2.5 py-1.5
+      bg-h-elevated border border-h-visible
+      text-h-primary text-xs font-medium
+      rounded-md pointer-events-none whitespace-nowrap
+      opacity-0 group-hover:opacity-100
+      transition-opacity duration-150
+      top-1/2 -translate-y-1/2 z-50
+    ">
       {label}
     </span>
   )
@@ -132,22 +130,18 @@ interface NavItemRowProps {
 
 function NavItemRow({ item, collapsed, labelsVisible }: NavItemRowProps) {
   const { icon: Icon, to, label } = item
-
   const baseCls = `
     relative group flex items-center gap-2.5
     rounded-md transition-colors duration-150 cursor-pointer
     ${ collapsed ? 'justify-center px-0 py-2.5 w-full' : 'px-2.5 py-2 w-full' }
   `
-
-  const activeCls   = `bg-h-elevated text-h-primary`
-  const inactiveCls = `text-h-secondary hover:bg-h-elevated hover:text-h-primary`
+  const activeCls   = 'bg-h-elevated text-h-primary'
+  const inactiveCls = 'text-h-secondary hover:bg-h-elevated hover:text-h-primary'
 
   return (
-    <NavLink
-      to={to}
+    <NavLink to={to}
       className={({ isActive }) =>
-        `${baseCls} ${isActive ? activeCls : inactiveCls}`
-      }
+        `${baseCls} ${isActive ? activeCls : inactiveCls}`}
     >
       {({ isActive }) => (
         <>
@@ -155,8 +149,7 @@ function NavItemRow({ item, collapsed, labelsVisible }: NavItemRowProps) {
             <span
               className="
                 absolute left-0 top-1/2 -translate-y-1/2
-                w-[2.5px] rounded-r-full
-                transition-all duration-200
+                w-[2.5px] rounded-r-full transition-all duration-200
               "
               style={{
                 height:     isActive ? '16px' : '0px',
@@ -164,13 +157,8 @@ function NavItemRow({ item, collapsed, labelsVisible }: NavItemRowProps) {
               }}
             />
           )}
-
-          <Icon
-            size={16}
-            className="flex-shrink-0 transition-colors duration-150"
-            style={{ color: isActive ? 'var(--h-teal-hover)' : 'inherit' }}
-          />
-
+          <Icon size={16} className="flex-shrink-0 transition-colors duration-150"
+            style={{ color: isActive ? 'var(--h-teal-hover)' : 'inherit' }} />
           {!collapsed && (
             <span
               className="text-[13px] font-medium truncate min-w-0 flex-1"
@@ -183,7 +171,6 @@ function NavItemRow({ item, collapsed, labelsVisible }: NavItemRowProps) {
               {label}
             </span>
           )}
-
           {collapsed && <Tooltip label={label} />}
         </>
       )}
@@ -191,16 +178,13 @@ function NavItemRow({ item, collapsed, labelsVisible }: NavItemRowProps) {
   )
 }
 
-// ─── Componente principal ────────────────────────────────────────────────────
-
 export function Sidebar() {
   const { logout, user } = useAuthStore()
   const { isDark, toggleTheme } = useThemeStore()
   const navigate = useNavigate()
 
-  const [collapsed, setCollapsed] = useState<boolean>(
-    () => localStorage.getItem(SIDEBAR_KEY) === 'true'
-  )
+  const [collapsed,     setCollapsed]     =
+    useState<boolean>(() => localStorage.getItem(SIDEBAR_KEY) === 'true')
   const [labelsVisible, setLabelsVisible] = useState<boolean>(!collapsed)
 
   useEffect(() => {
@@ -220,45 +204,31 @@ export function Sidebar() {
   function handleLogout() { logout(); navigate('/login') }
 
   const initials = user?.nombre
-    ? user.nombre.split(' ').slice(0, 2).map((n) => n[0]).join('').toUpperCase()
+    ? user.nombre.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase()
     : '?'
-
   const rolLabel    = user?.rol ? (ROL_LABELS[user.rol] ?? user.rol) : ''
   const displayName = user?.nombre
     ? user.nombre.split(' ').slice(0, 2).join(' ')
     : 'Usuario'
-
   const sidebarW = collapsed ? 'w-[60px]' : 'w-[220px]'
 
   return (
     <aside
-      className={`
-        ${sidebarW} h-full flex flex-col flex-shrink-0
-        bg-h-surface border-r border-h-subtle
-        overflow-hidden
-      `}
-      style={{
-        transition: `width ${WIDTH_MS}ms cubic-bezier(0.4,0,0.2,1)`,
-      }}
+      className={`${sidebarW} h-full flex flex-col flex-shrink-0
+                  bg-h-surface border-r border-h-subtle overflow-hidden`}
+      style={{ transition: `width ${WIDTH_MS}ms cubic-bezier(0.4,0,0.2,1)` }}
     >
-      {/* ── Header ── */}
-      <div
-        className="
-          flex items-center border-b border-h-subtle flex-shrink-0
-          px-3 py-3 gap-2
-        "
-      >
+      {/* Header */}
+      <div className="flex items-center border-b border-h-subtle flex-shrink-0
+                      px-3 py-3 gap-2">
         <div className="flex items-center gap-2.5 min-w-0 flex-1">
           <Logo className="w-8 h-8 flex-shrink-0" />
           {!collapsed && (
-            <div
-              className="min-w-0"
-              style={{
-                opacity:    labelsVisible ? 1 : 0,
-                transform:  labelsVisible ? 'translateX(0)' : 'translateX(-6px)',
-                transition: `opacity ${LABEL_IN_MS}ms ease, transform ${LABEL_IN_MS}ms ease`,
-              }}
-            >
+            <div className="min-w-0" style={{
+              opacity:    labelsVisible ? 1 : 0,
+              transform:  labelsVisible ? 'translateX(0)' : 'translateX(-6px)',
+              transition: `opacity ${LABEL_IN_MS}ms ease, transform ${LABEL_IN_MS}ms ease`,
+            }}>
               <p className="text-h-primary text-sm font-semibold leading-tight truncate">
                 Hestia
               </p>
@@ -268,57 +238,39 @@ export function Sidebar() {
             </div>
           )}
         </div>
-
-        <button
-          onClick={handleCollapse}
-          title={collapsed ? 'Expandir menú' : 'Colapsar menú'}
-          className="
-            w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0
-            text-h-tertiary hover:bg-h-elevated hover:text-h-secondary
-            transition-colors duration-150
-          "
-        >
-          {collapsed
-            ? <ChevronRight size={14} />
-            : <ChevronLeft  size={14} />}
+        <button onClick={handleCollapse}
+          title={collapsed ? 'Expandir menu' : 'Colapsar menu'}
+          className="w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0
+                     text-h-tertiary hover:bg-h-elevated hover:text-h-secondary
+                     transition-colors duration-150">
+          {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
         </button>
       </div>
 
-      {/* ── Navegación ── */}
+      {/* Navegacion */}
       <nav className="flex-1 overflow-y-auto overflow-x-hidden py-3 px-2 space-y-4">
-        {NAV_SECTIONS.map((section) => {
+        {NAV_SECTIONS.map(section => {
           if (!user?.rol) return null
-
           const visibleItems = section.items.filter(
-            (item) => item.roles.includes(user.rol as string)
+            item => item.roles.includes(user.rol as string)
           )
           if (visibleItems.length === 0) return null
-
-          const sectionVisible = section.roles.includes(user.rol as string)
-          if (!sectionVisible) return null
-
+          if (!section.roles.includes(user.rol as string)) return null
           return (
             <div key={section.label}>
               {!collapsed && (
-                <p
-                  className="
-                    px-2.5 mb-1
-                    text-[10px] font-semibold uppercase tracking-widest
-                    text-h-tertiary select-none
-                  "
+                <p className="px-2.5 mb-1 text-[10px] font-semibold uppercase
+                               tracking-widest text-h-tertiary select-none"
                   style={{
                     opacity:    labelsVisible ? 1 : 0,
                     transition: `opacity ${LABEL_IN_MS}ms ease`,
-                  }}
-                >
+                  }}>
                   {section.label}
                 </p>
               )}
-
               <div className="space-y-0.5">
-                {visibleItems.map((item) => (
-                  <NavItemRow
-                    key={item.to}
+                {visibleItems.map(item => (
+                  <NavItemRow key={item.to}
                     item={item}
                     collapsed={collapsed}
                     labelsVisible={labelsVisible}
@@ -330,36 +282,21 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* ── Footer ── */}
+      {/* Footer */}
       <div className="border-t border-h-subtle flex-shrink-0 px-2 py-3 space-y-0.5">
-
-        <div
-          className={`
-            flex items-center gap-2.5 rounded-md px-2 py-2 mb-1
-            ${ collapsed ? 'justify-center' : '' }
-          `}
-        >
-          <div
-            className="
-              w-7 h-7 rounded-full flex-shrink-0
-              flex items-center justify-center
-              text-[11px] font-semibold
-              bg-h-elevated border border-h-visible
-              text-h-secondary
-            "
-          >
+        <div className={`flex items-center gap-2.5 rounded-md px-2 py-2 mb-1
+                         ${ collapsed ? 'justify-center' : '' }`}>
+          <div className="w-7 h-7 rounded-full flex-shrink-0 flex items-center
+                          justify-center text-[11px] font-semibold
+                          bg-h-elevated border border-h-visible text-h-secondary">
             {initials}
           </div>
-
           {!collapsed && (
-            <div
-              className="min-w-0 flex-1"
-              style={{
-                opacity:    labelsVisible ? 1 : 0,
-                transform:  labelsVisible ? 'translateX(0)' : 'translateX(-6px)',
-                transition: `opacity ${LABEL_IN_MS}ms ease, transform ${LABEL_IN_MS}ms ease`,
-              }}
-            >
+            <div className="min-w-0 flex-1" style={{
+              opacity:    labelsVisible ? 1 : 0,
+              transform:  labelsVisible ? 'translateX(0)' : 'translateX(-6px)',
+              transition: `opacity ${LABEL_IN_MS}ms ease, transform ${LABEL_IN_MS}ms ease`,
+            }}>
               <p className="text-[12px] font-medium text-h-primary truncate leading-tight">
                 {displayName}
               </p>
@@ -372,117 +309,67 @@ export function Sidebar() {
 
         <div className="h-px bg-h-subtle mx-1 mb-1" />
 
-        <div className="relative group">
-          <NavLink
-            to="/perfil"
-            className={({ isActive }) => `
-              flex items-center gap-2.5 rounded-md
-              transition-colors duration-150
-              text-h-secondary hover:bg-h-elevated hover:text-h-primary
-              ${ isActive ? 'bg-h-elevated text-h-primary' : '' }
-              ${ collapsed ? 'justify-center px-0 py-2.5 w-full' : 'px-2.5 py-2 w-full' }
-            `}
-          >
-            <UserCircle size={16} className="flex-shrink-0" />
-            {!collapsed && (
-              <span
-                className="text-[13px] font-medium truncate"
-                style={{
+        {[
+          { to: '/perfil',    icon: UserCircle,  label: 'Mi perfil' },
+          { to: '/seguridad', icon: ShieldCheck, label: 'Seguridad' },
+        ].map(({ to, icon: Icon, label }) => (
+          <div key={to} className="relative group">
+            <NavLink to={to}
+              className={({ isActive }) => `
+                flex items-center gap-2.5 rounded-md transition-colors duration-150
+                text-h-secondary hover:bg-h-elevated hover:text-h-primary
+                ${ isActive ? 'bg-h-elevated text-h-primary' : '' }
+                ${ collapsed ? 'justify-center px-0 py-2.5 w-full' : 'px-2.5 py-2 w-full' }
+              `}>
+              <Icon size={16} className="flex-shrink-0" />
+              {!collapsed && (
+                <span className="text-[13px] font-medium truncate" style={{
                   opacity:    labelsVisible ? 1 : 0,
                   transform:  labelsVisible ? 'translateX(0)' : 'translateX(-6px)',
                   transition: `opacity ${LABEL_IN_MS}ms ease, transform ${LABEL_IN_MS}ms ease`,
-                }}
-              >
-                Mi perfil
-              </span>
-            )}
-          </NavLink>
-          {collapsed && <Tooltip label="Mi perfil" />}
-        </div>
+                }}>{label}</span>
+              )}
+            </NavLink>
+            {collapsed && <Tooltip label={label} />}
+          </div>
+        ))}
 
         <div className="relative group">
-          <NavLink
-            to="/seguridad"
-            className={({ isActive }) => `
-              flex items-center gap-2.5 rounded-md
-              transition-colors duration-150
-              text-h-secondary hover:bg-h-elevated hover:text-h-primary
-              ${ isActive ? 'bg-h-elevated text-h-primary' : '' }
-              ${ collapsed ? 'justify-center px-0 py-2.5 w-full' : 'px-2.5 py-2 w-full' }
-            `}
-          >
-            <ShieldCheck size={16} className="flex-shrink-0" />
-            {!collapsed && (
-              <span
-                className="text-[13px] font-medium truncate"
-                style={{
-                  opacity:    labelsVisible ? 1 : 0,
-                  transform:  labelsVisible ? 'translateX(0)' : 'translateX(-6px)',
-                  transition: `opacity ${LABEL_IN_MS}ms ease, transform ${LABEL_IN_MS}ms ease`,
-                }}
-              >
-                Seguridad
-              </span>
-            )}
-          </NavLink>
-          {collapsed && <Tooltip label="Seguridad" />}
-        </div>
-
-        <div className="relative group">
-          <button
-            onClick={toggleTheme}
+          <button onClick={toggleTheme}
             title={isDark ? 'Modo claro' : 'Modo oscuro'}
-            className={`
-              flex items-center gap-2.5 rounded-md w-full
+            className={`flex items-center gap-2.5 rounded-md w-full
               transition-colors duration-150
               text-h-secondary hover:bg-h-elevated hover:text-h-primary
-              ${ collapsed ? 'justify-center px-0 py-2.5' : 'px-2.5 py-2' }
-            `}
-          >
-            {isDark
-              ? <Sun  size={16} className="flex-shrink-0" />
-              : <Moon size={16} className="flex-shrink-0" />}
+              ${ collapsed ? 'justify-center px-0 py-2.5' : 'px-2.5 py-2' }`}>
+            {isDark ? <Sun size={16} className="flex-shrink-0" />
+                    : <Moon size={16} className="flex-shrink-0" />}
             {!collapsed && (
-              <span
-                className="text-[13px] font-medium truncate"
-                style={{
-                  opacity:    labelsVisible ? 1 : 0,
-                  transform:  labelsVisible ? 'translateX(0)' : 'translateX(-6px)',
-                  transition: `opacity ${LABEL_IN_MS}ms ease, transform ${LABEL_IN_MS}ms ease`,
-                }}
-              >
-                {isDark ? 'Modo claro' : 'Modo oscuro'}
-              </span>
+              <span className="text-[13px] font-medium truncate" style={{
+                opacity:    labelsVisible ? 1 : 0,
+                transform:  labelsVisible ? 'translateX(0)' : 'translateX(-6px)',
+                transition: `opacity ${LABEL_IN_MS}ms ease, transform ${LABEL_IN_MS}ms ease`,
+              }}>{isDark ? 'Modo claro' : 'Modo oscuro'}</span>
             )}
           </button>
           {collapsed && <Tooltip label={isDark ? 'Modo claro' : 'Modo oscuro'} />}
         </div>
 
         <div className="relative group">
-          <button
-            onClick={handleLogout}
-            className={`
-              flex items-center gap-2.5 rounded-md w-full
+          <button onClick={handleLogout}
+            className={`flex items-center gap-2.5 rounded-md w-full
               transition-colors duration-150
               text-h-secondary hover:bg-h-elevated hover:text-red-400
-              ${ collapsed ? 'justify-center px-0 py-2.5' : 'px-2.5 py-2' }
-            `}
-          >
+              ${ collapsed ? 'justify-center px-0 py-2.5' : 'px-2.5 py-2' }`}>
             <LogOut size={16} className="flex-shrink-0" />
             {!collapsed && (
-              <span
-                className="text-[13px] font-medium truncate"
-                style={{
-                  opacity:    labelsVisible ? 1 : 0,
-                  transform:  labelsVisible ? 'translateX(0)' : 'translateX(-6px)',
-                  transition: `opacity ${LABEL_IN_MS}ms ease, transform ${LABEL_IN_MS}ms ease`,
-                }}
-              >
-                Cerrar sesión
-              </span>
+              <span className="text-[13px] font-medium truncate" style={{
+                opacity:    labelsVisible ? 1 : 0,
+                transform:  labelsVisible ? 'translateX(0)' : 'translateX(-6px)',
+                transition: `opacity ${LABEL_IN_MS}ms ease, transform ${LABEL_IN_MS}ms ease`,
+              }}>Cerrar sesion</span>
             )}
           </button>
-          {collapsed && <Tooltip label="Cerrar sesión" />}
+          {collapsed && <Tooltip label="Cerrar sesion" />}
         </div>
       </div>
     </aside>

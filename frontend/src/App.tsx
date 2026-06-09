@@ -24,6 +24,7 @@ import { Paquetes }               from './pages/Paquetes'
 import { PrepararTaller }         from './pages/PrepararTaller'
 import { OrdenesMantenimiento }   from './pages/OrdenesMantenimiento'
 import { Proveedores }            from './pages/Proveedores'
+import { VistaSalas }             from './pages/VistaSalas'
 import { Layout }                 from './components/layout/Layout'
 import { useAuthStore }           from './store/auth'
 
@@ -77,6 +78,8 @@ export function App() {
             element={<ProtectedRoute roles={NO_VISOR}><Paquetes /></ProtectedRoute>} />
           <Route path="preparar-taller"
             element={<ProtectedRoute roles={NO_VISOR}><PrepararTaller /></ProtectedRoute>} />
+          <Route path="vista-salas"
+            element={<ProtectedRoute roles={TODOS}><VistaSalas /></ProtectedRoute>} />
           <Route path="proveedores"
             element={<ProtectedRoute roles={COORD_ADMIN}><Proveedores /></ProtectedRoute>} />
           <Route path="asignaturas"
