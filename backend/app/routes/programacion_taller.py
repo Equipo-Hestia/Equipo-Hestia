@@ -83,7 +83,6 @@ def _normalizar_hora(raw: object) -> Optional[str]:
         h, m = divmod(total_min, 60)
         return f"{h:02d}:{m:02d}"
     s = str(raw).strip()
-    # Extraer primer HH:MM o HH.MM del string
     m = re.search(r'(\d{1,2})[:.](\d{2})', s)
     if m:
         h = int(m.group(1))
@@ -92,20 +91,65 @@ def _normalizar_hora(raw: object) -> Optional[str]:
     return None
 
 
-def _normalizar_sala_nombre(raw: object) -> str:
-    """Normaliza variantes de nombre de sala al formato 'Sala NNN'.
+def _extraer_numero_sala(raw: object) -> Optional[int]:
+    """Extrae el numero entero de sala desde cualquier formato conocido.
 
-    Ejemplos: 'SB -010' -> 'Sala 010', '14.0' -> 'Sala 014',
-    'SB020' -> 'Sala 020', '22.0' -> 'Sala 022'.
+    Casos reales observados en los Excel de Maritza:
+        18.0        -> 18   (float de Excel, celda numerica sin formato)
+        'SB-018'    -> 18   (prefijo SB con guion)
+        'SB-O18'    -> 18   (typo: letra O en lugar de cero)
+        'SB-14'     -> 14   (sin cero inicial)
+        'SB -016'   -> 16   (espacio antes del guion)
+        'CSC-020'   -> 20   (prefijo CSC, edificio)
+        'CSC - 020' -> 20   (prefijo CSC con espacios)
+        '016'       -> 16   (solo numero con cero)
+        'Sala 016'  -> 16   (formato canonico Hestia)
+        16          -> 16   (int directo)
+
+    Devuelve None si no puede extraer un numero valido.
     """
     if raw is None:
-        return ""
+        return None
+
+    # Si es numerico (int o float de Excel): tomar parte entera directamente
+    if isinstance(raw, (int, float)):
+        num = int(raw)  # 18.0 -> 18, nunca 180
+        return num if num > 0 else None
+
     s = str(raw).strip()
-    # Extraer digitos del nombre
-    digits = re.sub(r'[^\d]', '', s)
-    if not digits:
-        return s
-    num = int(digits)
+
+    # Reemplazar letra O mayuscula por cero en contexto de numero
+    # (typo frecuente: 'SB-O18' en lugar de 'SB-018')
+    # Solo aplica despues de un prefijo no numerico
+    s = re.sub(r'(?<=[A-Za-z\-\s])O(?=\d)', '0', s)
+
+    # Extraer todos los grupos de digitos
+    grupos = re.findall(r'\d+', s)
+    if not grupos:
+        return None
+
+    # Si hay un solo grupo, ese es el numero
+    if len(grupos) == 1:
+        return int(grupos[0])
+
+    # Si hay varios grupos, descartar el primer grupo si parece
+    # ser parte de un prefijo como 'CSC2' o 'SB2'; tomar el ultimo
+    # grupo que sea > 0 (el numero de sala real)
+    for g in reversed(grupos):
+        n = int(g)
+        if n > 0:
+            return n
+    return None
+
+
+def _normalizar_sala_nombre(raw: object) -> str:
+    """Convierte cualquier variante de nombre de sala al formato 'Sala NNN'.
+
+    Delega la extraccion numerica a _extraer_numero_sala.
+    """
+    num = _extraer_numero_sala(raw)
+    if num is None:
+        return str(raw).strip() if raw is not None else ""
     return f"Sala {num:03d}"
 
 
@@ -300,12 +344,12 @@ def importar_xlsx(
                 return None
 
         # Mapeo flexible de columnas
-        ci_taller = col("nombre de taller") or col("guia de taller")
-        ci_fecha = col("fecha")
-        ci_sala = col("sala")
+        ci_taller  = col("nombre de taller") or col("guia de taller")
+        ci_fecha   = col("fecha")
+        ci_sala    = col("sala")
         ci_horario = col("horario")
         ci_docente = col("docente")
-        ci_seccion = col("seccion") or col("sección")
+        ci_seccion = col("seccion") or col("secci\u00f3n")
 
         if ci_fecha is None or ci_taller is None:
             errores.append({
@@ -318,18 +362,16 @@ def importar_xlsx(
         for fila_num, fila in enumerate(
             filas[header_idx + 1:], start=header_idx + 2
         ):
-            # Saltar filas completamente vacias
             if all(v is None for v in fila):
                 continue
 
-            raw_taller = fila[ci_taller] if ci_taller is not None else None
-            raw_fecha = fila[ci_fecha]
-            raw_sala = fila[ci_sala] if ci_sala is not None else None
+            raw_taller  = fila[ci_taller]  if ci_taller  is not None else None
+            raw_fecha   = fila[ci_fecha]
+            raw_sala    = fila[ci_sala]    if ci_sala    is not None else None
             raw_horario = fila[ci_horario] if ci_horario is not None else None
             raw_docente = fila[ci_docente] if ci_docente is not None else None
             raw_seccion = fila[ci_seccion] if ci_seccion is not None else None
 
-            # Validaciones basicas
             if not raw_taller or not raw_fecha:
                 omitidas += 1
                 continue
@@ -359,19 +401,17 @@ def importar_xlsx(
                 talleres_cache[nombre_taller_key] = nuevo_taller.id
             taller_id = talleres_cache[nombre_taller_key]
 
-            # Resolver sala
+            # Resolver sala usando ETL robusto
             sala_id: Optional[int] = None
             if raw_sala is not None:
                 nombre_sala_norm = _normalizar_sala_nombre(raw_sala)
                 sala_id = salas_cache.get(nombre_sala_norm)
                 if sala_id is None:
-                    # Intentar busqueda flexible por numero
-                    digits = re.sub(r'[^\d]', '', str(raw_sala))
-                    if digits:
-                        num = int(digits)
+                    # Segunda pasada: comparar por numero entero extraido
+                    num_buscado = _extraer_numero_sala(raw_sala)
+                    if num_buscado is not None:
                         for nombre_s, sid in salas_cache.items():
-                            d2 = re.sub(r'[^\d]', '', nombre_s)
-                            if d2 and int(d2) == num:
+                            if _extraer_numero_sala(nombre_s) == num_buscado:
                                 sala_id = sid
                                 break
 
@@ -386,10 +426,9 @@ def importar_xlsx(
 
             # Parsear horario
             hora_inicio: Optional[str] = None
-            hora_fin: Optional[str] = None
+            hora_fin:    Optional[str] = None
             if raw_horario is not None:
                 horario_str = str(raw_horario).strip()
-                # Separar inicio y fin
                 partes = re.split(
                     r'[\-aA]|\s+A\s+|\s+a\s+', horario_str
                 )
@@ -401,7 +440,6 @@ def importar_xlsx(
             seccion_val: Optional[str] = None
             if raw_seccion is not None:
                 sv = str(raw_seccion).strip()
-                # Limpiar .0 de floats leidos como string
                 if sv.endswith(".0"):
                     sv = sv[:-2]
                 seccion_val = sv if sv else None
@@ -416,20 +454,20 @@ def importar_xlsx(
                 .filter(
                     and_(
                         ProgramacionTaller.taller_id == taller_id,
-                        ProgramacionTaller.sala_id == sala_id,
-                        ProgramacionTaller.fecha == fecha_val,
-                        ProgramacionTaller.seccion == seccion_val,
+                        ProgramacionTaller.sala_id   == sala_id,
+                        ProgramacionTaller.fecha     == fecha_val,
+                        ProgramacionTaller.seccion   == seccion_val,
                     )
                 )
                 .first()
             )
 
             if existente:
-                existente.hora_inicio = hora_inicio
-                existente.hora_fin = hora_fin
+                existente.hora_inicio    = hora_inicio
+                existente.hora_fin       = hora_fin
                 existente.docente_nombre = docente_val
-                existente.semestre = semestre
-                existente.activo = True
+                existente.semestre       = semestre
+                existente.activo         = True
                 actualizadas += 1
             else:
                 nueva = ProgramacionTaller(
