@@ -12,21 +12,25 @@ from app.models.movimiento import Movimiento
 # IMPORTANTE: todos los modelos deben importarse antes de create_all() y
 # antes de cualquier consulta ORM. SQLAlchemy resuelve las relaciones entre
 # modelos (relationship()) usando el mapper registry: si un modelo no fue
-# importado, la resolucion falla con KeyError al intentar usar otro modelo
-# que tiene una relacion apuntando al que falta.
-# solicitud define SolicitudRetiro, que Usuario referencia via
-# relationship("SolicitudRetiro", ...). Sin este import, db.query(Usuario)
-# falla con InvalidRequestError al intentar configurar el mapper.
-from app.models import solicitud       # noqa  <- SolicitudRetiro y SolicitudItem
+# importado, la resolucion falla con KeyError o InvalidRequestError al
+# intentar configurar el mapper de cualquier modelo que referencie al faltante.
+# Orden correcto: primero los modelos referenciados, luego los que los usan.
+from app.models import solicitud       # noqa  <- SolicitudRetiro, SolicitudItem
 from app.models import audit_log       # noqa  <- AuditLog
+from app.models import docente         # noqa  <- Docente, ComentarioDocente (FK de ClaseDocente)
 from app.models.clase_docente import ClaseDocente  # noqa  <- ClaseDocente
 from app.models.asignatura import Asignatura       # noqa  <- Asignatura
-from app.models import taller          # noqa  <- Taller (FK desde Asignatura.talleres)
-from app.models import paquete_insumo  # noqa  <- PaqueteInsumo y PaqueteItem
+from app.models import taller          # noqa  <- Taller
+from app.models import paquete_insumo  # noqa  <- PaqueteInsumo, PaqueteItem
+from app.models import activo_fijo     # noqa  <- ActivoFijo
+from app.models import proveedor       # noqa  <- Proveedor (FK desde ActivoFijo)
+from app.models import orden_mantenimiento   # noqa  <- OrdenMantenimiento
+from app.models import programacion_taller   # noqa  <- ProgramacionTaller
+from app.models import revision_sala         # noqa  <- RevisionSala, RevisionSalaItem
+from app.models import unidad_implemento     # noqa  <- UnidadImplemento
+from app.models import retorno_implemento    # noqa  <- RetornoImplemento
 
 # --- Leer credenciales desde el entorno, sin defaults ---
-# Si alguna variable falta, el script falla con un mensaje claro.
-# Nunca escribir contrasenas en el codigo fuente.
 admin_email = os.getenv("ADMIN_EMAIL")
 admin_password = os.getenv("ADMIN_PASSWORD")
 
@@ -35,14 +39,10 @@ if not admin_email or not admin_password:
     print("        Copia backend/.env.example a backend/.env y completa los valores.")
     sys.exit(1)
 
-# 1) Crear tablas que no existen (basado en los modelos SQLAlchemy actuales).
-#    create_all() necesita conocer TODOS los modelos registrados para crear
-#    las tablas con las relaciones correctas. Por eso los imports de arriba
-#    deben ir antes de esta llamada.
+# 1) Crear tablas que no existen.
 Base.metadata.create_all(bind=engine)
 
-# 2) Aplicar migraciones idempotentes (columnas nuevas en tablas existentes
-#    y valores nuevos en tipos ENUM). Seguro de llamar multiples veces.
+# 2) Aplicar migraciones idempotentes.
 aplicar_migraciones_pendientes()
 
 db = SessionLocal()
