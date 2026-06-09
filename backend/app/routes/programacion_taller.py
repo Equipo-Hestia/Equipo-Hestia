@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import and_
+from sqlalchemy import and_, distinct
 from datetime import date
 from typing import Optional
 import io
@@ -42,7 +42,7 @@ _MESES_ES = {
 
 
 # ---------------------------------------------------------------------------
-# Helpers
+# Helpers internos
 # ---------------------------------------------------------------------------
 
 def _load(prog_id: int, db: Session) -> ProgramacionTaller:
@@ -85,12 +85,7 @@ def _to_response(p: ProgramacionTaller) -> ProgramacionTallerResponse:
 
 
 def _normalizar_hora(raw: object) -> Optional[str]:
-    """Convierte multiples formatos de hora a 'HH:MM'.
-
-    Soporta: '17:30:00', '17.30 A 18.50', '11:30-12:50', '8:31-9:50',
-    objetos time de openpyxl (datetime.time), y floats Excel (0.729...).
-    Devuelve None si no puede parsear.
-    """
+    """Convierte multiples formatos de hora a 'HH:MM'."""
     if raw is None:
         return None
     if isinstance(raw, dt.time):
@@ -102,42 +97,24 @@ def _normalizar_hora(raw: object) -> Optional[str]:
     s = str(raw).strip()
     m = re.search(r'(\d{1,2})[:.](\d{2})', s)
     if m:
-        h = int(m.group(1))
-        mi = int(m.group(2))
-        return f"{h:02d}:{mi:02d}"
+        return f"{int(m.group(1)):02d}:{int(m.group(2)):02d}"
     return None
 
 
 def _extraer_numero_sala(raw: object) -> Optional[int]:
-    """Extrae el numero entero de sala desde cualquier formato conocido.
-
-    Casos reales observados en los Excel de Maritza:
-        18.0        -> 18   (float de Excel)
-        'SB-018'    -> 18   (prefijo SB con guion)
-        'SB-O18'    -> 18   (typo: letra O en lugar de cero)
-        'SB-14'     -> 14   (sin cero inicial)
-        'SB -016'   -> 16   (espacio antes del guion)
-        'CSC-020'   -> 20   (prefijo CSC edificio)
-        'CSC - 020' -> 20   (prefijo CSC con espacios)
-        '016'       -> 16   (solo numero con cero)
-        'Sala 016'  -> 16   (formato canonico Hestia)
-        16          -> 16   (int directo)
-    """
+    """Extrae el numero entero de sala desde cualquier formato conocido."""
     if raw is None:
         return None
     if isinstance(raw, (int, float)):
         num = int(raw)
         return num if num > 0 else None
     s = str(raw).strip()
-    # Reemplazar letra O mayuscula por cero cuando aparece entre
-    # prefijo no numerico y digitos (typo frecuente: SB-O18)
     s = re.sub(r'(?<=[A-Za-z\-\s])O(?=\d)', '0', s)
     grupos = re.findall(r'\d+', s)
     if not grupos:
         return None
     if len(grupos) == 1:
         return int(grupos[0])
-    # Varios grupos: tomar el ultimo mayor que 0 (el numero de sala real)
     for g in reversed(grupos):
         n = int(g)
         if n > 0:
@@ -154,66 +131,94 @@ def _normalizar_sala_nombre(raw: object) -> str:
 
 
 def _parsear_fecha(raw: object, semestre: str) -> Optional[dt.date]:
-    """Resuelve una celda de fecha a datetime.date.
-
-    Tipos soportados:
-        datetime.datetime  -> .date()  (caso mas comun en openpyxl)
-        datetime.date      -> directo
-        str 'D-mes'        -> '4-sep', '10-sep', '24-sep' (texto en espanol)
-        str 'DD-mes-AAAA'  -> '14-sep-2025'
-        str 'AAAA-MM-DD'   -> ISO 8601
-
-    Para formatos sin ano ('4-sep') se infiere el ano desde el semestre
-    recibido ('2025-2' -> 2025).
-    """
+    """Resuelve una celda de fecha a datetime.date."""
     if raw is None:
         return None
-
     if isinstance(raw, dt.datetime):
         return raw.date()
     if isinstance(raw, dt.date):
         return raw
-
     s = str(raw).strip()
-
-    # Formato ISO: 2025-08-14
     m = re.match(r'^(\d{4})-(\d{1,2})-(\d{1,2})$', s)
     if m:
         return dt.date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
-
-    # Formato 'D-mes' o 'DD-mes' o 'D-mes-AAAA': '4-sep', '10-sep', '14-sep-2025'
     m = re.match(
         r'^(\d{1,2})[\-/\s](\w+?)(?:[\-/\s](\d{4}))?$', s, re.IGNORECASE
     )
     if m:
         dia = int(m.group(1))
-        mes_s = m.group(2).lower()[:3]   # primeras 3 letras
+        mes_s = m.group(2).lower()[:3]
         ano_s = m.group(3)
-
         mes = _MESES_ES.get(mes_s)
         if mes is None:
             return None
-
         if ano_s:
             ano = int(ano_s)
         else:
-            # Inferir ano desde semestre (ej: '2025-2' -> 2025)
             try:
                 ano = int(semestre.split('-')[0])
             except (ValueError, IndexError, AttributeError):
                 ano = dt.date.today().year
-
         try:
             return dt.date(ano, mes, dia)
         except ValueError:
             return None
-
     return None
 
 
 # ---------------------------------------------------------------------------
-# Endpoints
+# Endpoints — deben declararse en orden: rutas estaticas antes de /{id}
 # ---------------------------------------------------------------------------
+
+@router.get("/semestres", response_model=list[str])
+def listar_semestres(
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_usuario_actual),
+):
+    """Retorna los semestres distintos con programacion activa, ordenados."""
+    rows = (
+        db.query(distinct(ProgramacionTaller.semestre))
+        .filter(
+            ProgramacionTaller.activo.is_(True),
+            ProgramacionTaller.semestre.isnot(None),
+        )
+        .all()
+    )
+    semestres = sorted(
+        [r[0] for r in rows if r[0]],
+        key=lambda s: (int(s.split('-')[0]), int(s.split('-')[1]))
+        if '-' in s else (0, 0),
+    )
+    return semestres
+
+
+@router.get("/dias-con-actividad", response_model=list[str])
+def dias_con_actividad(
+    semestre: str,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_usuario_actual),
+):
+    """Retorna las fechas ISO distintas con programacion activa
+    para un semestre dado, excluyendo domingos (weekday == 6).
+    Ordenadas cronologicamente.
+    """
+    rows = (
+        db.query(distinct(ProgramacionTaller.fecha))
+        .filter(
+            ProgramacionTaller.semestre == semestre,
+            ProgramacionTaller.activo.is_(True),
+        )
+        .all()
+    )
+    fechas = sorted(
+        [
+            r[0].isoformat()
+            for r in rows
+            if r[0] is not None and r[0].weekday() != 6  # 6 = domingo
+        ]
+    )
+    return fechas
+
 
 @router.get("/hoy", response_model=list[ProgramacionTallerResponse])
 def programacion_hoy(
@@ -247,7 +252,7 @@ def listar_programacion(
     semestre: Optional[str] = None,
     solo_activas: bool = True,
     skip: int = 0,
-    limit: int = 100,
+    limit: int = 200,
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(get_usuario_actual),
 ):
@@ -332,11 +337,7 @@ def importar_xlsx(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(require_operador),
 ):
-    """Importa programacion desde un xlsx de planificacion de Maritza.
-
-    Estructura esperada de cada hoja:
-        Columnas: GUIA DE TALLER | Nombre de Taller | Fecha | Semana
-                  | Sala | Horario | Docente | Seccion
+    """Importa programacion desde un xlsx de planificacion semestral.
 
     Upsert por (taller_id, sala_id, fecha, seccion). Idempotente.
     """
@@ -394,9 +395,9 @@ def importar_xlsx(
             except ValueError:
                 return None
 
-        ci_taller = col("nombre de taller") or col("guia de taller")
-        ci_fecha = col("fecha")
-        ci_sala = col("sala")
+        ci_taller  = col("nombre de taller") or col("guia de taller")
+        ci_fecha   = col("fecha")
+        ci_sala    = col("sala")
         ci_horario = col("horario")
         ci_docente = col("docente")
         ci_seccion = col("seccion") or col("secci\u00f3n")
@@ -415,9 +416,9 @@ def importar_xlsx(
             if all(v is None for v in fila):
                 continue
 
-            raw_taller = fila[ci_taller] if ci_taller is not None else None
-            raw_fecha = fila[ci_fecha]
-            raw_sala = fila[ci_sala] if ci_sala is not None else None
+            raw_taller  = fila[ci_taller]  if ci_taller  is not None else None
+            raw_fecha   = fila[ci_fecha]
+            raw_sala    = fila[ci_sala]    if ci_sala    is not None else None
             raw_horario = fila[ci_horario] if ci_horario is not None else None
             raw_docente = fila[ci_docente] if ci_docente is not None else None
             raw_seccion = fila[ci_seccion] if ci_seccion is not None else None
@@ -426,7 +427,6 @@ def importar_xlsx(
                 omitidas += 1
                 continue
 
-            # Resolver fecha con ETL robusto
             fecha_val = _parsear_fecha(raw_fecha, semestre)
             if fecha_val is None:
                 errores.append({
@@ -437,7 +437,6 @@ def importar_xlsx(
                 omitidas += 1
                 continue
 
-            # Resolver taller (buscar o crear)
             nombre_taller = str(raw_taller).strip()
             nombre_taller_key = nombre_taller.lower()
             if nombre_taller_key not in talleres_cache:
@@ -447,7 +446,6 @@ def importar_xlsx(
                 talleres_cache[nombre_taller_key] = nuevo_taller.id
             taller_id = talleres_cache[nombre_taller_key]
 
-            # Resolver sala con ETL robusto
             sala_id: Optional[int] = None
             if raw_sala is not None:
                 nombre_sala_norm = _normalizar_sala_nombre(raw_sala)
@@ -469,9 +467,8 @@ def importar_xlsx(
                 omitidas += 1
                 continue
 
-            # Parsear horario
             hora_inicio: Optional[str] = None
-            hora_fin: Optional[str] = None
+            hora_fin:    Optional[str] = None
             if raw_horario is not None:
                 horario_str = str(raw_horario).strip()
                 partes = re.split(
@@ -481,7 +478,6 @@ def importar_xlsx(
                 if len(partes) >= 2:
                     hora_fin = _normalizar_hora(partes[-1].strip())
 
-            # Seccion
             seccion_val: Optional[str] = None
             if raw_seccion is not None:
                 sv = str(raw_seccion).strip()
@@ -493,26 +489,25 @@ def importar_xlsx(
                 str(raw_docente).strip() if raw_docente else None
             )
 
-            # Upsert
             existente = (
                 db.query(ProgramacionTaller)
                 .filter(
                     and_(
                         ProgramacionTaller.taller_id == taller_id,
-                        ProgramacionTaller.sala_id == sala_id,
-                        ProgramacionTaller.fecha == fecha_val,
-                        ProgramacionTaller.seccion == seccion_val,
+                        ProgramacionTaller.sala_id   == sala_id,
+                        ProgramacionTaller.fecha     == fecha_val,
+                        ProgramacionTaller.seccion   == seccion_val,
                     )
                 )
                 .first()
             )
 
             if existente:
-                existente.hora_inicio = hora_inicio
-                existente.hora_fin = hora_fin
+                existente.hora_inicio    = hora_inicio
+                existente.hora_fin       = hora_fin
                 existente.docente_nombre = docente_val
-                existente.semestre = semestre
-                existente.activo = True
+                existente.semestre       = semestre
+                existente.activo         = True
                 actualizadas += 1
             else:
                 nueva = ProgramacionTaller(

@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { MapPin, RefreshCw, CheckCircle2, Clock,
-         ClipboardList, ChevronDown, AlertCircle,
-         ChevronLeft, ChevronRight } from 'lucide-react'
+         ClipboardList, ChevronDown, AlertCircle } from 'lucide-react'
 import { api } from '../api/client'
 import { useAuthStore } from '../store/auth'
 import type {
@@ -18,7 +17,7 @@ type Zona = 'piso-1' | 'odontologia'
 
 type EstadoSala =
   | 'sin_actividad'
-  | 'próxima'
+  | 'proxima'
   | 'en_clase'
   | 'pendiente_revision'
   | 'en_revision'
@@ -33,35 +32,12 @@ interface SalaInfo {
 }
 
 // ---------------------------------------------------------------------------
-// Helpers de fecha
+// Helpers de tiempo
 // ---------------------------------------------------------------------------
 
 function fechaISO(d: Date): string {
   return d.toISOString().split('T')[0]
 }
-
-function sumarDias(base: Date, dias: number): Date {
-  const d = new Date(base)
-  d.setDate(d.getDate() + dias)
-  return d
-}
-
-function formatearFechaLabel(d: Date): string {
-  const hoy   = fechaISO(new Date())
-  const manana = fechaISO(sumarDias(new Date(), 1))
-  const ayer   = fechaISO(sumarDias(new Date(), -1))
-  const iso    = fechaISO(d)
-  if (iso === hoy)    return 'Hoy'
-  if (iso === manana) return 'Mañana'
-  if (iso === ayer)   return 'Ayer'
-  return d.toLocaleDateString('es-CL', {
-    weekday: 'short', day: 'numeric', month: 'short',
-  })
-}
-
-// ---------------------------------------------------------------------------
-// Helpers de tiempo
-// ---------------------------------------------------------------------------
 
 function parseHHMM(h: string | null | undefined): number | null {
   if (!h) return null
@@ -76,25 +52,19 @@ function minutosActuales(): number {
 }
 
 function calcularEstado(
-  prog:     ProgramacionTallerResponse | null,
-  rev:      RevisionResumenResponse | null,
-  esFecha:  boolean,  // true si la fecha visualizada es hoy
+  prog:    ProgramacionTallerResponse | null,
+  rev:     RevisionResumenResponse | null,
+  esHoy:   boolean,
 ): EstadoSala {
   if (rev?.estado === 'completada')  return 'revisada'
   if (rev?.estado === 'en_revision') return 'en_revision'
   if (!prog) return 'sin_actividad'
-
-  // Para dias que no son hoy mostramos el estado estatico
-  if (!esFecha) {
-    return prog.hora_inicio ? 'próxima' : 'sin_actividad'
-  }
-
+  if (!esHoy) return prog.hora_inicio ? 'proxima' : 'sin_actividad'
   const inicio = parseHHMM(prog.hora_inicio)
   const fin    = parseHHMM(prog.hora_fin)
   const ahora  = minutosActuales()
-
-  if (inicio !== null && ahora < inicio) return 'próxima'
-  if (fin    !== null && ahora >= fin)   return 'pendiente_revisión'
+  if (inicio !== null && ahora < inicio) return 'proxima'
+  if (fin    !== null && ahora >= fin)   return 'pendiente_revision'
   return 'en_clase'
 }
 
@@ -116,6 +86,15 @@ function segsHastaFin(horaFin: string | null): number {
   return Math.max(0, Math.floor((finDate.getTime() - now.getTime()) / 1000))
 }
 
+const DIA_CORTO = ['Dom','Lun','Mar','Mie','Jue','Vie','Sab']
+const MES_CORTO = ['ene','feb','mar','abr','may','jun',
+                   'jul','ago','sep','oct','nov','dic']
+
+function formatearDia(iso: string): string {
+  const d = new Date(iso + 'T12:00:00')
+  return `${DIA_CORTO[d.getDay()]} ${d.getDate()} ${MES_CORTO[d.getMonth()]}`
+}
+
 // ---------------------------------------------------------------------------
 // Estilos por estado
 // ---------------------------------------------------------------------------
@@ -125,20 +104,20 @@ const ESTADO_STYLE: Record<EstadoSala, {
 }> = {
   sin_actividad:      { fill: 'var(--h-bg-elevated)',   stroke: 'var(--h-border-subtle)',
                         text: 'var(--h-text-tertiary)',  label: 'Disponible' },
-  próxima:            { fill: 'var(--h-bg-elevated)',   stroke: 'var(--h-border-visible)',
-                        text: 'var(--h-text-secondary)', label: 'Próxima clase' },
+  proxima:            { fill: 'var(--h-bg-elevated)',   stroke: 'var(--h-border-visible)',
+                        text: 'var(--h-text-secondary)', label: 'Proxima clase' },
   en_clase:           { fill: '#0a2e22', stroke: '#1D9E75',
                         text: '#5dcaa5', label: 'En clase' },
   pendiente_revision: { fill: '#2e1f08', stroke: '#BA7517',
-                        text: '#EF9F27', label: 'Pendiente revisión' },
+                        text: '#EF9F27', label: 'Pendiente revision' },
   en_revision:        { fill: '#0d1e2e', stroke: '#378ADD',
-                        text: '#85B7EB', label: 'En revisión' },
+                        text: '#85B7EB', label: 'En revision' },
   revisada:           { fill: '#0a2035', stroke: '#185FA5',
                         text: '#378ADD', label: 'Revisada' },
 }
 
 // ---------------------------------------------------------------------------
-// Geometria SVG (sin cambios respecto a tu version)
+// Geometria SVG (preservada de la version de Luis)
 // ---------------------------------------------------------------------------
 
 const W = 82
@@ -157,10 +136,10 @@ const ESPECIALES   = [
 function xSup(idx: number) { return 10 + idx * (W + GAP) }
 function xInf(idx: number) { return 10 + idx * (W + GAP) }
 
-const X_010  = 10 + 7 * (W + GAP)
-const Y_011  = TOP_Y
-const Y_010  = BOT_Y
-const H_011  = (BOT_Y - TOP_Y) + H
+const X_010 = 10 + 7 * (W + GAP)
+const Y_011 = TOP_Y
+const Y_010 = BOT_Y
+const H_011 = (BOT_Y - TOP_Y) + H
 
 const ODO_SALAS = ['07','08','09']
 
@@ -170,26 +149,22 @@ const ODO_SALAS = ['07','08','09']
 
 interface SalaRectProps {
   x: number; y: number; w: number; h: number
-  numero:       string
-  estado:       EstadoSala
-  seleccionada: boolean
-  clickable?:   boolean
-  onClick?:     () => void
-  pulsar?:      boolean
+  numero: string; estado: EstadoSala; seleccionada: boolean
+  clickable?: boolean; onClick?: () => void; pulsar?: boolean
 }
 
 function SalaRect(
   { x, y, w, h, numero, estado, seleccionada,
     clickable = true, onClick, pulsar }: SalaRectProps,
 ) {
-  const st      = ESTADO_STYLE[estado]
-  const strokeW = seleccionada ? 2.5 : 1
-  const strokeC = seleccionada ? '#5dcaa5' : st.stroke
+  const st = ESTADO_STYLE[estado]
   return (
     <g style={{ cursor: clickable ? 'pointer' : 'default' }}
       onClick={clickable ? onClick : undefined}>
       <rect x={x} y={y} width={w} height={h} rx={4}
-        fill={st.fill} stroke={strokeC} strokeWidth={strokeW}
+        fill={st.fill}
+        stroke={seleccionada ? '#5dcaa5' : st.stroke}
+        strokeWidth={seleccionada ? 2.5 : 1}
         opacity={clickable ? 1 : 0.55} />
       {pulsar && (
         <circle cx={x + w - 10} cy={y + 12} r={5} fill={st.stroke}
@@ -206,13 +181,12 @@ function SalaRect(
 }
 
 // ---------------------------------------------------------------------------
-// PuertaSVG (tu implementacion sin cambios)
+// PuertaSVG (preservada de la version de Luis)
 // ---------------------------------------------------------------------------
 
 interface PuertaProps {
   x: number; y: number
-  haciaArriba?: boolean
-  direccionLateral?: boolean
+  haciaArriba?: boolean; direccionLateral?: boolean
 }
 
 function PuertaSVG(
@@ -220,7 +194,6 @@ function PuertaSVG(
 ) {
   const L = 16
   const color = 'var(--h-border-visible)'
-
   if (direccionLateral) {
     const xB = x
     const centro = (TOP_Y + H) + (BOT_Y - (TOP_Y + H)) / 2
@@ -236,7 +209,6 @@ function PuertaSVG(
       </g>
     )
   }
-
   const off = 12
   const xB  = x + off
   const yB  = haciaArriba ? y : y + H
@@ -262,27 +234,22 @@ function PuertaSVG(
 // ---------------------------------------------------------------------------
 
 interface MapaPisoProps {
-  salas:        Map<string, SalaInfo>
-  seleccionada: string | null
-  onSelect:     (num: string) => void
+  salas: Map<string, SalaInfo>; seleccionada: string | null
+  onSelect: (num: string) => void
 }
 
 function MapaPisoMenos1({ salas, seleccionada, onSelect }: MapaPisoProps) {
   const get = (num: string): SalaInfo =>
     salas.get(num) ??
     { numero: num, zona: 'piso-1', estado: 'sin_actividad', prog: null, rev: null }
-
   return (
     <svg viewBox="-40 0 820 280" style={{ width: '100%', maxHeight: '260px' }}
       role="img" aria-label="Plano piso -1 Escuela de Salud">
-      <defs>
-        <style>{`
-          @keyframes hestia-pulse {
-            0%,100% { opacity:1; r:5; } 50% { opacity:0.4; r:7; }
-          }
-        `}</style>
-      </defs>
-
+      <defs><style>{`
+        @keyframes hestia-pulse {
+          0%,100% { opacity:1; r:5; } 50% { opacity:0.4; r:7; }
+        }
+      `}</style></defs>
       {FILA_SUP.map((num, i) => {
         const s = get(num)
         return (
@@ -295,7 +262,6 @@ function MapaPisoMenos1({ salas, seleccionada, onSelect }: MapaPisoProps) {
           </g>
         )
       })}
-
       {FILA_INF_IZQ.map((num, i) => {
         const s = get(num)
         return (
@@ -308,7 +274,6 @@ function MapaPisoMenos1({ salas, seleccionada, onSelect }: MapaPisoProps) {
           </g>
         )
       })}
-
       {ESPECIALES.map((esp, i) => (
         <g key={esp.num}>
           <SalaRect x={xInf(3 + i)} y={BOT_Y} w={W} h={H}
@@ -317,27 +282,22 @@ function MapaPisoMenos1({ salas, seleccionada, onSelect }: MapaPisoProps) {
           <PuertaSVG x={xInf(3 + i)} y={BOT_Y} haciaArriba={true} />
         </g>
       ))}
-
-      {/* Salida principal */}
       <g transform={`translate(${xInf(5)}, ${BOT_Y})`}>
         <rect x={0} y={0} width={W} height={H}
           fill="rgba(29,158,117,0.03)" stroke="rgba(29,158,117,0.4)"
           strokeWidth={1} strokeDasharray="4 3" rx={4} />
-        <g transform={`translate(${W / 2}, ${H / 2 - 10})`}>
+        <g transform={`translate(${W/2}, ${H/2-10})`}>
           <circle cx={0} cy={0} r={14} fill="#0a2e22"
             stroke="#1D9E75" strokeWidth={1.5} />
-          <path d="M-5 0 L5 0 M1 -4 L5 0 L1 4"
-            stroke="#1D9E75" strokeWidth={1.5} fill="none"
+          <path d="M-5 0 L5 0 M1 -4 L5 0 L1 4" stroke="#1D9E75"
+            strokeWidth={1.5} fill="none"
             strokeLinecap="round" strokeLinejoin="round" />
         </g>
-        <text x={W / 2} y={H - 22} textAnchor="middle"
-          fontSize={8} fontWeight="bold" fill="#1D9E75" letterSpacing={0.5}>
-          SALIDA
-        </text>
-        <text x={W / 2} y={H - 10} textAnchor="middle"
-          fontSize={7} fill="#5dcaa5">PRINCIPAL</text>
+        <text x={W/2} y={H-22} textAnchor="middle" fontSize={8}
+          fontWeight="bold" fill="#1D9E75" letterSpacing={0.5}>SALIDA</text>
+        <text x={W/2} y={H-10} textAnchor="middle" fontSize={7}
+          fill="#5dcaa5">PRINCIPAL</text>
       </g>
-
       {(() => {
         const s = get('010')
         return (
@@ -350,7 +310,6 @@ function MapaPisoMenos1({ salas, seleccionada, onSelect }: MapaPisoProps) {
           </g>
         )
       })()}
-
       {(() => {
         const s = get('011')
         return (
@@ -363,8 +322,6 @@ function MapaPisoMenos1({ salas, seleccionada, onSelect }: MapaPisoProps) {
           </g>
         )
       })()}
-
-      {/* Salida secundaria */}
       {(() => {
         const cy = (TOP_Y + H) + (BOT_Y - (TOP_Y + H)) / 2
         const wS = 34; const hS = 48
@@ -374,21 +331,18 @@ function MapaPisoMenos1({ salas, seleccionada, onSelect }: MapaPisoProps) {
             <rect x={0} y={0} width={wS} height={hS}
               fill="rgba(29,158,117,0.03)" stroke="rgba(29,158,117,0.5)"
               strokeWidth={1.2} strokeDasharray="4 2" rx={4} />
-            <g transform={`translate(${wS / 2}, ${hS / 2 - 6})`}>
-              <path d="M4 0 L-4 0 M-1 -4 L-4 0 L-1 4"
-                stroke="#1D9E75" strokeWidth={1.5} fill="none"
+            <g transform={`translate(${wS/2}, ${hS/2-6})`}>
+              <path d="M4 0 L-4 0 M-1 -4 L-4 0 L-1 4" stroke="#1D9E75"
+                strokeWidth={1.5} fill="none"
                 strokeLinecap="round" strokeLinejoin="round" />
             </g>
-            <text x={wS / 2} y={hS - 16} textAnchor="middle"
-              fontSize={7} fontWeight="bold" fill="#1D9E75"
-              letterSpacing={0.4}>SALIDA</text>
-            <text x={wS / 2} y={hS - 7} textAnchor="middle"
-              fontSize={6.5} fontWeight="bold" fill="#5dcaa5"
-              letterSpacing={0.4}>SEC.</text>
+            <text x={wS/2} y={hS-16} textAnchor="middle" fontSize={7}
+              fontWeight="bold" fill="#1D9E75" letterSpacing={0.4}>SALIDA</text>
+            <text x={wS/2} y={hS-7} textAnchor="middle" fontSize={6.5}
+              fontWeight="bold" fill="#5dcaa5" letterSpacing={0.4}>SEC.</text>
           </g>
         )
       })()}
-
       <text x={10} y={12} fontSize={10} fontWeight={500}
         fill="var(--h-text-tertiary)">Piso -1</text>
     </svg>
@@ -407,37 +361,202 @@ function MapaOdontologia({ salas, seleccionada, onSelect }: MapaPisoProps) {
     <svg viewBox="0 0 400 280"
       style={{ width: '100%', height: '100%', maxHeight: '260px' }}
       role="img" aria-label="Salas de odontologia">
-      <defs>
-        <style>{`
-          @keyframes hestia-pulse {
-            0%,100% { opacity:1; r:5; } 50% { opacity:0.4; r:7; }
-          }
-        `}</style>
-      </defs>
+      <defs><style>{`
+        @keyframes hestia-pulse {
+          0%,100% { opacity:1; r:5; } 50% { opacity:0.4; r:7; }
+        }
+      `}</style></defs>
       <text x={15} y={20} fontSize={10} fontWeight={600}
         fill="var(--h-text-tertiary)">Odontologia</text>
-      <text x={15} y={32} fontSize={8} fill="var(--h-text-tertiary)"
-        opacity={0.7}>Edificio anexo</text>
-      <rect x={X_START - 15} y={60}
-        width={(ODO_SALAS.length * W_ODO
-          + (ODO_SALAS.length - 1) * GAP_ODO) + 30}
-        height={H + 30}
-        fill="rgba(255,255,255,0.01)" stroke="var(--h-border-subtle)"
-        strokeWidth={0.5} strokeDasharray="4 4" rx={8} />
+      <text x={15} y={32} fontSize={8}
+        fill="var(--h-text-tertiary)" opacity={0.7}>Edificio anexo</text>
+      <rect x={X_START-15} y={60}
+        width={(ODO_SALAS.length*W_ODO+(ODO_SALAS.length-1)*GAP_ODO)+30}
+        height={H+30} fill="rgba(255,255,255,0.01)"
+        stroke="var(--h-border-subtle)" strokeWidth={0.5}
+        strokeDasharray="4 4" rx={8} />
       {ODO_SALAS.map((num, i) => {
         const s = get(num)
         return (
           <SalaRect key={num}
             x={X_START + i * (W_ODO + GAP_ODO)} y={75}
-            w={W_ODO} h={H}
-            numero={`Sala ${num}`}
-            estado={s.estado}
-            seleccionada={seleccionada === num}
+            w={W_ODO} h={H} numero={`Sala ${num}`}
+            estado={s.estado} seleccionada={seleccionada === num}
             onClick={() => onSelect(num)}
             pulsar={s.estado === 'pendiente_revision'} />
         )
       })}
     </svg>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Selector de fecha (semestre + dia)
+// ---------------------------------------------------------------------------
+
+interface SelectorFechaProps {
+  semestres:      string[]
+  semestre:       string
+  onSemestre:     (s: string) => void
+  dias:           string[]   // ISO
+  fechaVista:     string     // ISO
+  onFecha:        (f: string) => void
+  cargandoDias:   boolean
+  esHoy:          boolean
+  onVolverHoy:    () => void
+}
+
+function SelectorFecha(
+  { semestres, semestre, onSemestre, dias, fechaVista,
+    onFecha, cargandoDias, esHoy, onVolverHoy }: SelectorFechaProps,
+) {
+  const [semDrop,  setSemDrop]  = useState(false)
+  const [diaDrop,  setDiaDrop]  = useState(false)
+  const semRef = useRef<HTMLDivElement>(null)
+  const diaRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (semRef.current && !semRef.current.contains(e.target as Node))
+        setSemDrop(false)
+      if (diaRef.current && !diaRef.current.contains(e.target as Node))
+        setDiaDrop(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const hoy = fechaISO(new Date())
+
+  const btnCls = (
+    'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold '
+    + 'border border-h-subtle transition-colors'
+  )
+
+  return (
+    <div className="flex items-center gap-2 flex-wrap">
+
+      {/* Semestre */}
+      <div ref={semRef} className="relative">
+        <button onClick={() => setSemDrop(p => !p)}
+          className={btnCls}
+          style={{ background: 'var(--h-bg-elevated)',
+            color: 'var(--h-text-secondary)' }}
+        >
+          <span className="text-h-tertiary">Semestre</span>
+          <span className="text-h-primary font-bold">{semestre || '\u2014'}</span>
+          <ChevronDown size={11} style={{
+            transform: semDrop ? 'rotate(180deg)' : 'rotate(0)',
+            transition: 'transform 0.15s',
+          }} />
+        </button>
+        {semDrop && semestres.length > 0 && (
+          <div className="absolute left-0 top-full mt-1 z-30 rounded-xl
+                           border border-h-subtle shadow-lg overflow-hidden"
+            style={{ background: 'var(--h-bg-surface)', minWidth: '130px' }}
+          >
+            {semestres.map(s => (
+              <button key={s}
+                onClick={() => { onSemestre(s); setSemDrop(false) }}
+                className="w-full text-left px-4 py-2.5 text-xs font-semibold
+                           transition-colors"
+                style={{
+                  background: s === semestre
+                    ? 'var(--h-bg-elevated)' : 'transparent',
+                  color: s === semestre
+                    ? 'var(--h-text-primary)' : 'var(--h-text-secondary)',
+                }}
+                onMouseEnter={e =>
+                  (e.currentTarget.style.background = 'var(--h-bg-highlight)')}
+                onMouseLeave={e =>
+                  (e.currentTarget.style.background =
+                    s === semestre ? 'var(--h-bg-elevated)' : 'transparent')}
+              >{s}</button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Dia */}
+      <div ref={diaRef} className="relative">
+        <button onClick={() => setDiaDrop(p => !p)}
+          disabled={!semestre || cargandoDias}
+          className={btnCls + ' disabled:opacity-40 disabled:cursor-not-allowed'}
+          style={{ background: 'var(--h-bg-elevated)',
+            color: 'var(--h-text-secondary)' }}
+        >
+          {cargandoDias ? (
+            <RefreshCw size={11} className="animate-spin" />
+          ) : (
+            <span className="text-h-tertiary">Dia</span>
+          )}
+          <span className="text-h-primary font-bold">
+            {fechaVista ? formatearDia(fechaVista) : '\u2014'}
+          </span>
+          <ChevronDown size={11} style={{
+            transform: diaDrop ? 'rotate(180deg)' : 'rotate(0)',
+            transition: 'transform 0.15s',
+          }} />
+        </button>
+        {diaDrop && dias.length > 0 && (
+          <div className="absolute left-0 top-full mt-1 z-30 rounded-xl
+                           border border-h-subtle shadow-lg overflow-hidden"
+            style={{
+              background: 'var(--h-bg-surface)',
+              minWidth: '160px',
+              maxHeight: '260px',
+              overflowY: 'auto',
+            }}
+          >
+            {dias.map(iso => (
+              <button key={iso}
+                onClick={() => { onFecha(iso); setDiaDrop(false) }}
+                className="w-full text-left px-4 py-2 text-xs font-semibold
+                           transition-colors flex items-center
+                           justify-between gap-3"
+                style={{
+                  background: iso === fechaVista
+                    ? 'var(--h-bg-elevated)' : 'transparent',
+                  color: iso === fechaVista
+                    ? 'var(--h-text-primary)' : 'var(--h-text-secondary)',
+                }}
+                onMouseEnter={e =>
+                  (e.currentTarget.style.background = 'var(--h-bg-highlight)')}
+                onMouseLeave={e =>
+                  (e.currentTarget.style.background =
+                    iso === fechaVista
+                      ? 'var(--h-bg-elevated)' : 'transparent')}
+              >
+                {formatearDia(iso)}
+                {iso === hoy && (
+                  <span className="text-[9px] font-bold px-1.5 py-0.5
+                                   rounded-full"
+                    style={{
+                      background: 'rgba(29,158,117,0.15)',
+                      color: '#5dcaa5',
+                    }}>HOY</span>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Volver a hoy */}
+      {!esHoy && (
+        <button onClick={onVolverHoy}
+          className="text-[10px] font-semibold px-2.5 py-1.5 rounded-lg
+                     transition-colors"
+          style={{
+            background: 'rgba(29,158,117,0.10)',
+            color: '#5dcaa5',
+            border: '1px solid rgba(29,158,117,0.25)',
+          }}
+        >
+          Volver a hoy
+        </button>
+      )}
+    </div>
   )
 }
 
@@ -463,9 +582,7 @@ function PanelSala(
   const [segs, setSegs] = useState(0)
 
   useEffect(() => {
-    if (!info?.prog || info.estado !== 'en_clase') {
-      setSegs(0); return
-    }
+    if (!info?.prog || info.estado !== 'en_clase') { setSegs(0); return }
     const tick = () => setSegs(segsHastaFin(info.prog!.hora_fin))
     tick()
     const id = setInterval(tick, 1000)
@@ -486,15 +603,14 @@ function PanelSala(
 
   const st   = ESTADO_STYLE[info.estado]
   const prog = info.prog
-  const labelCls = 'text-[10px] font-semibold text-h-tertiary uppercase tracking-widest mb-1'
-  const valCls   = 'text-sm font-semibold text-h-primary'
-  const totalItems    = revision?.items.length ?? 0
-  const itemsOk       = revision?.items.filter(it => it.conforme === true).length ?? 0
-  const progChecklist = totalItems > 0 ? Math.round((itemsOk / totalItems) * 100) : 0
+  const lbl  = 'text-[10px] font-semibold text-h-tertiary uppercase tracking-widest mb-1'
+  const val  = 'text-sm font-semibold text-h-primary'
+  const total = revision?.items.length ?? 0
+  const ok    = revision?.items.filter(it => it.conforme === true).length ?? 0
+  const pct   = total > 0 ? Math.round((ok / total) * 100) : 0
 
   return (
     <div className="flex flex-col gap-4 h-full overflow-y-auto pr-1">
-      {/* Badge + nombre */}
       <div>
         <span className="inline-flex items-center gap-1.5 text-xs font-semibold
                          px-2.5 py-1 rounded-full mb-2"
@@ -519,30 +635,27 @@ function PanelSala(
 
       {prog && (
         <div className="space-y-3">
-          <div><p className={labelCls}>Taller</p>
-            <p className={valCls}>{prog.taller_nombre ?? '\u2014'}</p></div>
+          <div><p className={lbl}>Taller</p>
+            <p className={val}>{prog.taller_nombre ?? '\u2014'}</p></div>
           {prog.asignatura_nombre && (
-            <div><p className={labelCls}>Asignatura</p>
-              <p className={valCls}>{prog.asignatura_nombre}</p></div>
+            <div><p className={lbl}>Asignatura</p>
+              <p className={val}>{prog.asignatura_nombre}</p></div>
           )}
-          <div><p className={labelCls}>Docente</p>
-            <p className={valCls}>{prog.docente_nombre ?? '\u2014'}</p></div>
-          <div><p className={labelCls}>Sección</p>
-            <p className={valCls}>{prog.seccion ?? '\u2014'}</p></div>
-          <div><p className={labelCls}>Horario</p>
-            <p className={valCls}>
-              {prog.hora_inicio ?? '?'} – {prog.hora_fin ?? '?'}
+          <div><p className={lbl}>Docente</p>
+            <p className={val}>{prog.docente_nombre ?? '\u2014'}</p></div>
+          <div><p className={lbl}>Seccion</p>
+            <p className={val}>{prog.seccion ?? '\u2014'}</p></div>
+          <div><p className={lbl}>Horario</p>
+            <p className={val}>
+              {prog.hora_inicio ?? '?'} \u2013 {prog.hora_fin ?? '?'}
             </p></div>
         </div>
       )}
 
-      {/* Countdown (solo si es hoy y esta en clase) */}
       {info.estado === 'en_clase' && esHoy && (
         <div className="rounded-xl p-3 text-center"
-          style={{
-            background: 'var(--h-bg-elevated)',
-            border: '1px solid var(--h-border-subtle)',
-          }}>
+          style={{ background: 'var(--h-bg-elevated)',
+            border: '1px solid var(--h-border-subtle)' }}>
           <p className="text-[10px] text-h-tertiary uppercase
                          tracking-widest mb-1">Tiempo restante</p>
           <p className="text-3xl font-bold font-mono"
@@ -555,29 +668,20 @@ function PanelSala(
         </div>
       )}
 
-      {/* Próxima clase */}
       {info.estado === 'proxima' && (
         <div className="rounded-xl p-3 flex items-center gap-2"
-          style={{
-            background: 'var(--h-bg-elevated)',
-            border: '1px solid var(--h-border-subtle)',
-          }}>
+          style={{ background: 'var(--h-bg-elevated)',
+            border: '1px solid var(--h-border-subtle)' }}>
           <Clock size={16} className="text-h-tertiary flex-shrink-0" />
           <p className="text-xs text-h-secondary">
-            Clase{esHoy ? ' comienza a las' : ' programada:'}{' '}
-            {esHoy
-              ? <span className="font-bold text-h-primary">
-                  {prog?.hora_inicio}
-                </span>
-              : <span className="font-bold text-h-primary">
-                  {prog?.hora_inicio} – {prog?.hora_fin}
-                </span>
-            }
+            {esHoy ? 'Clase comienza a las ' : 'Horario: '}
+            <span className="font-bold text-h-primary">
+              {prog?.hora_inicio}{!esHoy && ` \u2013 ${prog?.hora_fin}`}
+            </span>
           </p>
         </div>
       )}
 
-      {/* Flujo de revision: solo disponible si es hoy */}
       {['pendiente_revision','en_revision','revisada'].includes(info.estado)
         && esHoy && (
         <div className="space-y-3">
@@ -587,11 +691,10 @@ function PanelSala(
               <AlertCircle size={15}
                 style={{ color: '#EF9F27', flexShrink: 0, marginTop: 1 }} />
               <p className="text-xs" style={{ color: '#EF9F27' }}>
-                El taller finaliz. Esta sala necesita revisión.
+                El taller finalizo. Esta sala necesita revision.
               </p>
             </div>
           )}
-
           {puedeOperar && info.estado === 'pendiente_revision'
             && !revision && !cargandoRev && (
             <button onClick={onIniciarRev}
@@ -607,32 +710,28 @@ function PanelSala(
               <ClipboardList size={15} /> Iniciar revision de sala
             </button>
           )}
-
           {cargandoRev && (
             <div className="flex justify-center py-4">
               <RefreshCw size={18} className="animate-spin text-h-tertiary" />
             </div>
           )}
-
           {revision && revision.estado !== 'completada' && (
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <p className="text-[10px] font-semibold text-h-tertiary
                                uppercase tracking-widest">
-                  Checklist ({itemsOk}/{totalItems})
+                  Checklist ({ok}/{total})
                 </p>
                 <span className="text-xs font-bold"
-                  style={{
-                    color: progChecklist === 100 ? '#1D9E75' : '#EF9F27',
-                  }}>
-                  {progChecklist}%
+                  style={{ color: pct === 100 ? '#1D9E75' : '#EF9F27' }}>
+                  {pct}%
                 </span>
               </div>
               <div className="w-full rounded-full h-1.5"
                 style={{ background: 'var(--h-bg-highlight)' }}>
                 <div className="h-1.5 rounded-full transition-all" style={{
-                  width: `${progChecklist}%`,
-                  background: progChecklist === 100 ? '#1D9E75' : '#EF9F27',
+                  width: `${pct}%`,
+                  background: pct === 100 ? '#1D9E75' : '#EF9F27',
                 }} />
               </div>
               <div className="space-y-1.5 max-h-48 overflow-y-auto">
@@ -660,8 +759,6 @@ function PanelSala(
                         background: item.conforme === true
                           ? '#1D9E75' : 'transparent',
                       }}
-                      title={item.conforme === true
-                        ? 'Marcar no conforme' : 'Marcar conforme'}
                     >
                       {item.conforme === true && (
                         <CheckCircle2 size={12} color="white"
@@ -672,8 +769,7 @@ function PanelSala(
                       <p className="text-xs font-medium text-h-primary truncate">
                         {item.nombre}
                       </p>
-                      {item.cantidad_esperada !== null
-                        && item.cantidad_esperada !== undefined && (
+                      {item.cantidad_esperada != null && (
                         <p className="text-[10px] text-h-tertiary">
                           Esperado: {item.cantidad_esperada} unidades
                         </p>
@@ -693,7 +789,7 @@ function PanelSala(
                   </div>
                 ))}
               </div>
-              {progChecklist === 100 && puedeOperar && (
+              {pct === 100 && puedeOperar && (
                 <button onClick={onCompletarRev}
                   className="w-full flex items-center justify-center gap-2
                              py-2.5 rounded-xl text-sm font-semibold text-white
@@ -709,7 +805,6 @@ function PanelSala(
               )}
             </div>
           )}
-
           {info.estado === 'revisada' && (
             <div className="rounded-xl p-3 flex items-center gap-2"
               style={{
@@ -724,8 +819,8 @@ function PanelSala(
                 {revision?.operador_nombre && (
                   <p className="text-[10px] text-h-tertiary">
                     por {revision.operador_nombre}
-                    {revision.hora_fin_rev
-                      && ` a las ${revision.hora_fin_rev}`}
+                    {revision.hora_fin_rev &&
+                      ` a las ${revision.hora_fin_rev}`}
                   </p>
                 )}
               </div>
@@ -734,16 +829,13 @@ function PanelSala(
         </div>
       )}
 
-      {/* Si no es hoy y hay taller, no mostrar flujo de revision */}
       {['pendiente_revision','en_revision','revisada'].includes(info.estado)
         && !esHoy && prog && (
         <div className="rounded-xl p-3"
-          style={{
-            background: 'var(--h-bg-elevated)',
-            border: '1px solid var(--h-border-subtle)',
-          }}>
+          style={{ background: 'var(--h-bg-elevated)',
+            border: '1px solid var(--h-border-subtle)' }}>
           <p className="text-xs text-h-tertiary">
-            La revision de sala solo esta disponible en la vista del dia actual.
+            La revision de sala solo esta disponible en el dia actual.
           </p>
         </div>
       )}
@@ -755,7 +847,7 @@ function PanelSala(
 // Pagina principal
 // ---------------------------------------------------------------------------
 
-const ROLES_OPERADOR   = ['admin', 'operador_coordinador', 'operador']
+const ROLES_OPERADOR    = ['admin', 'operador_coordinador', 'operador']
 const TODAS_SALAS_PISO1 = [
   '010','011','012','013','014','015','016','017',
   '018','019','020','021','022',
@@ -771,26 +863,66 @@ export function VistaSalas() {
   const { user }    = useAuthStore()
   const puedeOperar = user?.rol ? ROLES_OPERADOR.includes(user.rol) : false
 
-  const hoy = new Date()
-  hoy.setHours(0, 0, 0, 0)
+  const hoyISO = fechaISO(new Date())
 
-  const [fechaVista,    setFechaVista]    = useState<Date>(new Date(hoy))
-  const [zona,          setZona]          = useState<Zona>('piso-1')
+  const [semestres,      setSemestres]      = useState<string[]>([])
+  const [semestre,       setSemestre]       = useState('')
+  const [dias,           setDias]           = useState<string[]>([])
+  const [cargandoDias,   setCargandoDias]   = useState(false)
+  const [fechaVista,     setFechaVista]     = useState(hoyISO)
+  const [zona,           setZona]           = useState<Zona>('piso-1')
   const [programaciones, setProgramaciones] =
     useState<ProgramacionTallerResponse[]>([])
-  const [revisiones,    setRevisiones]    =
+  const [revisiones,     setRevisiones]     =
     useState<RevisionResumenResponse[]>([])
-  const [cargando,      setCargando]      = useState(true)
-  const [seleccionada,  setSeleccionada]  = useState<string | null>(null)
-  const [revision,      setRevision]      =
+  const [cargando,       setCargando]       = useState(false)
+  const [seleccionada,   setSeleccionada]   = useState<string | null>(null)
+  const [revision,       setRevision]       =
     useState<RevisionSalaResponse | null>(null)
-  const [cargandoRev,   setCargandoRev]   = useState(false)
-  const [zonaDrop,      setZonaDrop]      = useState(false)
+  const [cargandoRev,    setCargandoRev]    = useState(false)
+  const [zonaDrop,       setZonaDrop]       = useState(false)
   const dropRef = useRef<HTMLDivElement>(null)
 
-  const esHoy = fechaISO(fechaVista) === fechaISO(new Date())
+  const esHoy = fechaVista === hoyISO
 
-  // Cerrar dropdown al click fuera
+  // Cargar semestres al montar
+  useEffect(() => {
+    api.get<string[]>('/programacion/semestres')
+      .then(r => {
+        const lista = r.data
+        setSemestres(lista)
+        // Seleccionar el semestre que contiene hoy, o el primero disponible
+        const hoy = new Date()
+        const sHoy = hoy.getMonth() < 6
+          ? `${hoy.getFullYear()}-1`
+          : `${hoy.getFullYear()}-2`
+        const match = lista.find(s => s === sHoy) ?? lista[0] ?? ''
+        setSemestre(match)
+      })
+      .catch(() => {})
+  }, [])
+
+  // Cargar dias al cambiar semestre
+  useEffect(() => {
+    if (!semestre) return
+    setCargandoDias(true)
+    api.get<string[]>('/programacion/dias-con-actividad', {
+      params: { semestre },
+    })
+      .then(r => {
+        setDias(r.data)
+        // Si hoy esta en la lista, seleccionarlo; si no, el primer dia
+        const nuevaFecha = r.data.includes(hoyISO)
+          ? hoyISO
+          : (r.data[0] ?? hoyISO)
+        setFechaVista(nuevaFecha)
+        setSeleccionada(null)
+      })
+      .catch(() => {})
+      .finally(() => setCargandoDias(false))
+  }, [semestre, hoyISO])
+
+  // Cerrar dropdown zona al click fuera
   useEffect(() => {
     function onOut(e: MouseEvent) {
       if (dropRef.current && !dropRef.current.contains(e.target as Node))
@@ -800,21 +932,23 @@ export function VistaSalas() {
     return () => document.removeEventListener('mousedown', onOut)
   }, [])
 
+  // Cargar programaciones y revisiones al cambiar fecha
   const cargarDatos = useCallback(async () => {
+    if (!fechaVista) return
     setCargando(true)
     try {
-      const isoFecha = fechaISO(fechaVista)
       const [pRes, rRes] = await Promise.all([
-        // Para hoy usamos /hoy; para otras fechas usamos el filtro por fecha
         esHoy
           ? api.get<ProgramacionTallerResponse[]>('/programacion/hoy')
           : api.get<ProgramacionTallerResponse[]>(
-              '/programacion/', { params: { fecha: isoFecha, limit: 200 } }
+              '/programacion/',
+              { params: { fecha: fechaVista, limit: 200 } },
             ),
         esHoy
           ? api.get<RevisionResumenResponse[]>('/revisiones/hoy')
           : api.get<RevisionResumenResponse[]>(
-              '/revisiones/', { params: { fecha: isoFecha } }
+              '/revisiones/',
+              { params: { fecha: fechaVista } },
             ),
       ])
       setProgramaciones(pRes.data)
@@ -837,15 +971,15 @@ export function VistaSalas() {
   }, [])
 
   const salaMap = useCallback((): Map<string, SalaInfo> => {
-    const todasSalas = zona === 'piso-1' ? TODAS_SALAS_PISO1 : TODAS_SALAS_ODO
-    const map = new Map<string, SalaInfo>()
-    todasSalas.forEach(num => {
+    const todas = zona === 'piso-1' ? TODAS_SALAS_PISO1 : TODAS_SALAS_ODO
+    const map   = new Map<string, SalaInfo>()
+    todas.forEach(num => {
       const prog = programaciones.find(p =>
         p.sala_nombre
           ? normalizarNumeroSala(p.sala_nombre) === num
           : false
       ) ?? null
-      const rev = prog
+      const rev  = prog
         ? revisiones.find(r => r.programacion_id === prog.id) ?? null
         : null
       map.set(num, {
@@ -858,7 +992,8 @@ export function VistaSalas() {
   }, [programaciones, revisiones, zona, esHoy])
 
   const salas           = salaMap()
-  const infoSeleccionada = seleccionada ? salas.get(seleccionada) ?? null : null
+  const infoSeleccionada = seleccionada
+    ? salas.get(seleccionada) ?? null : null
 
   useEffect(() => {
     if (!infoSeleccionada?.rev) { setRevision(null); return }
@@ -879,7 +1014,7 @@ export function VistaSalas() {
   }
 
   async function handleItemChange(
-    itemId: number, conforme: boolean, _cantidad?: number,
+    itemId: number, conforme: boolean, _c?: number,
   ) {
     if (!revision) return
     try {
@@ -900,6 +1035,10 @@ export function VistaSalas() {
     } catch { /* silencioso */ }
   }
 
+  function handleVolverHoy() {
+    setFechaVista(hoyISO); setSeleccionada(null)
+  }
+
   const numEnClase    = [...salas.values()]
     .filter(s => s.estado === 'en_clase').length
   const numPendientes = [...salas.values()]
@@ -911,61 +1050,24 @@ export function VistaSalas() {
     <div className="p-6 max-w-7xl mx-auto space-y-5">
 
       {/* Encabezado */}
-      <div className="flex flex-col sm:flex-row sm:items-center
+      <div className="flex flex-col sm:flex-row sm:items-start
                       justify-between gap-4">
-        <div>
+        <div className="space-y-2">
           <h1 className="text-2xl font-bold text-h-primary">Vista de Salas</h1>
-
-          {/* Navegador de fecha */}
-          <div className="flex items-center gap-2 mt-2">
-            <button
-              onClick={() => {
-                setFechaVista(sumarDias(fechaVista, -1))
-                setSeleccionada(null)
-              }}
-              className="p-1 rounded-md text-h-tertiary transition-colors
-                         hover:bg-h-elevated hover:text-h-secondary"
-              title="Dia anterior">
-              <ChevronLeft size={16} />
-            </button>
-
-            <span className="text-sm font-semibold text-h-primary min-w-[120px]
-                             text-center">
-              {formatearFechaLabel(fechaVista)}
-            </span>
-
-            <button
-              onClick={() => {
-                setFechaVista(sumarDias(fechaVista, 1))
-                setSeleccionada(null)
-              }}
-              className="p-1 rounded-md text-h-tertiary transition-colors
-                         hover:bg-h-elevated hover:text-h-secondary"
-              title="Dia siguiente">
-              <ChevronRight size={16} />
-            </button>
-
-            {!esHoy && (
-              <button
-                onClick={() => {
-                  setFechaVista(new Date(hoy))
-                  setSeleccionada(null)
-                }}
-                className="text-[10px] font-semibold px-2 py-1 rounded-md
-                           transition-colors"
-                style={{
-                  background: 'var(--h-bg-elevated)',
-                  color:      'var(--h-text-secondary)',
-                  border:     '1px solid var(--h-border-subtle)',
-                }}
-              >
-                Volver a hoy
-              </button>
-            )}
-          </div>
+          <SelectorFecha
+            semestres={semestres}
+            semestre={semestre}
+            onSemestre={s => { setSemestre(s); setSeleccionada(null) }}
+            dias={dias}
+            fechaVista={fechaVista}
+            onFecha={f => { setFechaVista(f); setSeleccionada(null) }}
+            cargandoDias={cargandoDias}
+            esHoy={esHoy}
+            onVolverHoy={handleVolverHoy}
+          />
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           {numEnClase > 0 && (
             <span className="inline-flex items-center gap-1.5 text-xs font-bold
                              px-3 py-1.5 rounded-full"
@@ -987,7 +1089,8 @@ export function VistaSalas() {
                 border: '1px solid rgba(186,117,23,0.3)',
               }}>
               <span className="w-2 h-2 rounded-full bg-[#EF9F27]"
-                style={{ animation: 'hestia-pulse 1.4s ease-in-out infinite' }} />
+                style={{ animation:
+                  'hestia-pulse 1.4s ease-in-out infinite' }} />
               {numPendientes} pendiente{numPendientes > 1 ? 's' : ''}
             </span>
           )}
@@ -1004,7 +1107,7 @@ export function VistaSalas() {
             </span>
           )}
 
-          {/* Selector de zona */}
+          {/* Selector zona */}
           <div ref={dropRef} className="relative">
             <button onClick={() => setZonaDrop(p => !p)}
               className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm
@@ -1020,17 +1123,20 @@ export function VistaSalas() {
               }} />
             </button>
             {zonaDrop && (
-              <div className="absolute right-0 top-full mt-1 rounded-xl shadow-lg
-                               border border-h-subtle z-20 overflow-hidden"
-                style={{ background: 'var(--h-bg-surface)', minWidth: '180px' }}
+              <div className="absolute right-0 top-full mt-1 rounded-xl
+                               shadow-lg border border-h-subtle z-20
+                               overflow-hidden"
+                style={{ background: 'var(--h-bg-surface)',
+                  minWidth: '180px' }}
               >
                 {(['piso-1','odontologia'] as Zona[]).map(z => (
                   <button key={z}
                     onClick={() => {
-                      setZona(z); setZonaDrop(false); setSeleccionada(null)
+                      setZona(z); setZonaDrop(false)
+                      setSeleccionada(null)
                     }}
-                    className="w-full text-left px-4 py-2.5 text-sm font-medium
-                               text-h-secondary transition-colors"
+                    className="w-full text-left px-4 py-2.5 text-sm
+                               font-medium text-h-secondary transition-colors"
                     style={{
                       background: zona === z
                         ? 'var(--h-bg-elevated)' : 'transparent',
@@ -1042,7 +1148,8 @@ export function VistaSalas() {
                         'var(--h-bg-highlight)')}
                     onMouseLeave={e =>
                       (e.currentTarget.style.background =
-                        zona === z ? 'var(--h-bg-elevated)' : 'transparent')}
+                        zona === z
+                          ? 'var(--h-bg-elevated)' : 'transparent')}
                   >
                     {z === 'piso-1'
                       ? 'Piso -1 \u00b7 Simulacion'
@@ -1073,7 +1180,8 @@ export function VistaSalas() {
       </div>
 
       {/* Layout mapa + panel */}
-      <div className="flex gap-0 rounded-2xl border border-h-subtle overflow-hidden"
+      <div className="flex gap-0 rounded-2xl border border-h-subtle
+                       overflow-hidden"
         style={{ background: 'var(--h-bg-surface)', minHeight: '360px' }}
       >
         <div className="flex-1 p-5 flex flex-col gap-4"
@@ -1091,8 +1199,6 @@ export function VistaSalas() {
             <MapaOdontologia salas={salas} seleccionada={seleccionada}
               onSelect={handleSelect} />
           )}
-
-          {/* Leyenda */}
           <div className="flex flex-wrap gap-3 mt-auto">
             {(Object.entries(ESTADO_STYLE) as
               [EstadoSala, typeof ESTADO_STYLE[EstadoSala]][]).map(
