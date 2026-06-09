@@ -895,7 +895,7 @@ export function Login() {
                   </form>
                 </>
               )}
-            <>
+            </>
 
           /* ────── 2FA TOTP ── con animacion HESTIA ────── */
           ) : modo2FA === 'totp' ? (
