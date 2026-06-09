@@ -33,27 +33,15 @@ def get_db():
 
 # ---------------------------------------------------------------------------
 # Mini-migraciones idempotentes
-#
-# REGLA CRITICA: MIGRACIONES_COLUMNAS solo debe contener ALTER TABLE y CREATE
-# INDEX sobre tablas que ya existen (creadas por Base.metadata.create_all).
-# Nunca CREATE TABLE aqui: las tablas nuevas deben ser modelos ORM para que
-# create_all las cree en el orden correcto segun las FK.
-#
-# REGLA DE IDEMPOTENCIA PARA CONSTRAINTS:
-# Siempre usar pg_constraint para verificar si una FK ya existe.
-# information_schema puede dar falsos negativos cuando la constraint fue
-# creada por SQLAlchemy create_all en lugar de un ALTER TABLE explicito.
 # ---------------------------------------------------------------------------
 
 MIGRACIONES_COLUMNAS = [
-    # Fase 0 - columnas de usuarios e insumos
     "ALTER TABLE IF EXISTS usuarios "
     "ADD COLUMN IF NOT EXISTS activo BOOLEAN NOT NULL DEFAULT TRUE",
     "ALTER TABLE IF EXISTS insumos "
     "ADD COLUMN IF NOT EXISTS activo BOOLEAN NOT NULL DEFAULT TRUE",
     "ALTER TABLE IF EXISTS usuarios "
     "ADD COLUMN IF NOT EXISTS avatar_b64 TEXT",
-    # Fase 1 - identificadores, tipo y costo en insumos
     (
         "DO $$ BEGIN "
         "CREATE TYPE tipoinsumo AS ENUM ('insumo', 'implemento'); "
@@ -70,13 +58,10 @@ MIGRACIONES_COLUMNAS = [
     "ON insumos (sku) WHERE sku IS NOT NULL",
     "CREATE UNIQUE INDEX IF NOT EXISTS uix_insumos_codigo_barras "
     "ON insumos (codigo_barras) WHERE codigo_barras IS NOT NULL",
-    # Fase 4 - trazabilidad academica en solicitudes
     "ALTER TABLE IF EXISTS solicitudes_retiro "
     "ADD COLUMN IF NOT EXISTS clase_docente_id INTEGER",
-    # Fase 5 - fecha de vencimiento en insumos
     "ALTER TABLE IF EXISTS insumos "
     "ADD COLUMN IF NOT EXISTS fecha_vencimiento DATE",
-    # Reportes - carrera en asignaturas y num_estudiantes en clases
     (
         "DO $$ BEGIN "
         "CREATE TYPE carreraasignatura AS ENUM "
@@ -87,21 +72,17 @@ MIGRACIONES_COLUMNAS = [
     "ADD COLUMN IF NOT EXISTS carrera carreraasignatura",
     "ALTER TABLE IF EXISTS clases_docente "
     "ADD COLUMN IF NOT EXISTS num_estudiantes INTEGER",
-    # Horario en clases_docente (Fase 5)
     "ALTER TABLE IF EXISTS clases_docente "
     "ADD COLUMN IF NOT EXISTS dia_semana VARCHAR(15)",
     "ALTER TABLE IF EXISTS clases_docente "
     "ADD COLUMN IF NOT EXISTS hora_inicio VARCHAR(5)",
     "ALTER TABLE IF EXISTS clases_docente "
     "ADD COLUMN IF NOT EXISTS hora_fin VARCHAR(5)",
-    # Unidad de medida en insumos
     "ALTER TABLE IF EXISTS insumos "
     "ADD COLUMN IF NOT EXISTS unidad_medida VARCHAR(60)",
-    # Sala asignada por unidad fisica de implemento
     "ALTER TABLE IF EXISTS unidades_implemento "
     "ADD COLUMN IF NOT EXISTS sala_id INTEGER "
     "REFERENCES salas(id) ON DELETE SET NULL",
-    # Tipo base + subtipo en movimientos
     (
         "DO $$ BEGIN "
         "CREATE TYPE subtipomovimiento AS ENUM ("
@@ -121,11 +102,9 @@ MIGRACIONES_COLUMNAS = [
     "ALTER TABLE IF EXISTS movimientos "
     "ADD COLUMN IF NOT EXISTS sala_id INTEGER "
     "REFERENCES salas(id) ON DELETE SET NULL",
-    # Proveedor original del activo fijo
     "ALTER TABLE IF EXISTS activos_fijos "
     "ADD COLUMN IF NOT EXISTS proveedor_id INTEGER "
     "REFERENCES proveedores(id) ON DELETE SET NULL",
-    # TipoMantenimiento
     (
         "DO $$ BEGIN "
         "CREATE TYPE tipomantenimiento AS ENUM ("
@@ -137,7 +116,6 @@ MIGRACIONES_COLUMNAS = [
     "ADD COLUMN IF NOT EXISTS tipo_mantenimiento tipomantenimiento",
     "ALTER TABLE IF EXISTS ordenes_mantenimiento "
     "ADD COLUMN IF NOT EXISTS fecha_retorno_estimada DATE",
-    # Enums para el modelo de mantenimiento por items
     (
         "DO $$ BEGIN "
         "CREATE TYPE estadoordenitem AS ENUM ("
@@ -152,13 +130,10 @@ MIGRACIONES_COLUMNAS = [
         "); "
         "EXCEPTION WHEN duplicate_object THEN NULL; END $$"
     ),
-    # Columnas adicionales en cabecera de ordenes_mantenimiento
     "ALTER TABLE IF EXISTS ordenes_mantenimiento "
     "ADD COLUMN IF NOT EXISTS fecha_visita DATE",
     "ALTER TABLE IF EXISTS ordenes_mantenimiento "
     "ADD COLUMN IF NOT EXISTS notas TEXT",
-    # Eliminar columna huerfana activo_fijo_id si aun existe
-    # (usaba information_schema.columns, que SÍ es correcto para columnas)
     (
         "DO $$ BEGIN "
         "IF EXISTS ("
@@ -170,23 +145,13 @@ MIGRACIONES_COLUMNAS = [
         "END IF; "
         "END $$"
     ),
-    # Modulo Docentes: enum tipocomentario
     (
         "DO $$ BEGIN "
         "CREATE TYPE tipocomentario AS ENUM "
         "('positivo', 'negativo', 'neutro'); "
         "EXCEPTION WHEN duplicate_object THEN NULL; END $$"
     ),
-    # ---------------------------------------------------------------------------
-    # Migracion clases_docente: FK docente_id -> docentes.id
-    #
-    # IMPORTANTE: usa pg_constraint (no information_schema) para detectar si
-    # la constraint ya existe. information_schema.table_constraints +
-    # constraint_column_usage puede dar falsos negativos cuando la constraint
-    # fue creada por SQLAlchemy create_all en lugar de un ALTER explicito,
-    # lo que causa DuplicateObject en el segundo arranque.
-    #
-    # Paso 1: si la FK actual apunta a 'usuarios', borrar clases y soltarla.
+    # Migracion clases_docente FK -> docentes (usa pg_constraint)
     (
         "DO $$ "
         "DECLARE fk_a_usuarios BOOLEAN; "
@@ -207,7 +172,6 @@ MIGRACIONES_COLUMNAS = [
         "  END IF; "
         "END $$"
     ),
-    # Paso 2: agregar FK a docentes solo si NO existe aun (por nombre exacto).
     (
         "DO $$ "
         "BEGIN "
@@ -227,33 +191,44 @@ MIGRACIONES_COLUMNAS = [
         "  END IF; "
         "END $$"
     ),
+    # Enums para OrdenEntrada
+    (
+        "DO $$ BEGIN "
+        "CREATE TYPE tipoorden AS ENUM "
+        "('semanal', 'semestral', 'emergencia'); "
+        "EXCEPTION WHEN duplicate_object THEN NULL; END $$"
+    ),
+    (
+        "DO $$ BEGIN "
+        "CREATE TYPE estadoordenentrada AS ENUM "
+        "('borrador', 'confirmada', 'en_recepcion', 'cerrada', 'cancelada'); "
+        "EXCEPTION WHEN duplicate_object THEN NULL; END $$"
+    ),
+    (
+        "DO $$ BEGIN "
+        "CREATE TYPE estadoitemorden AS ENUM "
+        "('pendiente', 'recibido', 'recibido_parcial', 'cancelado'); "
+        "EXCEPTION WHEN duplicate_object THEN NULL; END $$"
+    ),
+    (
+        "DO $$ BEGIN "
+        "CREATE TYPE tipoitemorden AS ENUM "
+        "('insumo', 'activo_fijo'); "
+        "EXCEPTION WHEN duplicate_object THEN NULL; END $$"
+    ),
 ]
 
 MIGRACIONES_ENUM = [
-    (
-        "rolusuario",
-        ["admin", "operador_coordinador", "operador", "visor"],
-    ),
-    (
-        "carreraasignatura",
-        ["TENS", "TQF", "TLCBS", "preparador_fisico", "TONS"],
-    ),
-    (
-        "tipomovimiento",
-        ["entrada", "salida", "interno"],
-    ),
-    (
-        "estadoordenitem",
-        ["en_curso", "cerrada", "cancelada"],
-    ),
-    (
-        "resultadoitem",
-        ["pendiente", "ok", "sale_a_taller", "dar_de_baja"],
-    ),
-    (
-        "tipocomentario",
-        ["positivo", "negativo", "neutro"],
-    ),
+    ("rolusuario",        ["admin", "operador_coordinador", "operador", "visor"]),
+    ("carreraasignatura", ["TENS", "TQF", "TLCBS", "preparador_fisico", "TONS"]),
+    ("tipomovimiento",    ["entrada", "salida", "interno"]),
+    ("estadoordenitem",   ["en_curso", "cerrada", "cancelada"]),
+    ("resultadoitem",     ["pendiente", "ok", "sale_a_taller", "dar_de_baja"]),
+    ("tipocomentario",    ["positivo", "negativo", "neutro"]),
+    ("tipoorden",         ["semanal", "semestral", "emergencia"]),
+    ("estadoordenentrada", ["borrador", "confirmada", "en_recepcion", "cerrada", "cancelada"]),
+    ("estadoitemorden",   ["pendiente", "recibido", "recibido_parcial", "cancelado"]),
+    ("tipoitemorden",     ["insumo", "activo_fijo"]),
 ]
 
 
@@ -274,31 +249,17 @@ def aplicar_migraciones_pendientes() -> None:
 
 
 def _aplicar_migraciones_enum() -> None:
-    """Agrega valores faltantes a enums nativos de PostgreSQL.
-
-    Incluye la migracion de ordenes_mantenimiento.estado desde el
-    enum antiguo (estadoorden) al nuevo (estadoordenitem). Se detecta
-    verificando si la columna aun usa el tipo 'estadoorden' via pg_attribute.
-    """
     import psycopg2
-
     dsn = (DATABASE_URL or "").replace("postgresql+psycopg2://", "postgresql://")
     log.info("[Hestia] Iniciando migracion de enums...")
     conn = psycopg2.connect(dsn)
     conn.autocommit = True
     try:
         cur = conn.cursor()
-
-        # -- Agregar valores faltantes a enums existentes --
         for tipo_enum, valores in MIGRACIONES_ENUM:
-            cur.execute(
-                "SELECT 1 FROM pg_type WHERE typname = %s", (tipo_enum,)
-            )
+            cur.execute("SELECT 1 FROM pg_type WHERE typname = %s", (tipo_enum,))
             if not cur.fetchone():
-                log.info(
-                    "[Hestia] Enum '%s' no encontrado en PG, omitiendo.",
-                    tipo_enum,
-                )
+                log.info("[Hestia] Enum '%s' no encontrado, omitiendo.", tipo_enum)
                 continue
             for valor in valores:
                 cur.execute(
@@ -308,47 +269,26 @@ def _aplicar_migraciones_enum() -> None:
                     (tipo_enum, valor),
                 )
                 if not cur.fetchone():
-                    log.info(
-                        "[Hestia] Agregando '%s' a enum '%s'.",
-                        valor, tipo_enum,
-                    )
+                    log.info("[Hestia] Agregando '%s' a '%s'.", valor, tipo_enum)
                     cur.execute(
-                        f"ALTER TYPE {tipo_enum} "
-                        f"ADD VALUE IF NOT EXISTS '{valor}'"
-                    )
-                else:
-                    log.info(
-                        "[Hestia] '%s' ya existe en enum '%s'.",
-                        valor, tipo_enum,
+                        f"ALTER TYPE {tipo_enum} ADD VALUE IF NOT EXISTS '{valor}'"
                     )
 
-        # -- Migrar ordenes_mantenimiento.estado al nuevo enum --
+        # Migrar ordenes_mantenimiento.estado si aun usa enum antiguo
         cur.execute(
-            "SELECT t.typname "
-            "FROM pg_attribute a "
+            "SELECT t.typname FROM pg_attribute a "
             "JOIN pg_class c ON a.attrelid = c.oid "
             "JOIN pg_type t ON a.atttypid = t.oid "
             "WHERE c.relname = 'ordenes_mantenimiento' "
-            "AND a.attname = 'estado' "
-            "AND a.attnum > 0"
+            "AND a.attname = 'estado' AND a.attnum > 0"
         )
         row = cur.fetchone()
         tipo_actual = row[0] if row else None
-        log.info(
-            "[Hestia] ordenes_mantenimiento.estado tipo actual: %s",
-            tipo_actual,
-        )
-
         if tipo_actual and tipo_actual != "estadoordenitem":
-            log.info(
-                "[Hestia] Migrando columna estado de '%s' a estadoordenitem...",
-                tipo_actual,
-            )
             cur.execute("DELETE FROM orden_mantenimiento_items")
             cur.execute("DELETE FROM ordenes_mantenimiento")
             cur.execute(
-                "ALTER TABLE ordenes_mantenimiento "
-                "ALTER COLUMN estado DROP DEFAULT"
+                "ALTER TABLE ordenes_mantenimiento ALTER COLUMN estado DROP DEFAULT"
             )
             cur.execute(
                 "ALTER TABLE ordenes_mantenimiento "
@@ -359,14 +299,6 @@ def _aplicar_migraciones_enum() -> None:
                 "ALTER TABLE ordenes_mantenimiento "
                 "ALTER COLUMN estado SET DEFAULT 'en_curso'::estadoordenitem"
             )
-            log.info(
-                "[Hestia] Columna estado migrada a estadoordenitem."
-            )
-        else:
-            log.info(
-                "[Hestia] Columna estado ya es estadoordenitem, sin cambios."
-            )
-
         cur.close()
         log.info("[Hestia] Migracion de enums completada.")
     finally:
