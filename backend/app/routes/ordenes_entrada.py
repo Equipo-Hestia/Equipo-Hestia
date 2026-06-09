@@ -493,8 +493,7 @@ def exportar_pdf(
     pdf.set_font("Helvetica", "B", 16)
     pdf.cell(0, 10, "Hestia - Orden de Entrada", ln=True)
     pdf.set_font("Helvetica", "", 10)
-    estado_str = (o.estado.value if hasattr(o.estado, 'value')
-        else o.estado)
+    estado_str = o.estado.value if hasattr(o.estado, 'value') else o.estado
     pdf.cell(0, 6, f"N# {o.id}  |  Estado: {estado_str}", ln=True)
     pdf.cell(0, 6, f"Tipo: {o.tipo.value if hasattr(o.tipo, 'value') else o.tipo}",
              ln=True)
@@ -601,8 +600,7 @@ def exportar_excel(
 
     # Encabezado
     ws.append(["Hestia - Orden de Entrada"])
-    estado_str = (o.estado.value if hasattr(o.estado, 'value')
-        else o.estado)
+    estado_str = o.estado.value if hasattr(o.estado, 'value') else o.estado
     ws.append([f"N# {o.id}", f"Estado: {estado_str}"])
     ws.append(["Proveedor:", o.proveedor.nombre if o.proveedor else "-"])
     if o.actividad_duoc:
