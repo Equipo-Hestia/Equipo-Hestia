@@ -835,7 +835,7 @@ export function Login() {
               <button type="button" onClick={abrirForgot}
                 className="w-full mt-4 text-xs text-h-tertiary hover:text-h-secondary
                            font-medium transition-colors duration-150">
-                Olvidaste tu contraseña?
+                ¿Olvidaste tu contraseña?
               </button>
             </>
 

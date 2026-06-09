@@ -41,9 +41,9 @@ class RevisionSala(Base):
         server_default="pendiente",
     )
 
-    hora_inicio_rev = Column(String(5), nullable=True)   # 'HH:MM'
-    hora_fin_rev    = Column(String(5), nullable=True)   # 'HH:MM'
-    notas           = Column(Text, nullable=True)
+    hora_inicio_rev = Column(String(5), nullable=True)  # 'HH:MM'
+    hora_fin_rev = Column(String(5), nullable=True)  # 'HH:MM'
+    notas = Column(Text, nullable=True)
 
     creado_en = Column(
         DateTime(timezone=True),
@@ -52,9 +52,9 @@ class RevisionSala(Base):
     )
 
     programacion = relationship("ProgramacionTaller", backref="revisiones")
-    sala         = relationship("Sala",               backref="revisiones")
-    operador     = relationship("Usuario",            backref="revisiones")
-    items        = relationship(
+    sala = relationship("Sala", backref="revisiones")
+    operador = relationship("Usuario", backref="revisiones")
+    items = relationship(
         "RevisionSalaItem",
         back_populates="revision",
         cascade="all, delete-orphan",
@@ -80,11 +80,11 @@ class RevisionSalaItem(Base):
     )
 
     # insumo | implemento | activo_fijo
-    tipo               = Column(String(20), nullable=False)
-    nombre             = Column(String(200), nullable=False)
-    cantidad_esperada  = Column(Integer, nullable=True)   # null = activo fijo
+    tipo = Column(String(20), nullable=False)
+    nombre = Column(String(200), nullable=False)
+    cantidad_esperada = Column(Integer, nullable=True)  # null = activo fijo
     cantidad_encontrada = Column(Integer, nullable=True)  # null = sin revisar
-    conforme           = Column(Boolean, nullable=True)   # null/True/False
-    notas_item         = Column(Text, nullable=True)
+    conforme = Column(Boolean, nullable=True)  # null/True/False
+    notas_item = Column(Text, nullable=True)
 
     revision = relationship("RevisionSala", back_populates="items")
