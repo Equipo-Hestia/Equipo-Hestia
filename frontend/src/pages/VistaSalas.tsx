@@ -93,13 +93,13 @@ const ESTADO_STYLE: Record<EstadoSala, {
   sin_actividad:      { fill: 'var(--h-bg-elevated)',   stroke: 'var(--h-border-subtle)',
                         text: 'var(--h-text-tertiary)',  label: 'Disponible' },
   proxima:            { fill: 'var(--h-bg-elevated)',   stroke: 'var(--h-border-visible)',
-                        text: 'var(--h-text-secondary)', label: 'Proxima clase' },
+                        text: 'var(--h-text-secondary)', label: 'Próxima clase' },
   en_clase:           { fill: '#0a2e22',                stroke: '#1D9E75',
                         text: '#5dcaa5',                 label: 'En clase' },
   pendiente_revision: { fill: '#2e1f08',                stroke: '#BA7517',
-                        text: '#EF9F27',                 label: 'Pendiente revision' },
+                        text: '#EF9F27',                 label: 'Pendiente revisión' },
   en_revision:        { fill: '#0d1e2e',                stroke: '#378ADD',
-                        text: '#85B7EB',                 label: 'En revision' },
+                        text: '#85B7EB',                 label: 'En revisión' },
   revisada:           { fill: '#0a2035',                stroke: '#185FA5',
                         text: '#378ADD',                 label: 'Revisada' },
 }
@@ -116,7 +116,9 @@ const W = 82   // ancho celda
 const H = 100  // alto celda
 const GAP = 2  // separacion entre celdas
 const TOP_Y = 20
-const BOT_Y = TOP_Y + H + 40  // fila inferior
+
+// Aumentamos de +40 a +60 para ensanchar el pasillo central
+const BOT_Y = TOP_Y + H + 60
 
 // Fila superior izq->der: 019...012
 const FILA_SUP = ['019','018','017','016','015','014','013','012']
@@ -130,10 +132,11 @@ function xSup(idx: number) { return 10 + idx * (W + GAP) }
 function xInf(idx: number) { return 10 + idx * (W + GAP) }
 
 // 010 y 011 a la derecha
-const X_010 = 10 + 7 * (W + GAP)  // misma columna que 012 (der)
-const X_011 = X_010               // justo debajo del corredor
-const Y_011 = BOT_Y
-const Y_010 = TOP_Y
+const X_010 = 10 + 7 * (W + GAP)      // misma columna que 012 (der)
+const X_011 = X_010                   // justo debajo del corredor
+const Y_011 = TOP_Y
+const Y_010 = BOT_Y
+const H_011 = (BOT_Y - TOP_Y) + H;    // Reajustamos la altura de la 011 para que siga cubriendo perfectamente el lateral expandido
 
 // Corredor interior (lineas diagonales entre filas)
 const CORREDOR_X1 = 10
@@ -199,14 +202,66 @@ function SalaRect(
 }
 
 // ---------------------------------------------------------------------------
-// Mapa Piso -1
+// Subcomponente PuertaSVG (Corregido: Alineación y barrido realistas)
 // ---------------------------------------------------------------------------
-
-interface MapaPisoProps {
-  salas:        Map<string, SalaInfo>
-  seleccionada: string | null
-  onSelect:     (num: string) => void
+interface PuertaProps {
+  x: number;
+  y: number;
+  haciaArriba?: boolean;
+  direccionLateral?: boolean; // Nueva propiedad para la sala 011
 }
+
+function PuertaSVG({ x, y, haciaArriba = false, direccionLateral = false }: PuertaProps) {
+  const longitudPuerta = 16;
+  const colorPuerta = 'var(--h-border-visible)';
+
+  // ── LÓGICA PARA LA PUERTA VERTICAL (SALA 011 - CENTRADA) ──
+  if (direccionLateral) {
+    const xBisagra = x;
+    // Buscamos el centro exacto del pasillo: fin fila superior + la mitad de la distancia al inicio de la inferior
+    const pasilloCentroY = (TOP_Y + H) + (BOT_Y - (TOP_Y + H)) / 2;
+    // Desplazamos la bisagra un poco hacia arriba de ese centro para que el barrido quede perfectamente simétrico
+    const yBisagra = pasilloCentroY + (longitudPuerta / 2) - 2; 
+
+    const xAbierta = xBisagra - longitudPuerta;
+    const yAbierta = yBisagra;
+
+    // Arco de trayectoria cerrando hacia arriba
+    const pathArco = `M ${xAbierta} ${yAbierta} A ${longitudPuerta} ${longitudPuerta} 0 0 1 ${xBisagra} ${yBisagra - longitudPuerta}`;
+
+    return (
+      <g opacity={0.85}>
+        <line x1={xBisagra} y1={yBisagra} x2={xAbierta} y2={yAbierta} stroke={colorPuerta} strokeWidth={1.2} strokeLinecap="round" />
+        <path d={pathArco} fill="none" stroke={colorPuerta} strokeWidth={1} strokeDasharray="3 3" />
+      </g>
+    );
+  }
+
+  // ── LÓGICA EN HORIZONTAL (RESTO DE LAS SALAS) ──
+  const offsetBisagra = 12;
+  const xBisagra = x + offsetBisagra;
+  const yBisagra = haciaArriba ? y : y + H;
+
+  const xAbierta = xBisagra;
+  const yAbierta = haciaArriba ? yBisagra - longitudPuerta : yBisagra + longitudPuerta;
+  const xCerrada = xBisagra + longitudPuerta;
+  const yCerrada = yBisagra;
+
+  const pathArco = haciaArriba
+    ? `M ${xAbierta} ${yAbierta} A ${longitudPuerta} ${longitudPuerta} 0 0 1 ${xCerrada} ${yCerrada}`
+    : `M ${xAbierta} ${yAbierta} A ${longitudPuerta} ${longitudPuerta} 0 0 0 ${xCerrada} ${yCerrada}`;
+
+  return (
+    <g opacity={0.85}>
+      <line x1={xBisagra} y1={yBisagra} x2={xAbierta} y2={yAbierta} stroke={colorPuerta} strokeWidth={1.2} strokeLinecap="round" />
+      <path d={pathArco} fill="none" stroke={colorPuerta} strokeWidth={1} strokeDasharray="3 3" />
+    </g>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Mapa Piso -1 (Limpio y con Puertas Visibles)
+// ---------------------------------------------------------------------------
 
 function MapaPisoMenos1({ salas, seleccionada, onSelect }: MapaPisoProps) {
   const getSala = (num: string): SalaInfo => (
@@ -218,7 +273,7 @@ function MapaPisoMenos1({ salas, seleccionada, onSelect }: MapaPisoProps) {
 
   return (
     <svg
-      viewBox="0 0 780 280"
+      viewBox="-40 0 820 280"
       style={{ width: '100%', maxHeight: '260px' }}
       role="img"
       aria-label="Plano piso -1 Escuela de Salud"
@@ -232,32 +287,23 @@ function MapaPisoMenos1({ salas, seleccionada, onSelect }: MapaPisoProps) {
         `}</style>
       </defs>
 
-      {/* ── Corredor interior (lineas) ── */}
-      <line
-        x1={CORREDOR_X1} y1={CORREDOR_Y_TOP}
-        x2={CORREDOR_X2} y2={CORREDOR_Y_BOT}
-        stroke="var(--h-border-subtle)" strokeWidth={0.5}
-        strokeDasharray="4 3"
-      />
-      <line
-        x1={CORREDOR_X2} y1={CORREDOR_Y_TOP}
-        x2={CORREDOR_X2} y2={CORREDOR_Y_BOT}
-        stroke="var(--h-border-subtle)" strokeWidth={0.5}
-        strokeDasharray="4 3"
-      />
+      {/* ── NOTA: Se eliminaron las líneas del corredor que cruzaban al medio ── */}
 
       {/* ── Fila superior: 019 – 012 ── */}
       {FILA_SUP.map((num, i) => {
         const s = getSala(num)
         return (
-          <SalaRect key={num}
-            x={xSup(i)} y={TOP_Y} w={W} h={H}
-            numero={num}
-            estado={s.estado}
-            seleccionada={seleccionada === num}
-            onClick={() => onSelect(num)}
-            pulsar={s.estado === 'pendiente_revision'}
-          />
+          <g key={num}>
+            <SalaRect
+              x={xSup(i)} y={TOP_Y} w={W} h={H}
+              numero={num}
+              estado={s.estado}
+              seleccionada={seleccionada === num}
+              onClick={() => onSelect(num)}
+              pulsar={s.estado === 'pendiente_revision'}
+            />
+            <PuertaSVG x={xSup(i)} y={TOP_Y} haciaArriba={false} />
+          </g>
         )
       })}
 
@@ -265,77 +311,144 @@ function MapaPisoMenos1({ salas, seleccionada, onSelect }: MapaPisoProps) {
       {FILA_INF_IZQ.map((num, i) => {
         const s = getSala(num)
         return (
-          <SalaRect key={num}
-            x={xInf(i)} y={BOT_Y} w={W} h={H}
-            numero={num}
-            estado={s.estado}
-            seleccionada={seleccionada === num}
-            onClick={() => onSelect(num)}
-            pulsar={s.estado === 'pendiente_revision'}
-          />
+          <g key={num}>
+            <SalaRect
+              x={xInf(i)} y={BOT_Y} w={W} h={H}
+              numero={num}
+              estado={s.estado}
+              seleccionada={seleccionada === num}
+              onClick={() => onSelect(num)}
+              pulsar={s.estado === 'pendiente_revision'}
+            />
+            <PuertaSVG x={xInf(i)} y={BOT_Y} haciaArriba={true} />
+          </g>
         )
       })}
 
-      {/* ── Oficina y Bodega (no clicables) ── */}
+      {/* ── Oficina y Bodega (no clicables, índices 3 y 4) ── */}
       {ESPECIALES.map((esp, i) => (
-        <SalaRect key={esp.num}
-          x={xInf(3 + i)} y={BOT_Y} w={W} h={H}
-          numero={esp.num}
-          estado="sin_actividad"
-          seleccionada={false}
-          clickable={false}
-        />
+        <g key={esp.num}>
+          <SalaRect
+            x={xInf(3 + i)} y={BOT_Y} w={W} h={H}
+            numero={esp.num}
+            estado="sin_actividad"
+            seleccionada={false}
+            clickable={false}
+          />
+          <PuertaSVG x={xInf(3 + i)} y={BOT_Y} haciaArriba={true} />
+        </g>
       ))}
 
-      {/* ── 010 (esquina superior derecha) ── */}
+      {/* ── Salida Principal (Usa el índice 5, justo después de Bodega) ── */}
+      <g transform={`translate(${xInf(5)}, ${BOT_Y})`}>
+        <rect 
+          x={0} y={0} width={W} height={H} 
+          fill="rgba(29, 158, 117, 0.03)" 
+          stroke="rgba(29, 158, 117, 0.4)" 
+          strokeWidth={1} 
+          strokeDasharray="4 3"
+          rx={4} 
+        />
+        <g transform={`translate(${W / 2}, ${H / 2 - 10})`}>
+          <circle cx="0" cy="0" r="14" fill="#0a2e22" stroke="#1D9E75" strokeWidth="1.5" />
+          <path d="M-5 0 L5 0 M1 -4 L5 0 L1 4" stroke="#1D9E75" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        </g>
+        <text x={W / 2} y={H - 22} textAnchor="middle" fontSize="8" fontWeight="bold" fill="#1D9E75" letterSpacing="0.5">
+          SALIDA
+        </text>
+        <text x={W / 2} y={H - 10} textAnchor="middle" fontSize="7" fontWeight="medium" fill="#5dcaa5">
+          PRINCIPAL
+        </text>
+      </g>
+
+      {/* ── Sala 010 (Usa el índice 6, justo después de la Salida) ── */}
       {(() => {
         const s = getSala('010')
         return (
-          <SalaRect
-            x={X_010} y={Y_010} w={W} h={H}
-            numero="010"
-            estado={s.estado}
-            seleccionada={seleccionada === '010'}
-            onClick={() => onSelect('010')}
-            pulsar={s.estado === 'pendiente_revision'}
-          />
+          <g>
+            <SalaRect
+              x={xInf(6)} y={BOT_Y} w={W} h={H}
+              numero="010"
+              estado={s.estado}
+              seleccionada={seleccionada === '010'}
+              onClick={() => onSelect('010')}
+              pulsar={s.estado === 'pendiente_revision'}
+            />
+            <PuertaSVG x={xInf(6)} y={BOT_Y} haciaArriba={true} />
+          </g>
         )
       })()}
 
-      {/* ── 011 (fila inferior derecha) ── */}
+      {/* ── Sala 011 (Usa el índice 7, cierra el pasillo a la derecha) ── */}
       {(() => {
         const s = getSala('011')
         return (
-          <SalaRect
-            x={X_011} y={Y_011} w={W} h={H}
-            numero="011"
-            estado={s.estado}
-            seleccionada={seleccionada === '011'}
-            onClick={() => onSelect('011')}
-            pulsar={s.estado === 'pendiente_revision'}
-          />
+          <g>
+            <SalaRect
+              x={xInf(7)} y={TOP_Y} w={W} h={H_011}
+              numero="011"
+              estado={s.estado}
+              seleccionada={seleccionada === '011'}
+              onClick={() => onSelect('011')}
+              pulsar={s.estado === 'pendiente_revision'}
+            />
+            {/* Añadimos la puerta vertical en el lateral izquierdo */}
+            <PuertaSVG x={xInf(7)} y={TOP_Y} direccionLateral={true} />
+          </g>
         )
       })()}
 
-      {/* ── Marcadores de entrada (2 puertas) ── */}
-      {/* Entrada principal inferior-centro */}
-      <g transform={`translate(${xInf(2) + W / 2},${BOT_Y + H + 6})`}>
-        <line x1={0} y1={0} x2={0} y2={16}
-          stroke="#1D9E75" strokeWidth={1.5} />
-        <polygon points="-6,16 6,16 0,24"
-          fill="#1D9E75" />
-        <text x={0} y={36} textAnchor="middle"
-          fontSize={9} fill="var(--h-text-tertiary)">Entrada</text>
-      </g>
-      {/* Entrada secundaria derecha (junto a 010) */}
-      <g transform={`translate(${X_010 + W + 10},${TOP_Y + H / 2})`}>
-        <line x1={0} y1={0} x2={16} y2={0}
-          stroke="var(--h-border-visible)" strokeWidth={1}
-          strokeDasharray="3 2" />
-        <text x={20} y={4} textAnchor="start"
-          fontSize={9} fill="var(--h-text-tertiary)">Entrada
-sec.</text>
-      </g>
+      {/* ── Salida Secundaria Izquierda (Escalada y Proporcionada) ── */}
+      {(() => {
+        const pasilloCentroY = (TOP_Y + H) + (BOT_Y - (TOP_Y + H)) / 2;
+        
+        // Aumentamos las dimensiones para que tenga más presencia visual
+        const wSecundaria = 34;    // Escalado de 24 a 34
+        const hSecundaria = 48;    // Escalado de 36 a 48
+        
+        // La movemos un poco más a la izquierda (-38) para que al crecer no toque las salas
+        const xSecundaria = -38; 
+        const ySecundaria = pasilloCentroY - hSecundaria / 2;
+
+        return (
+          <g transform={`translate(${xSecundaria}, ${ySecundaria})`}>
+            {/* Recuadro segmentado verde */}
+            <rect 
+              x={0} y={0} 
+              width={wSecundaria} height={hSecundaria} 
+              fill="rgba(29, 158, 117, 0.03)" 
+              stroke="rgba(29, 158, 117, 0.5)" 
+              strokeWidth={1.2} 
+              strokeDasharray="4 2"
+              rx={4} 
+            />
+            {/* Icono de flecha de escape un poco más grande y centrado */}
+            <g transform={`translate(${wSecundaria / 2}, ${hSecundaria / 2 - 6})`}>
+              <path 
+                d="M4 0 L-4 0 M-1 -4 L-4 0 L-1 4" 
+                stroke="#1D9E75" 
+                strokeWidth={1.5} 
+                fill="none" 
+                strokeLinecap="round" 
+                strokeLinejoin="round" 
+              />
+            </g>
+            {/* Textos con fuentes mejor escaladas */}
+            <text 
+              x={wSecundaria / 2} y={hSecundaria - 16} 
+              textAnchor="middle" fontSize="7" fontWeight="bold" fill="#1D9E75" letterSpacing="0.4"
+            >
+              SALIDA
+            </text>
+            <text 
+              x={wSecundaria / 2} y={hSecundaria - 7} 
+              textAnchor="middle" fontSize="6.5" fontWeight="bold" fill="#5dcaa5" letterSpacing="0.4"
+            >
+              SEC.
+            </text>
+          </g>
+        )
+      })()}
 
       {/* Etiqueta de piso */}
       <text
@@ -348,7 +461,7 @@ sec.</text>
 }
 
 // ---------------------------------------------------------------------------
-// Mapa Odontologia
+// Mapa Odontologia (Corregido: Distribución horizontal y centrada)
 // ---------------------------------------------------------------------------
 
 function MapaOdontologia({ salas, seleccionada, onSelect }: MapaPisoProps) {
@@ -358,10 +471,19 @@ function MapaOdontologia({ salas, seleccionada, onSelect }: MapaPisoProps) {
       estado: 'sin_actividad', prog: null, rev: null,
     }
   )
+
+  // Configuramos un ancho específico para las 3 salas de Odontología
+  const W_ODO = 85
+  const GAP_ODO = 10
+  
+  // Ancho total del grupo de salas: (3 * 85) + (2 * 10) = 255 + 20 = 275
+  // Como el viewBox es de 400 de ancho, centramos el bloque sumando un desfase inicial en X
+  const X_START = (400 - (ODO_SALAS.length * W_ODO + (ODO_SALAS.length - 1) * GAP_ODO)) / 2
+
   return (
     <svg
-      viewBox="0 0 300 280"
-      style={{ width: '100%', maxWidth: '260px', maxHeight: '260px' }}
+      viewBox="0 0 400 280"
+      style={{ width: '100%', height: '100%', maxHeight: '260px' }}
       role="img"
       aria-label="Salas de odontologia"
     >
@@ -373,15 +495,40 @@ function MapaOdontologia({ salas, seleccionada, onSelect }: MapaPisoProps) {
           }
         `}</style>
       </defs>
-      <text x={10} y={14} fontSize={10} fontWeight={500}
-        fill="var(--h-text-tertiary)">Odontologia</text>
-      <text x={10} y={26} fontSize={8}
-        fill="var(--h-text-tertiary)">Edificio anexo</text>
+      
+      {/* Textos de encabezado */}
+      <text x={15} y={20} fontSize={10} fontWeight={600} fill="var(--h-text-tertiary)">
+        Odontología
+      </text>
+      <text x={15} y={32} fontSize={8} fill="var(--h-text-tertiary)" opacity={0.7}>
+        Edificio anexo
+      </text>
+
+      {/* Contenedor estético de fondo para agrupar las salas */}
+      <rect 
+        x={X_START - 15} 
+        y={60} 
+        width={(ODO_SALAS.length * W_ODO + (ODO_SALAS.length - 1) * GAP_ODO) + 30} 
+        height={H + 30} 
+        fill="rgba(255, 255, 255, 0.01)" 
+        stroke="var(--h-border-subtle)" 
+        strokeWidth={0.5}
+        strokeDasharray="4 4"
+        rx={8}
+      />
+
+      {/* ── Renderizado de salas en HORIZONTAL ── */}
       {ODO_SALAS.map((num, i) => {
         const s = getSala(num)
         return (
-          <SalaRect key={num}
-            x={10} y={35 + i * (H + GAP)} w={W + 20} h={H}
+          <SalaRect 
+            key={num}
+            // Multiplicamos en el eje X para que se muevan hacia la derecha
+            x={X_START + i * (W_ODO + GAP_ODO)} 
+            // El eje Y se queda fijo y centrado
+            y={75} 
+            w={W_ODO} 
+            h={H}
             numero={`Sala ${num}`}
             estado={s.estado}
             seleccionada={seleccionada === num}
@@ -497,7 +644,7 @@ function PanelSala(
             <p className={valCls}>{prog.docente_nombre ?? '—'}</p>
           </div>
           <div>
-            <p className={labelCls}>Seccion</p>
+            <p className={labelCls}>Sección</p>
             <p className={valCls}>{prog.seccion ?? '—'}</p>
           </div>
           <div>
@@ -566,7 +713,7 @@ function PanelSala(
             >
               <AlertCircle size={15} style={{ color: '#EF9F27', flexShrink: 0, marginTop: 1 }} />
               <p className="text-xs" style={{ color: '#EF9F27' }}>
-                El taller finalizo. Esta sala necesita revision.
+                El taller finalizo. Esta sala necesita revisión.
               </p>
             </div>
           )}
@@ -767,6 +914,11 @@ export function VistaSalas() {
   const [seleccionada,    setSeleccionada]    = useState<string | null>(null)
   const [revision,        setRevision]        =
     useState<RevisionSalaResponse | null>(null)
+    
+  const handleSelect = useCallback((num: string) => {
+    setSeleccionada((prev) => (prev === num ? null : num));
+  }, []);
+
   const [cargandoRev,     setCargandoRev]     = useState(false)
   const [zonaDrop,        setZonaDrop]        = useState(false)
   const dropRef = useRef<HTMLDivElement>(null)
@@ -1010,6 +1162,7 @@ export function VistaSalas() {
       >
         {/* Mapa */}
         <div
+        // Limpiamos las clases de borde, fondo y redondeado internas para que no hagan conflicto
           className="flex-1 p-5 flex flex-col gap-4"
           style={{ borderRight: '0.5px solid var(--h-border-subtle)' }}
         >
@@ -1021,13 +1174,13 @@ export function VistaSalas() {
             <MapaPisoMenos1
               salas={salas}
               seleccionada={seleccionada}
-              onSelect={setSeleccionada}
+              onSelect={handleSelect}
             />
           ) : (
             <MapaOdontologia
               salas={salas}
               seleccionada={seleccionada}
-              onSelect={setSeleccionada}
+              onSelect={handleSelect}
             />
           )}
 
