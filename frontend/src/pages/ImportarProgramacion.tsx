@@ -8,35 +8,38 @@ import type { ImportarProgramacionResponse } from '../types/api'
 
 type Paso = 'idle' | 'cargando' | 'resultado'
 
-// Semestres sugeridos: actual y los dos anteriores
+// Semestres sugeridos: actual + los 3 proximos
 function generarSemestres(): string[] {
-  const now = new Date()
+  const now  = new Date()
   const year = now.getFullYear()
-  const mes = now.getMonth() + 1
+  const mes  = now.getMonth() + 1
+  // Semestre actual: 1 = ene-jun, 2 = jul-dic
   const semActual = mes <= 6 ? `${year}-1` : `${year}-2`
   const opciones: string[] = []
+  const [y, s] = semActual.split('-').map(Number)
+  // Generar actual + 3 siguientes
   for (let i = 0; i < 4; i++) {
-    const [y, s] = semActual.split('-').map(Number)
-    const totalSems = y * 2 + s - 1 - i
-    opciones.push(`${Math.floor(totalSems / 2)}-${totalSems % 2 === 0 ? 2 : 1}`)
+    const totalSems = y * 2 + s - 1 + i
+    opciones.push(
+      `${Math.floor(totalSems / 2)}-${totalSems % 2 === 0 ? 2 : 1}`
+    )
   }
   return opciones
 }
 
 export function ImportarProgramacion() {
-  const [paso,       setPaso]       = useState<Paso>('idle')
-  const [semestre,   setSemestre]   = useState(generarSemestres()[0])
+  const [paso,         setPaso]       = useState<Paso>('idle')
+  const [semestre,     setSemestre]   = useState(generarSemestres()[0])
   const [semestreCustom, setSemCustom] = useState('')
-  const [usarCustom, setUsarCustom] = useState(false)
-  const [archivo,    setArchivo]    = useState<File | null>(null)
-  const [resultado,  setResultado]  = useState<ImportarProgramacionResponse | null>(null)
-  const [errorMsg,   setErrorMsg]   = useState<string | null>(null)
-  const [dragOver,   setDragOver]   = useState(false)
+  const [usarCustom,   setUsarCustom] = useState(false)
+  const [archivo,      setArchivo]    = useState<File | null>(null)
+  const [resultado,    setResultado]  =
+    useState<ImportarProgramacionResponse | null>(null)
+  const [errorMsg,     setErrorMsg]   = useState<string | null>(null)
+  const [dragOver,     setDragOver]   = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  const semestreEfectivo = usarCustom
-    ? semestreCustom.trim()
-    : semestre
+  const semestreEfectivo = usarCustom ? semestreCustom.trim() : semestre
 
   function handleArchivo(file: File) {
     const ext = file.name.split('.').pop()?.toLowerCase()
@@ -76,10 +79,8 @@ export function ImportarProgramacion() {
   }
 
   function reiniciar() {
-    setPaso('idle')
-    setArchivo(null)
-    setResultado(null)
-    setErrorMsg(null)
+    setPaso('idle'); setArchivo(null)
+    setResultado(null); setErrorMsg(null)
   }
 
   const labelCls = (
@@ -94,21 +95,17 @@ export function ImportarProgramacion() {
 
   return (
     <div className="p-6 max-w-2xl mx-auto space-y-5">
-
-      {/* Encabezado */}
       <div>
         <h1 className="text-2xl font-bold text-h-primary">
           Importar Programacion
         </h1>
         <p className="text-sm text-h-secondary mt-0.5">
-          Carga el Excel de planificacion semestral de Maritza para
-          alimentar la Vista de Salas.
+          Carga el Excel de planificacion semestral para alimentar
+          la Vista de Salas.
         </p>
       </div>
 
-      {/* Info */}
-      <div
-        className="flex items-start gap-2.5 rounded-xl px-4 py-3"
+      <div className="flex items-start gap-2.5 rounded-xl px-4 py-3"
         style={{
           background: 'rgba(29,158,117,0.08)',
           border:     '1px solid rgba(29,158,117,0.25)',
@@ -122,69 +119,58 @@ export function ImportarProgramacion() {
           <strong>Sala</strong>,{' '}
           <strong>Horario</strong>,{' '}
           <strong>Docente</strong>,{' '}
-          <strong>Seccion</strong>. Puede tener multiples hojas; cada una
-          se procesa de forma independiente. Re-importar el mismo archivo
-          es seguro (upsert idempotente).
+          <strong>Seccion</strong>. Multiples hojas son bienvenidas;
+          re-importar es seguro (upsert idempotente).
         </p>
       </div>
 
       {paso === 'idle' && (
         <div className="space-y-5">
-
           {/* Selector semestre */}
-          <div
-            className="rounded-2xl border border-h-subtle p-5 space-y-4"
+          <div className="rounded-2xl border border-h-subtle p-5 space-y-3"
             style={{ background: 'var(--h-bg-surface)' }}
           >
-            <div>
-              <label className={labelCls}>Semestre</label>
-              <div className="flex flex-wrap gap-2 mb-3">
-                {generarSemestres().map(s => (
-                  <button key={s} type="button"
-                    onClick={() => { setSemestre(s); setUsarCustom(false) }}
-                    className="px-3 py-1.5 rounded-lg text-xs font-semibold
-                               transition-colors"
-                    style={{
-                      background: !usarCustom && semestre === s
-                        ? 'var(--h-teal-rest)'
-                        : 'var(--h-bg-elevated)',
-                      color: !usarCustom && semestre === s
-                        ? 'white'
-                        : 'var(--h-text-secondary)',
-                      border: '1px solid var(--h-border-subtle)',
-                    }}
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  placeholder="Otro semestre (ej: 2027-1)"
-                  value={semestreCustom}
-                  onChange={e => {
-                    setSemCustom(e.target.value)
-                    setUsarCustom(!!e.target.value.trim())
+            <label className={labelCls}>Semestre</label>
+            <div className="flex flex-wrap gap-2">
+              {generarSemestres().map(s => (
+                <button key={s} type="button"
+                  onClick={() => { setSemestre(s); setUsarCustom(false) }}
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold
+                             transition-colors"
+                  style={{
+                    background: !usarCustom && semestre === s
+                      ? 'var(--h-teal-rest)' : 'var(--h-bg-elevated)',
+                    color: !usarCustom && semestre === s
+                      ? 'white' : 'var(--h-text-secondary)',
+                    border: '1px solid var(--h-border-subtle)',
                   }}
-                  className={inputCls}
-                  style={{ flex: 1 }}
-                />
-              </div>
-              {usarCustom && semestreCustom.trim() && (
-                <p className="text-[10px] text-h-tertiary mt-1">
-                  Usando semestre personalizado:{' '}
-                  <span className="font-bold text-h-secondary">
-                    {semestreCustom.trim()}
-                  </span>
-                </p>
-              )}
+                >
+                  {s}
+                </button>
+              ))}
             </div>
+            <input
+              type="text"
+              placeholder="Otro semestre (ej: 2028-1)"
+              value={semestreCustom}
+              onChange={e => {
+                setSemCustom(e.target.value)
+                setUsarCustom(!!e.target.value.trim())
+              }}
+              className={inputCls}
+            />
+            {usarCustom && semestreCustom.trim() && (
+              <p className="text-[10px] text-h-tertiary">
+                Usando semestre personalizado:{' '}
+                <span className="font-bold text-h-secondary">
+                  {semestreCustom.trim()}
+                </span>
+              </p>
+            )}
           </div>
 
           {/* Dropzone */}
-          <div
-            className="rounded-2xl border border-h-subtle p-5"
+          <div className="rounded-2xl border border-h-subtle p-5"
             style={{ background: 'var(--h-bg-surface)' }}
           >
             <label className={labelCls}>Archivo Excel (.xlsx)</label>
@@ -203,22 +189,16 @@ export function ImportarProgramacion() {
               style={{
                 borderColor: dragOver
                   ? 'var(--h-teal-rest)'
-                  : archivo
-                    ? 'rgba(29,158,117,0.5)'
-                    : 'var(--h-border-visible)',
+                  : archivo ? 'rgba(29,158,117,0.5)' : 'var(--h-border-visible)',
                 background: dragOver
                   ? 'rgba(29,158,117,0.05)'
-                  : archivo
-                    ? 'rgba(29,158,117,0.04)'
-                    : 'var(--h-bg-elevated)',
+                  : archivo ? 'rgba(29,158,117,0.04)' : 'var(--h-bg-elevated)',
               }}
             >
-              <input
-                ref={inputRef} type="file" accept=".xlsx,.xls"
+              <input ref={inputRef} type="file" accept=".xlsx,.xls"
                 className="hidden"
                 onChange={e => {
-                  const f = e.target.files?.[0]
-                  if (f) handleArchivo(f)
+                  const f = e.target.files?.[0]; if (f) handleArchivo(f)
                 }}
               />
               {archivo ? (
@@ -229,8 +209,7 @@ export function ImportarProgramacion() {
                     {archivo.name}
                   </p>
                   <p className="text-xs text-h-tertiary mt-0.5">
-                    {(archivo.size / 1024).toFixed(0)} KB
-                    {' '}&mdash; clic para cambiar
+                    {(archivo.size / 1024).toFixed(0)} KB &mdash; clic para cambiar
                   </p>
                 </>
               ) : (
@@ -248,9 +227,8 @@ export function ImportarProgramacion() {
           </div>
 
           {errorMsg && (
-            <div
-              className="flex items-start gap-2 rounded-xl px-4 py-3 text-xs
-                         font-semibold"
+            <div className="flex items-start gap-2 rounded-xl px-4 py-3
+                             text-xs font-semibold"
               style={{
                 background: 'var(--h-sem-danger-bg)',
                 color:      'var(--h-sem-danger-text)',
@@ -262,9 +240,7 @@ export function ImportarProgramacion() {
             </div>
           )}
 
-          {/* Boton importar */}
-          <button
-            onClick={handleImportar}
+          <button onClick={handleImportar}
             disabled={!archivo || !semestreEfectivo}
             className="w-full flex items-center justify-center gap-2
                        py-3 rounded-xl text-sm font-semibold text-white
@@ -278,17 +254,14 @@ export function ImportarProgramacion() {
             onMouseLeave={e =>
               (e.currentTarget.style.background = 'var(--h-teal-rest)')}
           >
-            <Upload size={15} />
-            Importar programacion
+            <Upload size={15} /> Importar programacion
           </button>
         </div>
       )}
 
-      {/* Cargando */}
       {paso === 'cargando' && (
-        <div
-          className="flex flex-col items-center justify-center py-16
-                     rounded-2xl border border-h-subtle"
+        <div className="flex flex-col items-center justify-center py-16
+                         rounded-2xl border border-h-subtle"
           style={{ background: 'var(--h-bg-surface)' }}
         >
           <RefreshCw size={32} className="animate-spin mb-4"
@@ -302,91 +275,65 @@ export function ImportarProgramacion() {
         </div>
       )}
 
-      {/* Resultado */}
       {paso === 'resultado' && resultado && (
         <div className="space-y-4">
-
-          {/* Tarjeta resumen */}
-          <div
-            className="rounded-2xl border p-6"
+          <div className="rounded-2xl border p-6"
             style={{
               background: resultado.importadas + resultado.actualizadas > 0
-                ? 'rgba(29,158,117,0.06)'
-                : 'var(--h-bg-surface)',
+                ? 'rgba(29,158,117,0.06)' : 'var(--h-bg-surface)',
               border: resultado.importadas + resultado.actualizadas > 0
                 ? '1px solid rgba(29,158,117,0.3)'
                 : '1px solid var(--h-border-subtle)',
             }}
           >
             <div className="flex items-center gap-3 mb-5">
-              {resultado.importadas + resultado.actualizadas > 0 ? (
-                <CheckCircle2 size={22} style={{ color: '#1D9E75' }} />
-              ) : (
-                <XCircle size={22} style={{ color: 'var(--h-sem-danger-text)' }} />
-              )}
+              {resultado.importadas + resultado.actualizadas > 0
+                ? <CheckCircle2 size={22} style={{ color: '#1D9E75' }} />
+                : <XCircle size={22}
+                    style={{ color: 'var(--h-sem-danger-text)' }} />}
               <div>
-                <p className="font-bold text-h-primary">
-                  Importacion completada
-                </p>
+                <p className="font-bold text-h-primary">Importacion completada</p>
                 <p className="text-xs text-h-tertiary">
                   Semestre: {semestreEfectivo}
                 </p>
               </div>
             </div>
-
             <div className="grid grid-cols-3 gap-3">
               {[
-                {
-                  valor: resultado.importadas,
-                  label: 'Nuevas',
+                { valor: resultado.importadas,   label: 'Nuevas',
                   color: '#1D9E75',
-                  bg: 'rgba(29,158,117,0.08)',
-                  border: 'rgba(29,158,117,0.3)',
-                },
-                {
-                  valor: resultado.actualizadas,
-                  label: 'Actualizadas',
+                  bg: 'rgba(29,158,117,0.08)', border: 'rgba(29,158,117,0.3)' },
+                { valor: resultado.actualizadas, label: 'Actualizadas',
                   color: '#378ADD',
-                  bg: 'rgba(55,138,221,0.08)',
-                  border: 'rgba(55,138,221,0.3)',
-                },
-                {
-                  valor: resultado.omitidas,
-                  label: 'Omitidas',
+                  bg: 'rgba(55,138,221,0.08)', border: 'rgba(55,138,221,0.3)' },
+                { valor: resultado.omitidas,     label: 'Omitidas',
                   color: resultado.omitidas > 0
                     ? 'var(--h-sem-danger-text)' : 'var(--h-text-tertiary)',
                   bg: resultado.omitidas > 0
                     ? 'var(--h-sem-danger-bg)' : 'var(--h-bg-elevated)',
                   border: resultado.omitidas > 0
-                    ? 'var(--h-sem-danger-border)' : 'var(--h-border-subtle)',
-                },
+                    ? 'var(--h-sem-danger-border)' : 'var(--h-border-subtle)' },
               ].map(({ valor, label, color, bg, border }) => (
-                <div key={label}
-                  className="rounded-xl p-4 text-center"
+                <div key={label} className="rounded-xl p-4 text-center"
                   style={{ background: bg, border: `1px solid ${border}` }}
                 >
-                  <p className="text-3xl font-bold" style={{ color }}>
-                    {valor}
-                  </p>
+                  <p className="text-3xl font-bold" style={{ color }}>{valor}</p>
                   <p className="text-[10px] font-semibold text-h-tertiary mt-1"
-                    style={{ textTransform: 'uppercase', letterSpacing: '0.06em' }}
-                  >
-                    {label}
-                  </p>
+                    style={{
+                      textTransform: 'uppercase', letterSpacing: '0.06em',
+                    }}
+                  >{label}</p>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Tabla de errores */}
           {resultado.errores.length > 0 && (
-            <div
-              className="rounded-2xl border border-h-subtle overflow-hidden"
+            <div className="rounded-2xl border border-h-subtle overflow-hidden"
               style={{ background: 'var(--h-bg-surface)' }}
             >
-              <div
-                className="flex items-center gap-2 px-5 py-3 border-b
-                           border-h-subtle"
+              <div className="flex items-center gap-2 px-5 py-3 border-b
+                               border-h-subtle"
                 style={{ background: 'var(--h-bg-elevated)' }}
               >
                 <AlertTriangle size={13}
@@ -398,13 +345,9 @@ export function ImportarProgramacion() {
               </div>
               <div className="divide-y divide-h-subtle max-h-64 overflow-y-auto">
                 {resultado.errores.map((e, i) => (
-                  <div key={i}
-                    className="flex items-start gap-4 px-5 py-3"
-                  >
-                    <span
-                      className="text-[10px] font-bold text-h-tertiary
-                                 flex-shrink-0 mt-0.5 font-mono"
-                    >
+                  <div key={i} className="flex items-start gap-4 px-5 py-3">
+                    <span className="text-[10px] font-bold text-h-tertiary
+                                     flex-shrink-0 mt-0.5 font-mono">
                       {e.hoja} / fila {e.fila}
                     </span>
                     <p className="text-xs text-h-secondary">{e.razon}</p>
@@ -414,12 +357,10 @@ export function ImportarProgramacion() {
             </div>
           )}
 
-          <button
-            onClick={reiniciar}
+          <button onClick={reiniciar}
             className="w-full flex items-center justify-center gap-2
                        py-3 rounded-xl text-sm font-semibold
-                       text-h-secondary border border-h-subtle
-                       transition-colors"
+                       text-h-secondary border border-h-subtle transition-colors"
             style={{ background: 'var(--h-bg-elevated)' }}
             onMouseEnter={e =>
               (e.currentTarget.style.background = 'var(--h-bg-highlight)')}
