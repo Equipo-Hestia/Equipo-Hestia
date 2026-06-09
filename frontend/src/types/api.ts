@@ -46,7 +46,6 @@ export interface OrdenMantenimientoResponse {
   items: OrdenItemResponse[]
 }
 
-// Crear orden: lista de activos + fecha de visita del proveedor
 export interface OrdenMantenimientoCreate {
   proveedor_id?: number | null
   activo_ids: number[]
@@ -54,7 +53,6 @@ export interface OrdenMantenimientoCreate {
   notas?: string | null
 }
 
-// Actualizar cabecera: solo proveedor y notas
 export interface OrdenMantenimientoUpdate {
   proveedor_id?: number | null
   notas?: string | null
@@ -121,6 +119,48 @@ export interface ImportarProgramacionResponse {
   actualizadas: number
   omitidas: number
   errores: { hoja: string; fila: number; razon: string }[]
+}
+
+// ---------------------------------------------------------------------------
+// RevisionSala - sincronizado con schemas revision_sala (backend)
+// ---------------------------------------------------------------------------
+export interface RevisionItemResponse {
+  id: number
+  tipo: string
+  nombre: string
+  cantidad_esperada: number | null
+  cantidad_encontrada: number | null
+  conforme: boolean | null
+  notas_item: string | null
+}
+
+export interface RevisionResumenResponse {
+  id: number
+  programacion_id: number | null
+  sala_id: number
+  sala_nombre: string | null
+  fecha: string
+  operador_id: number | null
+  operador_nombre: string | null
+  estado: string
+  hora_inicio_rev: string | null
+  hora_fin_rev: string | null
+}
+
+export interface RevisionSalaResponse extends RevisionResumenResponse {
+  notas: string | null
+  items: RevisionItemResponse[]
+}
+
+export interface RevisionSalaCreate {
+  programacion_id: number
+  notas?: string | null
+}
+
+export interface RevisionItemUpdate {
+  cantidad_encontrada?: number | null
+  conforme?: boolean | null
+  notas_item?: string | null
 }
 
 // ---------------------------------------------------------------------------
