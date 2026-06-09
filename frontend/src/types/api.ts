@@ -71,6 +71,59 @@ export interface OrdenItemUpdate {
 }
 
 // ---------------------------------------------------------------------------
+// ProgramacionTaller - sincronizado con modelo ProgramacionTaller (backend)
+// ---------------------------------------------------------------------------
+export interface ProgramacionTallerResponse {
+  id: number
+  taller_id: number
+  taller_nombre: string | null
+  asignatura_id: number | null
+  asignatura_nombre: string | null
+  sala_id: number
+  sala_nombre: string | null
+  fecha: string
+  hora_inicio: string | null
+  hora_fin: string | null
+  docente_nombre: string | null
+  seccion: string | null
+  semestre: string | null
+  notas: string | null
+  activo: boolean
+}
+
+export interface ProgramacionTallerCreate {
+  taller_id: number
+  sala_id: number
+  fecha: string
+  hora_inicio?: string | null
+  hora_fin?: string | null
+  docente_nombre?: string | null
+  seccion?: string | null
+  semestre?: string | null
+  notas?: string | null
+}
+
+export interface ProgramacionTallerUpdate {
+  taller_id?: number
+  sala_id?: number
+  fecha?: string
+  hora_inicio?: string | null
+  hora_fin?: string | null
+  docente_nombre?: string | null
+  seccion?: string | null
+  semestre?: string | null
+  notas?: string | null
+  activo?: boolean
+}
+
+export interface ImportarProgramacionResponse {
+  importadas: number
+  actualizadas: number
+  omitidas: number
+  errores: { hoja: string; fila: number; razon: string }[]
+}
+
+// ---------------------------------------------------------------------------
 // EstadoUnidad - UnidadImplemento
 // ---------------------------------------------------------------------------
 export type EstadoUnidad = 'disponible' | 'en_uso' | 'dado_de_baja'
