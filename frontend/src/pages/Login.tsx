@@ -42,9 +42,9 @@ const TEMAS = [
 ]
 
 const SYSTEM_STATS = [
-  { value: '18',   label: 'salas clinicas' },
+  { value: '18',   label: 'salas clínicas' },
   { value: '5',    label: 'carreras' },
-  { value: '100+', label: 'insumos' },
+  { value: '1000+', label: 'insumos' },
 ]
 
 // ─── Componentes de modales ──────────────────────────────────────────────────────
@@ -69,7 +69,7 @@ function ModalAcercaDe({ onClose }: { onClose: () => void }) {
           <Logo className="w-16 h-16 mb-3" />
           <h2 className="text-xl font-bold text-h-primary tracking-tight">Hestia</h2>
           <p className="text-xs font-medium mt-1" style={{ color: 'var(--h-teal-hover)' }}>
-            Sistema de gestion de insumos medicos
+            Sistema de gestión de insumos medicos
           </p>
         </div>
         <div className="space-y-3 text-xs text-h-secondary">
@@ -182,7 +182,7 @@ function ModalSoporte({ onClose }: { onClose: () => void }) {
                   </select>
                 </div>
                 <div>
-                  <label className={labelCls}>Descripcion *</label>
+                  <label className={labelCls}>Descripción *</label>
                   <textarea required rows={4} value={mensaje}
                     onChange={e => setMensaje(e.target.value)}
                     className={inputCls + ' resize-none'}
@@ -340,11 +340,11 @@ function PanelIzquierdo() {
         </div>
         <div>
           <h1 className="text-3xl font-bold text-h-primary leading-tight mb-3">
-            Gestion de insumos<br />
-            <span style={{ color: 'var(--h-teal-hover)' }}>clinicos</span>, simplificada.
+            Gestión de insumos<br />
+            <span style={{ color: 'var(--h-teal-hover)' }}>clínicos</span>, simplificada.
           </h1>
           <p className="text-sm text-h-secondary leading-relaxed max-w-xs">
-            Inventario, movimientos y planificacion de talleres para la
+            Inventario, movimientos y planificación de talleres para la
             Escuela de Salud de DuocUC.
           </p>
         </div>
@@ -842,7 +842,7 @@ export function Login() {
           /* ────── Recuperar contraseña ────── */
           ) : !is2FA && isForgot ? (
             <>
-              <button onClick={cerrarForgot} className={backBtnCls}>\u2190 Volver</button>
+              <button onClick={cerrarForgot} className={backBtnCls}>← Volver</button>
               {forgotOk ? (
                 <div className="text-center py-2">
                   <div className="w-12 h-12 rounded-full flex items-center
@@ -863,7 +863,7 @@ export function Login() {
                     esta registrado, recibirás un enlace válido por 1 hora.
                   </p>
                   <ShimmerButton type="button" onClick={cerrarForgot}>
-                    Volver al inicio de sesión
+                    ← Volver al inicio de sesión
                   </ShimmerButton>
                 </div>
               ) : (
@@ -901,7 +901,7 @@ export function Login() {
           ) : modo2FA === 'totp' ? (
             <>
               <button onClick={volverAlLogin} className={backBtnCls}>
-                \u2190 Volver
+                ← Volver
               </button>
               <h2 className="text-base font-semibold text-h-primary mb-1">
                 Verificación 2FA
