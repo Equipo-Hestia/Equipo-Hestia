@@ -892,10 +892,10 @@ export function ClasesDocente() {
               style={{ color: 'var(--h-sem-warning-text)' }}
             >
               <strong>Aviso de responsabilidad:</strong> Los comentarios registrados en
-              esta secci\u00f3n son de car\u00e1cter interno y confidencial. Solo el
+              esta sección son de carácter interno y confidencial. Solo el
               Operador Coordinador puede gestionarlos y son de su exclusiva
-              responsabilidad. Deben usarse \u00fanicamente para fines operativos
-              leg\u00edtimos dentro de la Escuela de Salud.
+              responsabilidad. Deben usarse únicamente para fines operativos
+              legítimos dentro de la Escuela de Salud.
             </p>
           </div>
 
@@ -915,7 +915,7 @@ export function ClasesDocente() {
               value={formCom.contenido}
               onChange={e => setFormCom(f => ({ ...f, contenido: e.target.value }))}
               rows={3}
-              placeholder="Escribe el comentario aqu\u00ed..."
+              placeholder="Escribe el comentario aquí..."
               className={`${inputCls} resize-none`}
             />
             <div className="flex justify-end">
@@ -944,7 +944,7 @@ export function ClasesDocente() {
               </p>
             ) : comentarios.length === 0 ? (
               <p className="text-h-tertiary text-sm text-center py-4">
-                Sin comentarios a\u00fan.
+                Sin comentarios aún.
               </p>
             ) : comentarios.map(c => (
               <div
