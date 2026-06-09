@@ -1,5 +1,5 @@
 from fastapi import (
-    APIRouter, Depends, File, Form, Header, UploadFile,
+    APIRouter, Depends, File, Form, Header, Request, UploadFile,
     HTTPException, status,
 )
 from fastapi.responses import StreamingResponse
@@ -19,6 +19,7 @@ from app.models.sala import Sala
 from app.models.categoria import Categoria
 from app.models.usuario import Usuario
 from app.utils.deps import require_admin
+from app.utils.auditoria import registrar, get_ip
 
 router = APIRouter(prefix="/importar", tags=["Importacion"])
 
@@ -49,7 +50,7 @@ _DIAS_MAP = {
     'lunes': 'lunes', 'lun': 'lunes', 'monday': 'lunes', 'mon': 'lunes',
     'martes': 'martes', 'mar': 'martes', 'tuesday': 'martes', 'tue': 'martes',
     'miercoles': 'miercoles', 'mie': 'miercoles',
-    'miércoles': 'miercoles', 'mié': 'miercoles',
+    'miercoles': 'miercoles', 'mie': 'miercoles',
     'wednesday': 'miercoles', 'wed': 'miercoles',
     'jueves': 'jueves', 'jue': 'jueves', 'thursday': 'jueves', 'thu': 'jueves',
     'viernes': 'viernes', 'vie': 'viernes', 'friday': 'viernes', 'fri': 'viernes',
@@ -413,6 +414,7 @@ def descargar_plantilla_horario(
 
 @router.post("/insumos", response_model=ImportarResponse)
 def importar_insumos(
+    request: Request,
     archivo: UploadFile = File(...),
     codigo_totp: str = Form(...),
     usuario: Usuario = Depends(require_admin),
@@ -459,6 +461,12 @@ def importar_insumos(
                 detail="Conflicto: existen SKUs o codigos de barras duplicados "
                        "en el archivo o ya registrados en el sistema.",
             )
+        registrar(
+            db, "IMPORTAR_INSUMOS", usuario=usuario,
+            entidad="insumo", entidad_id=None,
+            detalle=f"{importados} insumos importados desde {nombre}",
+            ip=get_ip(request),
+        )
     else:
         db.rollback()
 
@@ -471,6 +479,7 @@ def importar_insumos(
 
 @router.post("/horario-academico", response_model=HorarioImportResponse)
 def importar_horario_academico(
+    request: Request,
     payload: HorarioPayload,
     x_totp_code: str = Header(...),
     usuario: Usuario = Depends(require_admin),
@@ -544,6 +553,14 @@ def importar_horario_academico(
 
     if importados > 0 or actualizados > 0:
         db.commit()
+        registrar(
+            db, "IMPORTAR_HORARIO", usuario=usuario,
+            entidad="clase_docente", entidad_id=None,
+            detalle=(
+                f"{importados} creadas, {actualizados} actualizadas"
+            ),
+            ip=get_ip(request),
+        )
 
     return HorarioImportResponse(
         importados=importados,

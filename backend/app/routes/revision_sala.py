@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session, joinedload
 from datetime import date
 from typing import Optional
@@ -18,6 +18,7 @@ from app.schemas.revision_sala import (
     RevisionItemUpdate,
 )
 from app.utils.deps import get_usuario_actual, require_operador
+from app.utils.auditoria import registrar, get_ip
 
 router = APIRouter(prefix="/revisiones", tags=["Revisiones"])
 
@@ -197,6 +198,7 @@ def obtener_revision(
 
 @router.post("/", response_model=RevisionSalaResponse, status_code=201)
 def crear_revision(
+    request: Request,
     datos: RevisionSalaCreate,
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(require_operador),
@@ -252,6 +254,13 @@ def crear_revision(
         db.add(item)
 
     db.commit()
+    sala_nombre = prog.sala.nombre if prog.sala else f"sala {prog.sala_id}"
+    registrar(
+        db, "CREAR_REVISION_SALA", usuario=usuario,
+        entidad="revision_sala", entidad_id=revision.id,
+        detalle=f"{sala_nombre} - {prog.fecha}",
+        ip=get_ip(request),
+    )
     return _to_response(_cargar_revision(revision.id, db))
 
 
@@ -294,6 +303,7 @@ def actualizar_item(
 )
 def completar_revision(
     rev_id: int,
+    request: Request,
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(require_operador),
 ):
@@ -304,4 +314,11 @@ def completar_revision(
     revision.estado = 'completada'
     revision.hora_fin_rev = _hora_ahora()
     db.commit()
+    sala_nombre = revision.sala.nombre if revision.sala else f"sala {revision.sala_id}"
+    registrar(
+        db, "COMPLETAR_REVISION_SALA", usuario=usuario,
+        entidad="revision_sala", entidad_id=revision.id,
+        detalle=f"{sala_nombre} - {revision.fecha}",
+        ip=get_ip(request),
+    )
     return _to_response(_cargar_revision(rev_id, db))

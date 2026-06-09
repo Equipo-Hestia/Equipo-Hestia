@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session, joinedload
 from app.database import get_db
 from app.models.activo_fijo import ActivoFijo, TipoActivo, EstadoActivo
@@ -8,6 +8,7 @@ from app.schemas.activo_fijo import (
     ActivoFijoResponse,
 )
 from app.utils.deps import get_usuario_actual, require_operador, require_admin
+from app.utils.auditoria import registrar, get_ip
 
 router = APIRouter(prefix="/activos-fijos", tags=["activos-fijos"])
 
@@ -122,9 +123,10 @@ def listar(
 
 @router.post("/", response_model=ActivoFijoResponse, status_code=201)
 def crear(
+    request: Request,
     datos: ActivoFijoCreate,
     db: Session = Depends(get_db),
-    _=Depends(require_operador),
+    usuario=Depends(require_operador),
 ):
     """Registra un nuevo activo fijo. Genera codigo_interno automaticamente."""
     if datos.codigo_barras:
@@ -147,6 +149,12 @@ def crear(
     af.codigo_interno = f"{prefijo}-{af.id:05d}"
 
     db.commit()
+    registrar(
+        db, f"CREAR_{af.tipo.value.upper()}", usuario=usuario,
+        entidad="activo_fijo", entidad_id=af.id,
+        detalle=f"{af.nombre} [{af.codigo_interno}]",
+        ip=get_ip(request),
+    )
     return _to_response(_cargar(db, af.id))
 
 
@@ -162,9 +170,10 @@ def obtener(
 @router.put("/{activo_id}", response_model=ActivoFijoResponse)
 def actualizar(
     activo_id: int,
+    request: Request,
     datos: ActivoFijoUpdate,
     db: Session = Depends(get_db),
-    _=Depends(require_operador),
+    usuario=Depends(require_operador),
 ):
     af = _cargar(db, activo_id)
 
@@ -180,18 +189,34 @@ def actualizar(
                 detail="El codigo de barras ya esta registrado en otro activo",
             )
 
+    # Detectar dar de baja antes de aplicar cambios
+    dar_de_baja = (
+        datos.estado is not None
+        and datos.estado.value == "dado_de_baja"
+        and af.estado.value != "dado_de_baja"
+    )
+
     for campo, valor in datos.model_dump(exclude_unset=True).items():
         setattr(af, campo, valor)
 
     db.commit()
+
+    accion = "DAR_DE_BAJA_ACTIVO" if dar_de_baja else "EDITAR_ACTIVO_FIJO"
+    registrar(
+        db, accion, usuario=usuario,
+        entidad="activo_fijo", entidad_id=af.id,
+        detalle=f"{af.nombre} [{af.codigo_interno}]",
+        ip=get_ip(request),
+    )
     return _to_response(_cargar(db, activo_id))
 
 
 @router.delete("/{activo_id}", status_code=204)
 def eliminar(
     activo_id: int,
+    request: Request,
     db: Session = Depends(get_db),
-    _=Depends(require_admin),
+    usuario=Depends(require_admin),
 ):
     """Soft-delete del activo. Solo admin."""
     af = db.query(ActivoFijo).filter(ActivoFijo.id == activo_id).first()
@@ -199,3 +224,9 @@ def eliminar(
         raise HTTPException(status_code=404, detail="Activo fijo no encontrado")
     af.activo = False
     db.commit()
+    registrar(
+        db, "DESACTIVAR_ACTIVO_FIJO", usuario=usuario,
+        entidad="activo_fijo", entidad_id=af.id,
+        detalle=f"{af.nombre} [{af.codigo_interno}]",
+        ip=get_ip(request),
+    )

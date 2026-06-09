@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, AlertTriangle, Package,
-  ArrowLeftRight, DoorOpen, Tag,
+  ArrowLeftRight, Tag,
   LogOut, ShieldCheck, Upload,
   UserCircle, Users, ScrollText,
   BookOpen, GraduationCap,
@@ -49,8 +49,6 @@ const NAV_SECTIONS: NavSection[] = [
       { to: '/mantenimiento', icon: Wrench,         label: 'Mantenimiento',
         roles: NO_VISOR },
       { to: '/movimientos',  icon: ArrowLeftRight,  label: 'Movimientos',
-        roles: TODOS_ROLES },
-      { to: '/salas',        icon: DoorOpen,        label: 'Salas',
         roles: TODOS_ROLES },
       { to: '/categorias',   icon: Tag,             label: 'Categorias',
         roles: TODOS_ROLES },

@@ -83,6 +83,21 @@ def _build_query(db: Session,
     return q
 
 
+def _accion_por_tipo(prefijo: str, insumo: Insumo) -> str:
+    """Devuelve la accion de auditoria diferenciada por tipo de insumo.
+
+    Ejemplos:
+        prefijo='CREAR'       + tipo implemento -> 'CREAR_IMPLEMENTO'
+        prefijo='DESACTIVAR'  + tipo insumo     -> 'DESACTIVAR_INSUMO'
+    """
+    sufijo = (
+        "IMPLEMENTO"
+        if insumo.tipo == TipoInsumo.implemento
+        else "INSUMO"
+    )
+    return f"{prefijo}_{sufijo}"
+
+
 # ---------------------------------------------------------------------------
 # IMPORTANTE: rutas estaticas deben ir ANTES de la ruta dinamica /{insumo_id},
 # o FastAPI las interpreta como un entero y devuelve 422.
@@ -392,8 +407,9 @@ def crear_insumo(
         raise HTTPException(status_code=409, detail="Conflicto: dato duplicado.")
     db.refresh(nuevo)
     registrar(
-        db, "CREAR_INSUMO", usuario=usuario,
-        entidad="insumo", entidad_id=nuevo.id,
+        db, _accion_por_tipo("CREAR", nuevo), usuario=usuario,
+        entidad=nuevo.tipo.value if nuevo.tipo else "insumo",
+        entidad_id=nuevo.id,
         detalle=nuevo.nombre, ip=get_ip(request),
     )
     return nuevo
@@ -419,7 +435,9 @@ def actualizar_insumo(
                 detail="Solo administradores pueden cambiar el estado activo.",
             )
         cambio_activo = (
-            "REACTIVAR_INSUMO" if datos.activo else "DESACTIVAR_INSUMO"
+            _accion_por_tipo("REACTIVAR", insumo)
+            if datos.activo
+            else _accion_por_tipo("DESACTIVAR", insumo)
         )
 
     for campo, valor in datos.model_dump(exclude_unset=True).items():
@@ -442,14 +460,16 @@ def actualizar_insumo(
 
     db.refresh(insumo)
     registrar(
-        db, "EDITAR_INSUMO", usuario=usuario,
-        entidad="insumo", entidad_id=insumo.id,
+        db, _accion_por_tipo("EDITAR", insumo), usuario=usuario,
+        entidad=insumo.tipo.value if insumo.tipo else "insumo",
+        entidad_id=insumo.id,
         detalle=insumo.nombre, ip=get_ip(request),
     )
     if cambio_activo:
         registrar(
             db, cambio_activo, usuario=usuario,
-            entidad="insumo", entidad_id=insumo.id,
+            entidad=insumo.tipo.value if insumo.tipo else "insumo",
+            entidad_id=insumo.id,
             detalle=insumo.nombre, ip=get_ip(request),
         )
     return insumo
@@ -486,8 +506,9 @@ def eliminar_insumo(
     insumo.activo = False
     db.commit()
     registrar(
-        db, "DESACTIVAR_INSUMO", usuario=usuario,
-        entidad="insumo", entidad_id=insumo.id,
+        db, _accion_por_tipo("DESACTIVAR", insumo), usuario=usuario,
+        entidad=insumo.tipo.value if insumo.tipo else "insumo",
+        entidad_id=insumo.id,
         detalle=insumo.nombre, ip=get_ip(request),
     )
     return {"mensaje": f"Insumo '{insumo.nombre}' desactivado"}
