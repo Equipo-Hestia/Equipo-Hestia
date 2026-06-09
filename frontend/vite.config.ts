@@ -61,6 +61,7 @@ export default defineConfig({
       '/proveedores':              apiProxy(API),
       '/ordenes-mantenimiento':    apiProxy(API),
       '/programacion':             apiProxy(API),
+      '/revisiones':               apiProxy(API),
     },
   },
 })

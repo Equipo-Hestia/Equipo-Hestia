@@ -4,23 +4,21 @@ from fastapi.openapi.utils import get_openapi
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from app.database import Base, engine, aplicar_migraciones_pendientes
-# Importar todos los modelos para que SQLAlchemy registre sus tablas antes de
-# create_all(). El orden importa: modelos con FK deben cargarse despues del
-# modelo referenciado.
 from app.models import sala, categoria, usuario, movimiento, insumo  # noqa
 from app.models import audit_log          # noqa
-from app.models import asignatura         # noqa  <- Fase 4
-from app.models import clase_docente      # noqa  <- Fase 4 (FK a asignatura y usuario)
-from app.models import solicitud          # noqa  <- FK a clase_docente
+from app.models import asignatura         # noqa
+from app.models import clase_docente      # noqa
+from app.models import solicitud          # noqa
 from app.models import token_recuperacion  # noqa
 from app.models import retorno_implemento  # noqa
-from app.models import activo_fijo        # noqa  <- Fase 5 (muebles y phantomas)
-from app.models import unidad_implemento  # noqa  <- Fase 5 (sub-codigos implementos)
-from app.models import taller             # noqa  <- Guia de Taller (FK a asignatura)
-from app.models import paquete_insumo     # noqa  <- Guia de Taller (FK a taller e insumo)
-from app.models import proveedor          # noqa  <- antes de orden_mantenimiento
-from app.models import orden_mantenimiento  # noqa  <- FK a activo_fijo y proveedor
-from app.models import programacion_taller  # noqa  <- FK a taller y sala
+from app.models import activo_fijo        # noqa
+from app.models import unidad_implemento  # noqa
+from app.models import taller             # noqa
+from app.models import paquete_insumo     # noqa
+from app.models import proveedor          # noqa
+from app.models import orden_mantenimiento  # noqa
+from app.models import programacion_taller  # noqa
+from app.models import revision_sala      # noqa  <- FK a programacion, sala, usuario
 from app.routes import (
     salas, categorias, usuarios, movimientos, insumos, auth, resumen, importar
 )
@@ -37,8 +35,8 @@ from app.routes import paquetes_insumo
 from app.routes import proveedores
 from app.routes import ordenes_mantenimiento
 from app.routes import programacion_taller as programacion_taller_routes
+from app.routes import revision_sala as revision_sala_routes
 
-# 1) crea tablas nuevas. 2) aplica ALTER TABLE / ALTER TYPE idempotentes.
 Base.metadata.create_all(bind=engine)
 aplicar_migraciones_pendientes()
 
@@ -88,7 +86,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[_cors_origin],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -113,6 +111,7 @@ app.include_router(paquetes_insumo.router)
 app.include_router(proveedores.router)
 app.include_router(ordenes_mantenimiento.router)
 app.include_router(programacion_taller_routes.router)
+app.include_router(revision_sala_routes.router)
 
 
 @app.get("/")
