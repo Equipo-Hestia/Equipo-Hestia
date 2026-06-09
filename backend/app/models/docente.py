@@ -9,7 +9,7 @@ import enum
 class TipoComentario(str, enum.Enum):
     positivo = "positivo"
     negativo = "negativo"
-    neutro   = "neutro"
+    neutro = "neutro"
 
 
 class Docente(Base):
@@ -21,20 +21,20 @@ class Docente(Base):
     """
     __tablename__ = "docentes"
 
-    id         = Column(Integer, primary_key=True, index=True)
-    nombre     = Column(String(120), nullable=False)
-    email      = Column(String(120), unique=True, nullable=False, index=True)
-    rut        = Column(String(20), nullable=True)
-    telefono   = Column(String(30), nullable=True)
-    activo     = Column(
+    id = Column(Integer, primary_key=True, index=True)
+    nombre = Column(String(120), nullable=False)
+    email = Column(String(120), unique=True, nullable=False, index=True)
+    rut = Column(String(20), nullable=True)
+    telefono = Column(String(30), nullable=True)
+    activo = Column(
         Boolean, default=True, nullable=False, server_default="true"
     )
     created_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
-    clases       = relationship("ClaseDocente", back_populates="docente")
-    comentarios  = relationship(
+    clases = relationship("ClaseDocente", back_populates="docente")
+    comentarios = relationship(
         "ComentarioDocente",
         back_populates="docente",
         order_by="ComentarioDocente.created_at.desc()",
@@ -49,8 +49,8 @@ class ComentarioDocente(Base):
     """
     __tablename__ = "comentarios_docente"
 
-    id            = Column(Integer, primary_key=True, index=True)
-    docente_id    = Column(
+    id = Column(Integer, primary_key=True, index=True)
+    docente_id = Column(
         Integer,
         __import__('sqlalchemy').ForeignKey("docentes.id", ondelete="CASCADE"),
         nullable=False,
@@ -65,15 +65,15 @@ class ComentarioDocente(Base):
         nullable=False,
         default=TipoComentario.neutro,
     )
-    contenido     = Column(Text, nullable=False)
+    contenido = Column(Text, nullable=False)
     creado_por_id = Column(
         Integer,
         __import__('sqlalchemy').ForeignKey("usuarios.id", ondelete="SET NULL"),
         nullable=True,
     )
-    created_at    = Column(
+    created_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
-    docente    = relationship("Docente", back_populates="comentarios")
+    docente = relationship("Docente", back_populates="comentarios")
     creado_por = relationship("Usuario", foreign_keys=[creado_por_id])

@@ -23,22 +23,22 @@ class ClaseDocente(Base):
     """
     __tablename__ = "clases_docente"
 
-    id            = Column(Integer, primary_key=True, index=True)
-    docente_id    = Column(
+    id = Column(Integer, primary_key=True, index=True)
+    docente_id = Column(
         Integer, ForeignKey("docentes.id", ondelete="SET NULL"), nullable=True
     )
     asignatura_id = Column(
         Integer, ForeignKey("asignaturas.id"), nullable=False
     )
-    seccion         = Column(String(10), nullable=False)
-    semestre        = Column(String(10), nullable=False)
-    activa          = Column(
+    seccion = Column(String(10), nullable=False)
+    semestre = Column(String(10), nullable=False)
+    activa = Column(
         Boolean, default=True, nullable=False, server_default="true"
     )
     num_estudiantes = Column(Integer, nullable=True)
-    dia_semana      = Column(String(15), nullable=True)
-    hora_inicio     = Column(String(5), nullable=True)
-    hora_fin        = Column(String(5), nullable=True)
+    dia_semana = Column(String(15), nullable=True)
+    hora_inicio = Column(String(5), nullable=True)
+    hora_fin = Column(String(5), nullable=True)
 
-    docente    = relationship("Docente", back_populates="clases")
+    docente = relationship("Docente", back_populates="clases")
     asignatura = relationship("Asignatura", back_populates="clases")
