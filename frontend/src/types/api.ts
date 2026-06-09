@@ -429,6 +429,52 @@ export interface ClaseDocenteResponse {
   hora_fin: string | null
 }
 
+// ---------------------------------------------------------------------------
+// Docente (entidad externa, no usuario del sistema)
+// ---------------------------------------------------------------------------
+export interface DocenteResponse {
+  id: number
+  nombre: string
+  email: string
+  rut: string | null
+  telefono: string | null
+  activo: boolean
+  created_at: string
+  num_clases: number
+}
+
+export interface DocenteCreate {
+  nombre: string
+  email: string
+  rut?: string | null
+  telefono?: string | null
+}
+
+export interface DocenteUpdate {
+  nombre?: string
+  email?: string
+  rut?: string | null
+  telefono?: string | null
+  activo?: boolean
+}
+
+export type TipoComentario = 'positivo' | 'negativo' | 'neutro'
+
+export interface ComentarioDocenteResponse {
+  id: number
+  docente_id: number
+  tipo: TipoComentario
+  contenido: string
+  creado_por_id: number | null
+  creado_por_nombre: string | null
+  created_at: string
+}
+
+export interface ComentarioDocenteCreate {
+  tipo: TipoComentario
+  contenido: string
+}
+
 export interface TallerResponse {
   id: number
   nombre: string

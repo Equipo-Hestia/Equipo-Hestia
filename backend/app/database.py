@@ -148,13 +148,11 @@ MIGRACIONES_COLUMNAS = [
         "EXCEPTION WHEN duplicate_object THEN NULL; END $$"
     ),
     # Columnas adicionales en cabecera de ordenes_mantenimiento
-    # (orden_mantenimiento_items es un modelo ORM; create_all lo crea)
     "ALTER TABLE IF EXISTS ordenes_mantenimiento "
     "ADD COLUMN IF NOT EXISTS fecha_visita DATE",
     "ALTER TABLE IF EXISTS ordenes_mantenimiento "
     "ADD COLUMN IF NOT EXISTS notas TEXT",
     # Eliminar FK huerfana activo_fijo_id si aun existe en la cabecera
-    # (columna que existia en el esquema antiguo antes del refactor a items)
     (
         "DO $$ BEGIN "
         "IF EXISTS ("
@@ -163,6 +161,67 @@ MIGRACIONES_COLUMNAS = [
         "  AND column_name = 'activo_fijo_id'"
         ") THEN "
         "  ALTER TABLE ordenes_mantenimiento DROP COLUMN activo_fijo_id; "
+        "END IF; "
+        "END $$"
+    ),
+    # Modulo Docentes: enum tipocomentario
+    (
+        "DO $$ BEGIN "
+        "CREATE TYPE tipocomentario AS ENUM "
+        "('positivo', 'negativo', 'neutro'); "
+        "EXCEPTION WHEN duplicate_object THEN NULL; END $$"
+    ),
+    # Migracion clases_docente: FK docente_id -> docentes.id
+    # Paso 1: borrar clases existentes (entorno desarrollo)
+    (
+        "DO $$ BEGIN "
+        "IF EXISTS ("
+        "  SELECT 1 FROM information_schema.columns "
+        "  WHERE table_name='clases_docente' "
+        "  AND column_name='docente_id'"
+        ") THEN "
+        "  IF EXISTS ("
+        "    SELECT 1 FROM information_schema.table_constraints tc "
+        "    JOIN information_schema.constraint_column_usage ccu "
+        "      ON tc.constraint_name = ccu.constraint_name "
+        "    WHERE tc.table_name='clases_docente' "
+        "      AND ccu.column_name='docente_id' "
+        "      AND tc.constraint_type='FOREIGN KEY' "
+        "      AND ccu.table_name='usuarios' "
+        "  ) THEN "
+        "    DELETE FROM clases_docente; "
+        "    ALTER TABLE clases_docente "
+        "      DROP CONSTRAINT IF EXISTS "
+        "        clases_docente_docente_id_fkey; "
+        "    ALTER TABLE clases_docente "
+        "      ALTER COLUMN docente_id DROP NOT NULL; "
+        "  END IF; "
+        "END IF; "
+        "END $$"
+    ),
+    # Paso 2: crear la tabla docentes si no existe aun
+    # (create_all la crea antes de llegar aqui, pero por si acaso)
+    # Paso 3: agregar FK a docentes si no existe
+    (
+        "DO $$ BEGIN "
+        "IF NOT EXISTS ("
+        "  SELECT 1 FROM information_schema.table_constraints tc "
+        "  JOIN information_schema.constraint_column_usage ccu "
+        "    ON tc.constraint_name = ccu.constraint_name "
+        "  WHERE tc.table_name='clases_docente' "
+        "    AND ccu.column_name='docente_id' "
+        "    AND tc.constraint_type='FOREIGN KEY' "
+        "    AND ccu.table_name='docentes' "
+        ") THEN "
+        "  IF EXISTS ("
+        "    SELECT 1 FROM information_schema.tables "
+        "    WHERE table_name='docentes'"
+        "  ) THEN "
+        "    ALTER TABLE clases_docente "
+        "      ADD CONSTRAINT clases_docente_docente_id_fkey "
+        "      FOREIGN KEY (docente_id) "
+        "      REFERENCES docentes(id) ON DELETE SET NULL; "
+        "  END IF; "
         "END IF; "
         "END $$"
     ),
@@ -188,6 +247,10 @@ MIGRACIONES_ENUM = [
     (
         "resultadoitem",
         ["pendiente", "ok", "sale_a_taller", "dar_de_baja"],
+    ),
+    (
+        "tipocomentario",
+        ["positivo", "negativo", "neutro"],
     ),
 ]
 

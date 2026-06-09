@@ -7,6 +7,7 @@ from app.database import Base, engine, aplicar_migraciones_pendientes
 from app.models import sala, categoria, usuario, movimiento, insumo  # noqa
 from app.models import audit_log          # noqa
 from app.models import asignatura         # noqa
+from app.models import docente            # noqa  <- antes que clase_docente
 from app.models import clase_docente      # noqa
 from app.models import solicitud          # noqa
 from app.models import token_recuperacion  # noqa
@@ -18,7 +19,7 @@ from app.models import paquete_insumo     # noqa
 from app.models import proveedor          # noqa
 from app.models import orden_mantenimiento  # noqa
 from app.models import programacion_taller  # noqa
-from app.models import revision_sala      # noqa  <- FK a programacion, sala, usuario
+from app.models import revision_sala      # noqa
 from app.routes import (
     salas, categorias, usuarios, movimientos, insumos, auth, resumen, importar
 )
@@ -27,6 +28,7 @@ from app.routes import solicitudes
 from app.routes import retornos
 from app.routes import asignaturas
 from app.routes import clases_docente
+from app.routes import docentes as docentes_routes
 from app.routes import reportes
 from app.routes import activos_fijos
 from app.routes import unidades_implemento
@@ -103,6 +105,7 @@ app.include_router(solicitudes.router)
 app.include_router(retornos.router)
 app.include_router(asignaturas.router)
 app.include_router(clases_docente.router)
+app.include_router(docentes_routes.router)
 app.include_router(reportes.router)
 app.include_router(activos_fijos.router)
 app.include_router(unidades_implemento.router)

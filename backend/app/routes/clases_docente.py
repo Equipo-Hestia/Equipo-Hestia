@@ -4,6 +4,7 @@ from typing import Optional
 
 from app.database import get_db
 from app.models.clase_docente import ClaseDocente
+from app.models.docente import Docente
 from app.models.asignatura import Asignatura
 from app.models.usuario import Usuario, RolUsuario
 from app.schemas.clase_docente import (
@@ -24,14 +25,22 @@ def _opts():
 def _construir(c: ClaseDocente) -> ClaseDocenteResponse:
     return ClaseDocenteResponse(
         id=c.id,
-        docente_id=c.docente_id,
-        docente_nombre=c.docente.nombre if c.docente else "Desconocido",
+        docente_id=c.docente_id or 0,
+        docente_nombre=c.docente.nombre if c.docente else "Sin docente",
         asignatura_id=c.asignatura_id,
-        asignatura_nombre=c.asignatura.nombre if c.asignatura else "Desconocida",
-        asignatura_codigo=c.asignatura.codigo if c.asignatura else "",
+        asignatura_nombre=(
+            c.asignatura.nombre if c.asignatura else "Desconocida"
+        ),
+        asignatura_codigo=(
+            c.asignatura.codigo if c.asignatura else ""
+        ),
         seccion=c.seccion,
         semestre=c.semestre,
         activa=c.activa,
+        num_estudiantes=c.num_estudiantes,
+        dia_semana=c.dia_semana,
+        hora_inicio=c.hora_inicio,
+        hora_fin=c.hora_fin,
     )
 
 
@@ -46,20 +55,11 @@ def mis_clases(
 ):
     """Clases activas del usuario autenticado (cualquier rol).
 
-    Usado por SolicitudDocente para mostrar el selector de clase
-    al crear una nueva solicitud de retiro.
+    Mantenido por compatibilidad; en el nuevo modelo los docentes
+    no tienen cuenta de usuario, por lo que retorna lista vacia
+    para roles que no son docentes externos.
     """
-    clases = (
-        db.query(ClaseDocente)
-        .options(*_opts())
-        .filter(
-            ClaseDocente.docente_id == usuario.id,
-            ClaseDocente.activa.is_(True),
-        )
-        .order_by(ClaseDocente.semestre.desc(), ClaseDocente.seccion)
-        .all()
-    )
-    return [_construir(c) for c in clases]
+    return []
 
 
 @router.get("/", response_model=list[ClaseDocenteResponse])
@@ -70,19 +70,13 @@ def listar_clases(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(get_usuario_actual),
 ):
-    """Admin/operador ve todas las clases. Docente solo ve las suyas."""
     q = db.query(ClaseDocente).options(*_opts())
-
-    if usuario.rol == RolUsuario.docente:
-        q = q.filter(ClaseDocente.docente_id == usuario.id)
-    elif docente_id is not None:
+    if docente_id is not None:
         q = q.filter(ClaseDocente.docente_id == docente_id)
-
     if solo_activas:
         q = q.filter(ClaseDocente.activa.is_(True))
     if semestre:
         q = q.filter(ClaseDocente.semestre == semestre)
-
     clases = q.order_by(
         ClaseDocente.semestre.desc(),
         ClaseDocente.docente_id,
@@ -97,7 +91,7 @@ def crear_clase(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(require_admin),
 ):
-    docente = db.query(Usuario).filter(Usuario.id == datos.docente_id).first()
+    docente = db.query(Docente).filter(Docente.id == datos.docente_id).first()
     if not docente:
         raise HTTPException(status_code=404, detail="Docente no encontrado.")
     asig = db.query(Asignatura).filter(
