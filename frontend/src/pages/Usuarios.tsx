@@ -496,7 +496,7 @@ export function Usuarios() {
               <input
                 type="text" name="nombre" required value={form.nombre}
                 onChange={handleField} className={inputCls}
-                placeholder="Ej: Mar\u00eda Gonz\u00e1lez" autoFocus
+                placeholder="Ej: Mariana González" autoFocus
               />
             </div>
             <div>
@@ -521,7 +521,7 @@ export function Usuarios() {
                   uppercase tracking-wide mb-1.5
                 "
               >
-                {editTarget ? 'Nueva contrase\u00f1a' : 'Contrase\u00f1a *'}
+                {editTarget ? 'Nueva contraseña' : 'Contraseña *'}
               </label>
               <input
                 type="password" name="password"
@@ -531,14 +531,14 @@ export function Usuarios() {
                 className={inputCls}
                 placeholder={
                   editTarget
-                    ? 'Dejar vac\u00edo para no cambiar'
+                    ? 'Dejar vacío para no cambiar'
                     : 'M\u00ednimo 8 caracteres'
                 }
                 autoComplete="new-password"
               />
               {editTarget && (
                 <p className="text-xs text-h-tertiary mt-1">
-                  Si no escribes nada, la contrase\u00f1a actual se conserva.
+                  Si no escribes nada, la contraseña actual se conserva.
                 </p>
               )}
             </div>
@@ -566,7 +566,7 @@ export function Usuarios() {
                   style={{ color: 'var(--h-teal-hover)' }}
                 >
                   El Operador Coordinador tiene los mismos accesos que el Operador.
-                  Sus permisos adicionales se configurar\u00e1n pr\u00f3ximamente.
+                  Sus permisos adicionales se configurarán próximamente.
                 </p>
               )}
             </div>
@@ -631,11 +631,11 @@ export function Usuarios() {
                 <Archive size={24} style={{ color: 'var(--h-sem-danger-text)' }} />
               </div>
               <p className="font-bold text-h-primary mb-1">
-                \u00bfDesactivar este usuario?
+                ¿Desactivar este usuario?
               </p>
               <p className="text-h-secondary text-sm mb-3">
-                <strong>{delTarget.nombre}</strong> ({delTarget.email}) no podr\u00e1
-                iniciar sesi\u00f3n. Su historial se conserva y puede reactivarse cuando quieras.
+                <strong>{delTarget.nombre}</strong> ({delTarget.email}) no podrá volver a
+                iniciar sesión. Su historial se conserva y puede reactivarse cuando quieras.
               </p>
               {userHas2FA === false ? (
                 <div
@@ -662,7 +662,7 @@ export function Usuarios() {
                         className="text-xs mt-0.5"
                         style={{ color: 'var(--h-sem-warning-text)' }}
                       >
-                        Activa la verificaci\u00f3n en dos pasos para desactivar usuarios.
+                        Activa la verificación en dos pasos para desactivar usuarios.
                       </p>
                     </div>
                   </div>
@@ -681,7 +681,7 @@ export function Usuarios() {
               ) : (
                 <>
                   <p className="text-h-tertiary text-xs mb-5">
-                    Necesitar\u00e1s tu c\u00f3digo TOTP para confirmar.
+                    Necesitarás tu código TOTP para confirmar.
                   </p>
                   {formError && (
                     <p
@@ -727,7 +727,7 @@ export function Usuarios() {
           ) : (
             <div>
               <p className="text-h-secondary text-sm mb-5 text-center">
-                Ingresa tu c\u00f3digo TOTP para confirmar la desactivaci\u00f3n de
+                Ingresa tu código TOTP para confirmar la desactivación de
                 <strong> {delTarget.nombre}</strong>.
               </p>
               <input
@@ -806,11 +806,11 @@ export function Usuarios() {
               />
             </div>
             <p className="font-bold text-h-primary mb-1">
-              \u00bfReactivar este usuario?
+              ¿Reactivar este usuario?
             </p>
             <p className="text-h-secondary text-sm mb-5">
               <strong>{reactivarTarget.nombre}</strong> ({reactivarTarget.email})
-              podr\u00e1 volver a iniciar sesi\u00f3n con sus credenciales actuales.
+              podrá volver a iniciar sesión con sus credenciales actuales.
             </p>
             {formError && (
               <p
