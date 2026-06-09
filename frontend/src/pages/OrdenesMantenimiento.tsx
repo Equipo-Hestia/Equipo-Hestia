@@ -1,13 +1,13 @@
 import { useEffect, useState, useCallback } from 'react'
 import {
   Wrench, Plus, RefreshCw,
-  CalendarClock, Building2, Pencil,
+  CalendarClock, Building2, Trash2,
 } from 'lucide-react'
 import { api } from '../api/client'
 import { useAuthStore } from '../store/auth'
 import type {
   OrdenMantenimientoResponse, OrdenMantenimientoCreate,
-  OrdenMantenimientoUpdate, EstadoOrden, ResultadoItem,
+  EstadoOrden, ResultadoItem,
   ActivoFijoResponse, ProveedorResponse,
   PaginatedResponse,
 } from '../types/api'
@@ -16,6 +16,7 @@ import {
   ETIQUETA_RESULTADO_ITEM,
 } from '../types/api'
 import { useLastUpdated } from '../hooks/useLastUpdated'
+import { HSelect } from '../components/ui/HSelect'
 
 // ---------------------------------------------------------------------------
 // Constantes
@@ -23,15 +24,15 @@ import { useLastUpdated } from '../hooks/useLastUpdated'
 
 const ESTADO_COLOR: Record<EstadoOrden, string> = {
   en_curso: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
-  cerrada: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300',
+  cerrada:  'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300',
   cancelada: 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-400',
 }
 
 const RESULTADO_COLOR: Record<ResultadoItem, string> = {
-  pendiente: 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300',
-  ok: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300',
+  pendiente:     'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300',
+  ok:            'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300',
   sale_a_taller: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300',
-  dar_de_baja: 'bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300',
+  dar_de_baja:   'bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300',
 }
 
 function BadgeLocal({ label, cls }: { label: string; cls: string }) {
@@ -61,22 +62,23 @@ function diasDesde(fecha: string): number {
 // ---------------------------------------------------------------------------
 
 interface ModalNuevaOrdenProps {
-  activos: ActivoFijoResponse[]
+  activos:     ActivoFijoResponse[]
   proveedores: ProveedorResponse[]
-  onClose: () => void
-  onSaved: () => void
+  onClose:     () => void
+  onSaved:     () => void
 }
 
 function ModalNuevaOrden(
   { activos, proveedores, onClose, onSaved }: ModalNuevaOrdenProps,
 ) {
-  const [proveedorId, setProveedorId] = useState('')
-  const [fechaVisita, setFechaVisita] = useState(''
-  )
-  const [notas, setNotas] = useState('')
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
-  const [guardando, setGuardando] = useState(false)
-  const [error, setError] = useState('')
+  const [proveedorId,  setProveedorId]  = useState('')
+  const [fechaVisita,  setFechaVisita]  = useState('')
+  const [notas,        setNotas]        = useState('')
+  const [selectedIds,  setSelectedIds]  = useState<Set<number>>(new Set())
+  const [guardando,    setGuardando]    = useState(false)
+  const [error,        setError]        = useState('')
+
+  const proveedorOpts = proveedores.map(p => ({ value: String(p.id), label: p.nombre }))
 
   const activosDisponibles = activos.filter(
     a => a.activo && a.estado !== 'en_mantenimiento' && a.estado !== 'dado_de_baja'
@@ -100,9 +102,9 @@ function ModalNuevaOrden(
     try {
       const body: OrdenMantenimientoCreate = {
         proveedor_id: proveedorId ? parseInt(proveedorId) : null,
-        activo_ids: Array.from(selectedIds),
+        activo_ids:   Array.from(selectedIds),
         fecha_visita: fechaVisita,
-        notas: notas.trim() || null,
+        notas:        notas.trim() || null,
       }
       await api.post('/ordenes-mantenimiento/', body)
       onSaved()
@@ -129,6 +131,8 @@ function ModalNuevaOrden(
                     bg-black/60 backdrop-blur-sm p-4">
       <div className="bg-h-surface border border-h-subtle rounded-2xl shadow-2xl
                       w-full max-w-lg max-h-[90vh] flex flex-col">
+
+        {/* Cabecera */}
         <div className="flex items-center justify-between px-6 py-4
                         border-b border-h-subtle flex-shrink-0">
           <h2 className="text-base font-semibold text-h-primary">
@@ -140,19 +144,19 @@ function ModalNuevaOrden(
             aria-label="Cerrar">x</button>
         </div>
 
+        {/* Cuerpo */}
         <div className="px-6 py-5 space-y-4 overflow-y-auto flex-1">
 
-          {/* Proveedor */}
+          {/* Proveedor — HSelect */}
           <div>
             <label className={labelCls}>Proveedor</label>
-            <select className={`${inputCls} cursor-pointer`}
+            <HSelect
               value={proveedorId}
-              onChange={e => setProveedorId(e.target.value)}>
-              <option value="">Sin proveedor asignado</option>
-              {proveedores.map(p => (
-                <option key={p.id} value={p.id}>{p.nombre}</option>
-              ))}
-            </select>
+              onChange={setProveedorId}
+              options={proveedorOpts}
+              placeholder="Sin proveedor asignado"
+              className="w-full"
+            />
           </div>
 
           {/* Fecha de visita */}
@@ -163,14 +167,14 @@ function ModalNuevaOrden(
               onChange={e => setFechaVisita(e.target.value)} />
           </div>
 
-          {/* Activos a incluir */}
+          {/* Lista de activos con checkboxes */}
           <div>
             <label className={labelCls}>
               Activos fijos a incluir *
               {selectedIds.size > 0 && (
-                <span className="ml-2 normal-case font-normal
-                                 text-h-secondary">
-                  ({selectedIds.size} seleccionado{selectedIds.size > 1 ? 's' : ''})
+                <span className="ml-2 normal-case font-normal text-h-secondary">
+                  ({selectedIds.size}
+                  {' '}seleccionado{selectedIds.size > 1 ? 's' : ''})
                 </span>
               )}
             </label>
@@ -180,8 +184,11 @@ function ModalNuevaOrden(
               </p>
             ) : (
               <div className="rounded-xl border border-h-subtle overflow-hidden"
-                style={{ background: 'var(--h-bg-elevated)', maxHeight: '200px',
-                  overflowY: 'auto' }}>
+                style={{
+                  background:  'var(--h-bg-elevated)',
+                  maxHeight:   '200px',
+                  overflowY:   'auto',
+                }}>
                 {activosDisponibles.map(a => {
                   const checked = selectedIds.has(a.id)
                   return (
@@ -191,33 +198,28 @@ function ModalNuevaOrden(
                                  text-left transition-colors
                                  border-b border-h-subtle last:border-b-0"
                       style={{
-                        background: checked
-                          ? 'var(--h-teal-subtle)'
-                          : 'transparent',
+                        background: checked ? 'var(--h-teal-subtle)' : 'transparent',
                       }}
                       onMouseEnter={e => {
                         if (!checked)
-                          e.currentTarget.style.background =
-                            'var(--h-bg-highlight)'
+                          e.currentTarget.style.background = 'var(--h-bg-highlight)'
                       }}
                       onMouseLeave={e => {
                         if (!checked)
                           e.currentTarget.style.background = 'transparent'
                       }}
                     >
+                      {/* Checkbox visual */}
                       <div className="w-4 h-4 rounded border-2 flex-shrink-0
                                       flex items-center justify-center"
                         style={{
                           borderColor: checked
-                            ? 'var(--h-teal-rest)'
-                            : 'var(--h-border-visible)',
+                            ? 'var(--h-teal-rest)' : 'var(--h-border-visible)',
                           background: checked
-                            ? 'var(--h-teal-rest)'
-                            : 'transparent',
+                            ? 'var(--h-teal-rest)' : 'transparent',
                         }}>
                         {checked && (
-                          <svg viewBox="0 0 10 8" fill="none"
-                            className="w-2.5 h-2.5">
+                          <svg viewBox="0 0 10 8" fill="none" className="w-2.5 h-2.5">
                             <path d="M1 4l3 3 5-6" stroke="white"
                               strokeWidth="1.5" strokeLinecap="round"
                               strokeLinejoin="round" />
@@ -225,12 +227,11 @@ function ModalNuevaOrden(
                         )}
                       </div>
                       <div className="min-w-0">
-                        <p className="text-sm font-semibold text-h-primary
-                                       truncate">
+                        <p className="text-sm font-semibold text-h-primary truncate">
                           {a.nombre}
                         </p>
                         <p className="text-xs text-h-tertiary font-mono">
-                          {a.codigo_interno ?? '—'}
+                          {a.codigo_interno ?? '\u2014'}
                         </p>
                       </div>
                     </button>
@@ -253,20 +254,20 @@ function ModalNuevaOrden(
             <p className="text-xs font-medium px-3 py-2 rounded-lg"
               style={{
                 background: 'var(--h-sem-danger-bg)',
-                color: 'var(--h-sem-danger-text)',
-                border: '1px solid var(--h-sem-danger-border)',
+                color:      'var(--h-sem-danger-text)',
+                border:     '1px solid var(--h-sem-danger-border)',
               }}>
               {error}
             </p>
           )}
         </div>
 
+        {/* Pie */}
         <div className="flex justify-end gap-3 px-6 py-4
                         border-t border-h-subtle flex-shrink-0">
           <button onClick={onClose} disabled={guardando}
             className="px-4 py-2 rounded-lg text-sm font-semibold
-                       text-h-secondary hover:bg-h-elevated
-                       transition-colors">
+                       text-h-secondary hover:bg-h-elevated transition-colors">
             Cancelar
           </button>
           <button onClick={handleGuardar} disabled={guardando}
@@ -287,126 +288,99 @@ function ModalNuevaOrden(
 }
 
 // ---------------------------------------------------------------------------
-// Modal Editar cabecera (proveedor y notas)
+// Modal de confirmacion de eliminacion
 // ---------------------------------------------------------------------------
 
-interface ModalEditarCabeceraProps {
-  orden: OrdenMantenimientoResponse
-  proveedores: ProveedorResponse[]
-  onClose: () => void
-  onSaved: () => void
+interface ModalEliminarProps {
+  orden:    OrdenMantenimientoResponse
+  onClose:  () => void
+  onSaved:  () => void
 }
 
-function ModalEditarCabecera(
-  { orden, proveedores, onClose, onSaved }: ModalEditarCabeceraProps,
-) {
-  const [proveedorId, setProveedorId] = useState(
-    orden.proveedor_id?.toString() ?? ''
-  )
-  const [notas, setNotas] = useState(orden.notas ?? '')
-  const [guardando, setGuardando] = useState(false)
-  const [error, setError] = useState('')
+function ModalEliminar({ orden, onClose, onSaved }: ModalEliminarProps) {
+  const [eliminando, setEliminando] = useState(false)
+  const [error,      setError]      = useState('')
 
-  async function handleGuardar() {
-    setGuardando(true); setError('')
+  async function handleEliminar() {
+    setEliminando(true); setError('')
     try {
-      const body: OrdenMantenimientoUpdate = {
-        proveedor_id: proveedorId ? parseInt(proveedorId) : null,
-        notas: notas.trim() || null,
-      }
-      await api.put(`/ordenes-mantenimiento/${orden.id}`, body)
+      await api.delete(`/ordenes-mantenimiento/${orden.id}`)
       onSaved()
     } catch (err: unknown) {
       const detail = (
         err as { response?: { data?: { detail?: string } } }
       )?.response?.data?.detail
-      setError(detail ?? 'Error al guardar')
-    } finally { setGuardando(false) }
+      setError(detail ?? 'Error al eliminar la orden')
+    } finally { setEliminando(false) }
   }
 
-  const labelCls = (
-    'block text-[10px] font-semibold text-h-tertiary mb-1.5 '
-    + 'uppercase tracking-widest'
-  )
-  const inputCls = (
-    'w-full px-3 py-2.5 rounded-lg text-h-primary text-sm '
-    + 'focus:outline-none transition-all bg-h-elevated border '
-    + 'border-h-visible focus:border-h-strong placeholder:text-h-tertiary'
-  )
+  const nActivos = orden.items.length
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center
                     bg-black/60 backdrop-blur-sm p-4">
       <div className="bg-h-surface border border-h-subtle rounded-2xl shadow-2xl
-                      w-full max-w-md flex flex-col">
-        <div className="flex items-center justify-between px-6 py-4
-                        border-b border-h-subtle">
-          <div>
-            <h2 className="text-base font-semibold text-h-primary">
-              Editar orden #{orden.id}
-            </h2>
-            <p className="text-xs text-h-tertiary mt-0.5">
-              Visita: {formatFecha(orden.fecha_visita)}
-            </p>
-          </div>
-          <button onClick={onClose}
-            className="text-h-tertiary hover:text-h-secondary text-xl font-bold
-                       transition-colors"
-            aria-label="Cerrar">x</button>
-        </div>
-
-        <div className="px-6 py-5 space-y-4">
-
-          <div>
-            <label className={labelCls}>Proveedor</label>
-            <select className={`${inputCls} cursor-pointer`}
-              value={proveedorId}
-              onChange={e => setProveedorId(e.target.value)}>
-              <option value="">Sin proveedor asignado</option>
-              {proveedores.map(p => (
-                <option key={p.id} value={p.id}>{p.nombre}</option>
-              ))}
-            </select>
+                      w-full max-w-sm flex flex-col">
+        <div className="px-6 py-5">
+          {/* Icono */}
+          <div className="w-11 h-11 rounded-full flex items-center justify-center mb-4"
+            style={{
+              background: 'var(--h-sem-danger-bg)',
+              border:     '1px solid var(--h-sem-danger-border)',
+            }}>
+            <Trash2 size={18} style={{ color: 'var(--h-sem-danger-text)' }} />
           </div>
 
-          <div>
-            <label className={labelCls}>Notas</label>
-            <textarea className={`${inputCls} resize-none`} rows={3}
-              value={notas}
-              onChange={e => setNotas(e.target.value)}
-              placeholder="Observaciones generales..." />
-          </div>
+          <h2 className="text-base font-semibold text-h-primary mb-1">
+            Eliminar orden de mantenimiento
+          </h2>
+          <p className="text-sm text-h-secondary leading-relaxed">
+            Se cancelara la orden{' '}
+            <span className="font-semibold text-h-primary">
+              #ORD-{String(orden.id).padStart(4, '0')}
+            </span>
+            {orden.proveedor_nombre && (
+              <> ({orden.proveedor_nombre})</>
+            )}
+            {' '}y{' '}
+            <span className="font-semibold text-h-primary">
+              {nActivos} activo{nActivos !== 1 ? 's' : ''}
+            </span>
+            {' '}volvera{nActivos !== 1 ? 'n' : ''} a estado{' '}
+            <span className="font-semibold" style={{ color: 'var(--h-teal-hover)' }}>
+              Disponible
+            </span>.
+            {' '}Esta accion quedara registrada en el historial.
+          </p>
 
           {error && (
-            <p className="text-xs font-medium px-3 py-2 rounded-lg"
+            <p className="text-xs font-medium px-3 py-2 rounded-lg mt-4"
               style={{
                 background: 'var(--h-sem-danger-bg)',
-                color: 'var(--h-sem-danger-text)',
-                border: '1px solid var(--h-sem-danger-border)',
+                color:      'var(--h-sem-danger-text)',
+                border:     '1px solid var(--h-sem-danger-border)',
               }}>
               {error}
             </p>
           )}
         </div>
 
-        <div className="flex justify-end gap-3 px-6 py-4
-                        border-t border-h-subtle">
-          <button onClick={onClose} disabled={guardando}
+        <div className="flex justify-end gap-3 px-6 pb-5 flex-shrink-0">
+          <button onClick={onClose} disabled={eliminando}
             className="px-4 py-2 rounded-lg text-sm font-semibold
-                       text-h-secondary hover:bg-h-elevated
-                       transition-colors">
+                       text-h-secondary hover:bg-h-elevated transition-colors">
             Cancelar
           </button>
-          <button onClick={handleGuardar} disabled={guardando}
+          <button onClick={handleEliminar} disabled={eliminando}
             className="px-5 py-2 rounded-lg text-sm font-semibold text-white
                        transition-colors disabled:opacity-50"
-            style={{ background: 'var(--h-teal-rest)' }}
-            onMouseEnter={e => !guardando &&
-              (e.currentTarget.style.background = 'var(--h-teal-hover)')}
+            style={{ background: 'var(--h-sem-danger-text)' }}
+            onMouseEnter={e => !eliminando &&
+              (e.currentTarget.style.background = 'var(--h-sem-danger-border)')}
             onMouseLeave={e =>
-              (e.currentTarget.style.background = 'var(--h-teal-rest)')}
+              (e.currentTarget.style.background = 'var(--h-sem-danger-text)')}
           >
-            {guardando ? 'Guardando...' : 'Guardar cambios'}
+            {eliminando ? 'Eliminando...' : 'Si, eliminar orden'}
           </button>
         </div>
       </div>
@@ -424,16 +398,16 @@ export function OrdenesMantenimiento() {
   const { user } = useAuthStore()
   const puedeEscribir = user?.rol ? ROLES_ESCRITURA.includes(user.rol) : false
 
-  const [ordenes, setOrdenes] = useState<OrdenMantenimientoResponse[]>([])
-  const [activos, setActivos] = useState<ActivoFijoResponse[]>([])
-  const [proveedores, setProveedores] = useState<ProveedorResponse[]>([])
-  const [cargando, setCargando] = useState(true)
+  const [ordenes,      setOrdenes]      = useState<OrdenMantenimientoResponse[]>([])
+  const [activos,      setActivos]      = useState<ActivoFijoResponse[]>([])
+  const [proveedores,  setProveedores]  = useState<ProveedorResponse[]>([])
+  const [cargando,     setCargando]     = useState(true)
   const [filtroEstado, setFiltroEstado] = useState<EstadoOrden | ''>('')
-  const [modalNueva, setModalNueva] = useState(false)
-  const [modalEditar, setModalEditar] =
+  const [modalNueva,   setModalNueva]   = useState(false)
+  const [modalEliminar, setModalEliminar] =
     useState<OrdenMantenimientoResponse | null>(null)
-  const [toast, setToast] = useState('')
-  const [hoveredRow, setHoveredRow] = useState<string | null>(null)
+  const [toast,        setToast]        = useState('')
+  const [hoveredOrden, setHoveredOrden] = useState<number | null>(null)
   const { labelTiempo, marcarActualizado } = useLastUpdated()
 
   function mostrarToast(msg: string) {
@@ -467,11 +441,11 @@ export function OrdenesMantenimiento() {
 
   const enCursoCount = ordenes.filter(o => o.estado === 'en_curso').length
 
-  // Construir filas: una fila por item de cada orden
+  // ── Construccion de filas (una por item) ──────────────────────────────────
   type Fila = {
-    rowKey: string
-    orden: OrdenMantenimientoResponse
-    item: OrdenMantenimientoResponse['items'][0]
+    rowKey:  string
+    orden:   OrdenMantenimientoResponse
+    item:    OrdenMantenimientoResponse['items'][0]
     rowspan: number
     isFirst: boolean
   }
@@ -479,22 +453,16 @@ export function OrdenesMantenimiento() {
   const filas: Fila[] = []
   ordenes.forEach(orden => {
     if (orden.items.length === 0) {
-      // Orden sin items (no deberia ocurrir pero se defiende)
       filas.push({
-        rowKey: `${orden.id}-empty`,
+        rowKey:  `${orden.id}-empty`,
         orden,
         item: {
-          id: -1,
-          activo_fijo_id: -1,
+          id: -1, activo_fijo_id: -1,
           activo_fijo_nombre: '(sin activos)',
           activo_fijo_codigo: null,
           resultado: 'pendiente',
-          fecha_envio: null,
-          fecha_retorno_estimada: null,
-          fecha_retorno: null,
-          descripcion_problema: null,
-          descripcion_trabajo: null,
-          costo: null,
+          fecha_envio: null, fecha_retorno_estimada: null, fecha_retorno: null,
+          descripcion_problema: null, descripcion_trabajo: null, costo: null,
         },
         rowspan: 1,
         isFirst: true,
@@ -502,7 +470,7 @@ export function OrdenesMantenimiento() {
     } else {
       orden.items.forEach((item, idx) => {
         filas.push({
-          rowKey: `${orden.id}-${item.id}`,
+          rowKey:  `${orden.id}-${item.id}`,
           orden,
           item,
           rowspan: orden.items.length,
@@ -535,8 +503,8 @@ export function OrdenesMantenimiento() {
                              rounded-full text-xs font-bold"
               style={{
                 background: 'var(--h-sem-warning-bg)',
-                color: 'var(--h-sem-warning-text)',
-                border: '1px solid var(--h-sem-warning-border)',
+                color:      'var(--h-sem-warning-text)',
+                border:     '1px solid var(--h-sem-warning-border)',
               }}>
               <CalendarClock size={13} />
               {enCursoCount} en curso
@@ -559,19 +527,18 @@ export function OrdenesMantenimiento() {
         </div>
       </div>
 
-      {/* Filtro de estado */}
+      {/* Filtros de estado */}
       <div className="flex items-center gap-2 flex-wrap">
         <span className="text-xs text-h-tertiary font-semibold">Estado:</span>
         {(['', 'en_curso', 'cerrada', 'cancelada'] as const).map(e => (
           <button key={e}
             onClick={() => setFiltroEstado(e as EstadoOrden | '')}
-            className="px-3 py-1 rounded-full text-xs font-bold
-                       transition-colors"
+            className="px-3 py-1 rounded-full text-xs font-bold transition-colors"
             style={filtroEstado === e ? {
               background: 'var(--h-teal-rest)', color: 'white',
             } : {
               background: 'var(--h-bg-elevated)',
-              color: 'var(--h-text-secondary)',
+              color:      'var(--h-text-secondary)',
             }}>
             {e === '' ? 'Todos' : ETIQUETAS_ORDEN[e as EstadoOrden]}
           </button>
@@ -634,52 +601,47 @@ export function OrdenesMantenimiento() {
               </thead>
               <tbody>
                 {filas.map(({ rowKey, orden, item, rowspan, isFirst }) => {
-                  const dias = diasDesde(orden.fecha_visita)
-                  const rowHovered = hoveredRow === rowKey
+                  const dias      = diasDesde(orden.fecha_visita)
+                  const hovered   = hoveredOrden === orden.id
+                  const rowBg     = hovered
+                    ? 'var(--h-bg-highlight)'
+                    : 'var(--h-bg-surface)'
+
                   return (
                     <tr key={rowKey}
-                      className="border-b border-h-subtle transition-colors"
-                      style={{
-                        background: rowHovered
-                          ? 'var(--h-bg-highlight)'
-                          : 'var(--h-bg-surface)',
-                      }}
-                      onMouseEnter={() => setHoveredRow(rowKey)}
-                      onMouseLeave={() => setHoveredRow(null)}
+                      className="border-b border-h-subtle"
+                      style={{ background: rowBg }}
+                      onMouseEnter={() => setHoveredOrden(orden.id)}
+                      onMouseLeave={() => setHoveredOrden(null)}
                     >
-                      {/* Celda de cabecera (rowspan por orden) */}
+                      {/* Columna Orden / Proveedor — rowspan */}
                       {isFirst && (
-                        <td className="px-4 py-3 align-top"
-                          rowSpan={rowspan}>
+                        <td className="px-4 py-3 align-top" rowSpan={rowspan}
+                          style={{ background: rowBg }}>
                           <p className="font-mono text-xs text-h-tertiary">
                             #ORD-{String(orden.id).padStart(4, '0')}
                           </p>
                           {orden.proveedor_nombre ? (
-                            <span className="flex items-center gap-1
-                                             text-xs text-h-secondary
-                                             font-semibold mt-0.5">
-                              <Building2 size={11}
-                                className="text-h-tertiary" />
+                            <span className="flex items-center gap-1 text-xs
+                                             text-h-secondary font-semibold mt-0.5">
+                              <Building2 size={11} className="text-h-tertiary" />
                               {orden.proveedor_nombre}
                             </span>
                           ) : (
-                            <span className="text-xs italic
-                                             text-h-tertiary mt-0.5">
+                            <span className="text-xs italic text-h-tertiary mt-0.5">
                               Sin proveedor
                             </span>
                           )}
                           {orden.notas && (
                             <p className="text-xs text-h-tertiary mt-1
                                           max-w-[160px] truncate"
-                              title={orden.notas}>
-                              {orden.notas}
-                            </p>
+                              title={orden.notas}>{orden.notas}</p>
                           )}
                         </td>
                       )}
 
-                      {/* Activo */}
-                      <td className="px-4 py-3">
+                      {/* Columna Activo */}
+                      <td className="px-4 py-3" style={{ background: rowBg }}>
                         <p className="font-semibold text-h-primary">
                           {item.activo_fijo_nombre}
                         </p>
@@ -695,9 +657,10 @@ export function OrdenesMantenimiento() {
                         )}
                       </td>
 
-                      {/* Estado orden (rowspan) */}
+                      {/* Columna Estado — rowspan */}
                       {isFirst && (
-                        <td className="px-4 py-3 align-top" rowSpan={rowspan}>
+                        <td className="px-4 py-3 align-top" rowSpan={rowspan}
+                          style={{ background: rowBg }}>
                           <BadgeLocal
                             label={ETIQUETAS_ORDEN[orden.estado]}
                             cls={ESTADO_COLOR[orden.estado]}
@@ -705,30 +668,33 @@ export function OrdenesMantenimiento() {
                         </td>
                       )}
 
-                      {/* Resultado item */}
-                      <td className="px-4 py-3">
+                      {/* Columna Resultado */}
+                      <td className="px-4 py-3" style={{ background: rowBg }}>
                         <BadgeLocal
                           label={ETIQUETA_RESULTADO_ITEM[item.resultado]}
                           cls={RESULTADO_COLOR[item.resultado]}
                         />
                       </td>
 
-                      {/* Fecha visita (rowspan) */}
+                      {/* Columna Fecha visita — rowspan */}
                       {isFirst && (
                         <td className="px-4 py-3 text-h-secondary whitespace-nowrap
-                                       align-top" rowSpan={rowspan}>
+                                       align-top" rowSpan={rowspan}
+                          style={{ background: rowBg }}>
                           {formatFecha(orden.fecha_visita)}
                         </td>
                       )}
 
-                      {/* Retorno estimado (por item) */}
-                      <td className="px-4 py-3 text-h-secondary whitespace-nowrap">
+                      {/* Columna Retorno estimado */}
+                      <td className="px-4 py-3 text-h-secondary whitespace-nowrap"
+                        style={{ background: rowBg }}>
                         {formatFecha(item.fecha_retorno_estimada)}
                       </td>
 
-                      {/* Dias (rowspan) */}
+                      {/* Columna Dias — rowspan */}
                       {isFirst && (
-                        <td className="px-4 py-3 align-top" rowSpan={rowspan}>
+                        <td className="px-4 py-3 align-top" rowSpan={rowspan}
+                          style={{ background: rowBg }}>
                           <span className={`text-xs font-bold ${
                             orden.estado !== 'en_curso'
                               ? 'text-h-tertiary'
@@ -742,27 +708,28 @@ export function OrdenesMantenimiento() {
                         </td>
                       )}
 
-                      {/* Acciones (rowspan, solo en primera fila del grupo) */}
+                      {/* Columna Acciones — rowspan, solo Eliminar */}
                       {isFirst && (
-                        <td className="px-4 py-3 align-top" rowSpan={rowspan}>
+                        <td className="px-4 py-3 align-top" rowSpan={rowspan}
+                          style={{ background: rowBg }}>
                           {puedeEscribir && orden.estado === 'en_curso' && (
                             <button
-                              onClick={() => setModalEditar(orden)}
-                              title="Editar cabecera de la orden"
+                              onClick={() => setModalEliminar(orden)}
+                              title="Eliminar orden"
                               className="p-1.5 rounded-lg text-h-tertiary
                                          transition-colors"
                               onMouseEnter={e => {
                                 e.currentTarget.style.color =
-                                  'var(--h-teal-hover)'
+                                  'var(--h-sem-danger-text)'
                                 e.currentTarget.style.background =
-                                  'var(--h-teal-subtle)'
+                                  'var(--h-sem-danger-bg)'
                               }}
                               onMouseLeave={e => {
                                 e.currentTarget.style.color = ''
                                 e.currentTarget.style.background = ''
                               }}
                             >
-                              <Pencil size={14} />
+                              <Trash2 size={14} />
                             </button>
                           )}
                         </td>
@@ -790,20 +757,20 @@ export function OrdenesMantenimiento() {
         />
       )}
 
-      {/* Modal editar cabecera */}
-      {modalEditar && (
-        <ModalEditarCabecera
-          orden={modalEditar}
-          proveedores={proveedores}
-          onClose={() => setModalEditar(null)}
+      {/* Modal eliminar */}
+      {modalEliminar && (
+        <ModalEliminar
+          orden={modalEliminar}
+          onClose={() => setModalEliminar(null)}
           onSaved={() => {
-            setModalEditar(null)
-            mostrarToast('Orden actualizada')
+            setModalEliminar(null)
+            mostrarToast('Orden eliminada y activos liberados')
             cargar()
           }}
         />
       )}
 
+      {/* Toast */}
       {toast && (
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2
                         text-white text-sm font-medium px-4 py-3

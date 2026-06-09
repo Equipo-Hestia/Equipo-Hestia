@@ -68,11 +68,11 @@ function FidelidadBadge({ fidelidad }: { fidelidad: FidelidadPhantoma | null }) 
   )
 }
 
-const ESTADO_OPTS = [
-  { value: 'disponible',       label: 'Disponible' },
-  { value: 'en_uso',           label: 'En uso' },
-  { value: 'en_mantenimiento', label: 'En mantenimiento' },
-  { value: 'dado_de_baja',     label: 'Dado de baja' },
+// Estados editables manualmente (excluye en_mantenimiento y dado_de_baja,
+// que solo los gestiona el modulo de mantenimiento)
+const ESTADO_EDITABLE_OPTS = [
+  { value: 'disponible', label: 'Disponible' },
+  { value: 'en_uso',     label: 'En uso' },
 ]
 
 const FIDELIDAD_OPTS = [
@@ -82,26 +82,35 @@ const FIDELIDAD_OPTS = [
 ]
 
 interface ModalProps {
-  activo: ActivoFijoResponse | null
-  salas: SalaResponse[]
+  activo:      ActivoFijoResponse | null
+  salas:       SalaResponse[]
   proveedores: ProveedorResponse[]
-  onClose: () => void
-  onSaved: () => void
+  onClose:     () => void
+  onSaved:     () => void
 }
 
 function ActivoModal({ activo, salas, proveedores, onClose, onSaved }: ModalProps) {
   const esNuevo = activo === null
-  const [nombre, setNombre]             = useState(activo?.nombre ?? '')
-  const [descripcion, setDescripcion]   = useState(activo?.descripcion ?? '')
-  const [tipo, setTipo]                 = useState<TipoActivo>(activo?.tipo ?? 'mueble')
+
+  // Al crear siempre nace en 'disponible'; al editar se lee del activo
+  const [nombre,       setNombre]       = useState(activo?.nombre ?? '')
+  const [descripcion,  setDescripcion]  = useState(activo?.descripcion ?? '')
+  const [tipo,         setTipo]         = useState<TipoActivo>(activo?.tipo ?? 'mueble')
   const [codigoBarras, setCodigoBarras] = useState(activo?.codigo_barras ?? '')
-  const [estado, setEstado]             = useState<string>(activo?.estado ?? 'disponible')
-  const [fidelidad, setFidelidad]       = useState<string>(activo?.fidelidad ?? '')
-  const [salaId, setSalaId]             = useState<string>(activo?.sala_id?.toString() ?? '')
-  const [proveedorId, setProveedorId]   = useState<string>(activo?.proveedor_id?.toString() ?? '')
-  const [notas, setNotas]               = useState(activo?.notas ?? '')
-  const [guardando, setGuardando]       = useState(false)
-  const [error, setError]               = useState('')
+  const [estado,       setEstado]       = useState<string>(activo?.estado ?? 'disponible')
+  const [fidelidad,    setFidelidad]    = useState<string>(activo?.fidelidad ?? '')
+  const [salaId,       setSalaId]       = useState<string>(activo?.sala_id?.toString() ?? '')
+  const [proveedorId,  setProveedorId]  = useState<string>(activo?.proveedor_id?.toString() ?? '')
+  const [notas,        setNotas]        = useState(activo?.notas ?? '')
+  const [guardando,    setGuardando]    = useState(false)
+  const [error,        setError]        = useState('')
+
+  // El estado es editable solo si el activo es nuevo o esta en disponible/en_uso.
+  // en_mantenimiento y dado_de_baja los gestiona exclusivamente el modulo de
+  // mantenimiento para mantener consistencia con las ordenes activas.
+  const estadoBloqueado = !esNuevo && (
+    estado === 'en_mantenimiento' || estado === 'dado_de_baja'
+  )
 
   const salaOpts      = salas.map(s => ({ value: String(s.id), label: s.nombre }))
   const proveedorOpts = proveedores.map(p => ({ value: String(p.id), label: p.nombre }))
@@ -112,22 +121,28 @@ function ActivoModal({ activo, salas, proveedores, onClose, onSaved }: ModalProp
     try {
       if (esNuevo) {
         const body: ActivoFijoCreate = {
-          nombre: nombre.trim(), descripcion: descripcion.trim() || null, tipo,
-          codigo_barras: codigoBarras.trim() || null, estado: estado as EstadoActivo,
-          fidelidad: (fidelidad as FidelidadPhantoma) || null,
-          sala_id: salaId ? parseInt(salaId) : null,
+          nombre:       nombre.trim(),
+          descripcion:  descripcion.trim() || null,
+          tipo,
+          codigo_barras: codigoBarras.trim() || null,
+          // estado omitido: el backend lo crea siempre como 'disponible'
+          fidelidad:    (fidelidad as FidelidadPhantoma) || null,
+          sala_id:      salaId ? parseInt(salaId) : null,
           proveedor_id: proveedorId ? parseInt(proveedorId) : null,
-          notas: notas.trim() || null,
+          notas:        notas.trim() || null,
         }
         await api.post('/activos-fijos/', body)
       } else {
         const body: ActivoFijoUpdate = {
-          nombre: nombre.trim(), descripcion: descripcion.trim() || null,
-          codigo_barras: codigoBarras.trim() || null, estado: estado as EstadoActivo,
-          fidelidad: (fidelidad as FidelidadPhantoma) || null,
-          sala_id: salaId ? parseInt(salaId) : null,
+          nombre:       nombre.trim(),
+          descripcion:  descripcion.trim() || null,
+          codigo_barras: codigoBarras.trim() || null,
+          // solo enviar estado si no esta bloqueado
+          ...(estadoBloqueado ? {} : { estado: estado as EstadoActivo }),
+          fidelidad:    (fidelidad as FidelidadPhantoma) || null,
+          sala_id:      salaId ? parseInt(salaId) : null,
           proveedor_id: proveedorId ? parseInt(proveedorId) : null,
-          notas: notas.trim() || null,
+          notas:        notas.trim() || null,
         }
         await api.put(`/activos-fijos/${activo!.id}`, body)
       }
@@ -139,10 +154,15 @@ function ActivoModal({ activo, salas, proveedores, onClose, onSaved }: ModalProp
     } finally { setGuardando(false) }
   }
 
-  const labelCls = 'block text-[10px] font-semibold text-h-tertiary mb-1.5 uppercase tracking-widest'
-  const inputCls = `w-full px-3 py-2.5 rounded-lg text-h-primary text-sm
-    focus:outline-none transition-all bg-h-elevated border border-h-visible
-    focus:border-h-strong placeholder:text-h-tertiary`
+  const labelCls = (
+    'block text-[10px] font-semibold text-h-tertiary mb-1.5 '
+    + 'uppercase tracking-widest'
+  )
+  const inputCls = (
+    'w-full px-3 py-2.5 rounded-lg text-h-primary text-sm '
+    + 'focus:outline-none transition-all bg-h-elevated border '
+    + 'border-h-visible focus:border-h-strong placeholder:text-h-tertiary'
+  )
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60
@@ -158,13 +178,18 @@ function ActivoModal({ activo, salas, proveedores, onClose, onSaved }: ModalProp
             className="text-h-tertiary hover:text-h-secondary text-xl font-bold
                        transition-colors">x</button>
         </div>
+
         <div className="px-6 py-5 space-y-4 overflow-y-auto flex-1">
+
+          {/* Nombre */}
           <div>
             <label className={labelCls}>Nombre *</label>
             <input className={inputCls} value={nombre}
               onChange={e => setNombre(e.target.value)}
               placeholder="Ej: Camilla articulada, SimMan 3G" />
           </div>
+
+          {/* Tipo — solo al crear */}
           {esNuevo && (
             <div>
               <label className={labelCls}>Tipo *</label>
@@ -186,57 +211,97 @@ function ActivoModal({ activo, salas, proveedores, onClose, onSaved }: ModalProp
               </div>
             </div>
           )}
-          <div>
-            <label className={labelCls}>Estado</label>
-            <HSelect value={estado} onChange={setEstado} options={ESTADO_OPTS} className="w-full" />
-          </div>
+
+          {/* Estado — se muestra solo al editar */}
+          {!esNuevo && (
+            <div>
+              <label className={labelCls}>Estado</label>
+              {estadoBloqueado ? (
+                // Solo lectura: badge informativo con nota explicativa
+                <div className="flex items-center gap-3">
+                  <EstadoBadge estado={estado as EstadoActivo} />
+                  <p className="text-xs text-h-tertiary">
+                    {estado === 'en_mantenimiento'
+                      ? 'Gestionado por el modulo de Mantenimiento'
+                      : 'Estado terminal, no modificable'}
+                  </p>
+                </div>
+              ) : (
+                <HSelect
+                  value={estado}
+                  onChange={setEstado}
+                  options={ESTADO_EDITABLE_OPTS}
+                  className="w-full"
+                />
+              )}
+            </div>
+          )}
+
+          {/* Fidelidad — solo en phantomas */}
           {(tipo === 'phantoma' || activo?.tipo === 'phantoma') && (
             <div>
               <label className={labelCls}>Fidelidad del simulador</label>
               <HSelect value={fidelidad} onChange={setFidelidad}
-                options={FIDELIDAD_OPTS} placeholder="Sin especificar" className="w-full" />
+                options={FIDELIDAD_OPTS} placeholder="Sin especificar"
+                className="w-full" />
             </div>
           )}
+
+          {/* Sala de origen */}
           <div>
             <label className={labelCls}>Sala de origen</label>
             <HSelect value={salaId} onChange={setSalaId}
               options={salaOpts} placeholder="Sin asignar" className="w-full" />
           </div>
+
+          {/* Proveedor */}
           <div>
             <label className={labelCls}>Proveedor</label>
             <HSelect value={proveedorId} onChange={setProveedorId}
-              options={proveedorOpts} placeholder="Sin proveedor asignado" className="w-full" />
+              options={proveedorOpts} placeholder="Sin proveedor asignado"
+              className="w-full" />
           </div>
+
+          {/* Codigo de barras */}
           <div>
             <label className={labelCls}>Codigo de barras</label>
             <input className={inputCls} value={codigoBarras}
               onChange={e => setCodigoBarras(e.target.value)}
               placeholder="Escanear o ingresar manualmente" />
           </div>
+
+          {/* Descripcion */}
           <div>
             <label className={labelCls}>Descripcion</label>
-            <textarea className={`${inputCls} resize-none`} rows={2} value={descripcion}
+            <textarea className={`${inputCls} resize-none`} rows={2}
+              value={descripcion}
               onChange={e => setDescripcion(e.target.value)}
               placeholder="Caracteristicas adicionales..." />
           </div>
+
+          {/* Notas */}
           <div>
             <label className={labelCls}>Notas internas</label>
-            <textarea className={`${inputCls} resize-none`} rows={2} value={notas}
+            <textarea className={`${inputCls} resize-none`} rows={2}
+              value={notas}
               onChange={e => setNotas(e.target.value)}
               placeholder="Observaciones del operador..." />
           </div>
+
           {error && (
             <p className="text-xs font-medium px-3 py-2 rounded-lg"
               style={{
                 background: 'var(--h-sem-danger-bg)',
-                color: 'var(--h-sem-danger-text)',
-                border: '1px solid var(--h-sem-danger-border)',
+                color:      'var(--h-sem-danger-text)',
+                border:     '1px solid var(--h-sem-danger-border)',
               }}>
               {error}
             </p>
           )}
         </div>
-        <div className="flex justify-end gap-3 px-6 py-4 border-t border-h-subtle flex-shrink-0">
+
+        <div className="flex justify-end gap-3 px-6 py-4
+                        border-t border-h-subtle flex-shrink-0">
           <button onClick={onClose} disabled={guardando}
             className="px-4 py-2 rounded-lg text-sm font-semibold text-h-secondary
                        hover:bg-h-elevated transition-colors">Cancelar</button>
@@ -272,18 +337,19 @@ export function ActivosFijos() {
   const puedeEscribir = user?.rol ? ROLES_ESCRITURA.includes(user.rol) : false
   const esAdmin       = user?.rol === 'admin'
 
-  const [activos, setActivos]         = useState<ActivoFijoResponse[]>([])
-  const [todos, setTodos]             = useState<ActivoFijoResponse[]>([])
-  const [salas, setSalas]             = useState<SalaResponse[]>([])
-  const [proveedores, setProveedores] = useState<ProveedorResponse[]>([])
-  const [cargando, setCargando]       = useState(true)
-  const [filtroTipo, setFiltroTipo]   = useState<FiltroTipo>('todos')
+  const [activos,      setActivos]      = useState<ActivoFijoResponse[]>([])
+  const [todos,        setTodos]        = useState<ActivoFijoResponse[]>([])
+  const [salas,        setSalas]        = useState<SalaResponse[]>([])
+  const [proveedores,  setProveedores]  = useState<ProveedorResponse[]>([])
+  const [cargando,     setCargando]     = useState(true)
+  const [filtroTipo,   setFiltroTipo]   = useState<FiltroTipo>('todos')
   const [filtroEstado, setFiltroEstado] = useState<string>('')
-  const [filtroSala, setFiltroSala]   = useState<string>('')
-  const [busqueda, setBusqueda]       = useState('')
-  const [modalActivo, setModalActivo] = useState<ActivoFijoResponse | null | undefined>(undefined)
-  const [toast, setToast]             = useState('')
-  const [hoveredId, setHoveredId]     = useState<number | null>(null)
+  const [filtroSala,   setFiltroSala]   = useState<string>('')
+  const [busqueda,     setBusqueda]     = useState('')
+  const [modalActivo,  setModalActivo]  =
+    useState<ActivoFijoResponse | null | undefined>(undefined)
+  const [toast,        setToast]        = useState('')
+  const [hoveredId,    setHoveredId]    = useState<number | null>(null)
   const { labelTiempo, marcarActualizado } = useLastUpdated()
 
   function mostrarToast(msg: string) {
@@ -296,7 +362,7 @@ export function ActivosFijos() {
       const params: Record<string, string> = {}
       if (filtroTipo !== 'todos') params.tipo = filtroTipo
       if (filtroEstado) params.estado = filtroEstado
-      if (filtroSala)  params.sala_id = filtroSala
+      if (filtroSala)   params.sala_id = filtroSala
       if (busqueda.trim()) params.q = busqueda.trim()
       const res = await api.get<ActivoFijoResponse[]>('/activos-fijos/', { params })
       setActivos(res.data)
@@ -310,7 +376,7 @@ export function ActivosFijos() {
     try {
       const params: Record<string, string> = {}
       if (filtroEstado) params.estado = filtroEstado
-      if (filtroSala)  params.sala_id = filtroSala
+      if (filtroSala)   params.sala_id = filtroSala
       if (busqueda.trim()) params.q = busqueda.trim()
       const res = await api.get<ActivoFijoResponse[]>('/activos-fijos/', { params })
       setTodos(res.data)
@@ -348,7 +414,10 @@ export function ActivosFijos() {
   }
 
   const salaFiltroOpts = salas.map(s => ({ value: String(s.id), label: s.nombre }))
-  const COLS = ['Codigo', 'Nombre', 'Proveedor', 'Tipo', 'Estado', 'Sala de origen', 'Fidelidad', 'Acciones']
+  const COLS = [
+    'Codigo', 'Nombre', 'Proveedor', 'Tipo',
+    'Estado', 'Sala de origen', 'Fidelidad', 'Acciones',
+  ]
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-5">
@@ -397,7 +466,9 @@ export function ActivosFijos() {
               className={[
                 'flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-semibold',
                 'transition-all duration-150',
-                isActive ? 'text-h-primary shadow-sm' : 'text-h-tertiary hover:text-h-secondary',
+                isActive
+                  ? 'text-h-primary shadow-sm'
+                  : 'text-h-tertiary hover:text-h-secondary',
               ].join(' ')}
               style={isActive ? { background: 'var(--h-bg-surface)' } : {}}>
               {tab.icon}
@@ -417,15 +488,16 @@ export function ActivosFijos() {
       {/* Barra de filtros */}
       <div className="flex flex-wrap gap-3 items-center">
         <div className="relative flex-1 min-w-[200px]">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-h-tertiary
-                                       pointer-events-none" />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2
+                                       text-h-tertiary pointer-events-none" />
           <input
             className="w-full pl-9 pr-3 py-1.5 rounded-lg border text-sm
                        bg-h-elevated border-h-subtle text-h-primary
                        focus:outline-none focus:border-h-visible
                        placeholder:text-h-tertiary transition-colors"
             placeholder="Buscar por nombre o codigo..."
-            value={busqueda} onChange={e => setBusqueda(e.target.value)}
+            value={busqueda}
+            onChange={e => setBusqueda(e.target.value)}
           />
         </div>
         <HSelect value={filtroEstado} onChange={setFiltroEstado}
@@ -433,7 +505,8 @@ export function ActivosFijos() {
         <HSelect value={filtroSala} onChange={setFiltroSala}
           options={salaFiltroOpts} placeholder="Todas las salas" size="sm" />
         <button onClick={() => { cargar(); cargarTodos() }}
-          className="p-2 rounded-lg border border-h-subtle text-h-tertiary transition-colors"
+          className="p-2 rounded-lg border border-h-subtle text-h-tertiary
+                     transition-colors"
           style={{ background: 'var(--h-bg-elevated)' }}
           onMouseEnter={e => {
             e.currentTarget.style.background = 'var(--h-bg-highlight)'
@@ -459,8 +532,10 @@ export function ActivosFijos() {
           </div>
         ) : activos.length === 0 ? (
           <div className="p-12 text-center">
-            <p className="text-3xl mb-3">🏥</p>
-            <p className="text-h-secondary font-medium text-sm">No se encontraron activos fijos</p>
+            <p className="text-3xl mb-3">\ud83c\udfe5</p>
+            <p className="text-h-secondary font-medium text-sm">
+              No se encontraron activos fijos
+            </p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -492,19 +567,21 @@ export function ActivosFijos() {
                     onMouseLeave={() => setHoveredId(null)}
                   >
                     <td className="px-4 py-3">
-                      <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded-md"
+                      <span className="font-mono text-xs font-semibold px-2 py-0.5
+                                       rounded-md"
                         style={{
                           background: 'var(--h-bg-highlight)',
-                          color: 'var(--h-text-primary)',
-                          border: '1px solid var(--h-border-subtle)',
+                          color:      'var(--h-text-primary)',
+                          border:     '1px solid var(--h-border-subtle)',
                         }}>
-                        {af.codigo_interno ?? '—'}
+                        {af.codigo_interno ?? '\u2014'}
                       </span>
                     </td>
                     <td className="px-4 py-3">
                       <p className="font-semibold text-h-primary">{af.nombre}</p>
                       {af.descripcion && (
-                        <p className="text-xs text-h-tertiary mt-0.5 truncate max-w-[200px]">
+                        <p className="text-xs text-h-tertiary mt-0.5
+                                       truncate max-w-[200px]">
                           {af.descripcion}
                         </p>
                       )}
@@ -517,12 +594,15 @@ export function ActivosFijos() {
                           {af.proveedor_nombre}
                         </span>
                       ) : (
-                        <span className="text-xs italic text-h-tertiary">Sin proveedor</span>
+                        <span className="text-xs italic text-h-tertiary">
+                          Sin proveedor
+                        </span>
                       )}
                     </td>
                     <td className="px-4 py-3">
                       <span className={[
-                        'inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full',
+                        'inline-flex items-center gap-1.5 text-xs font-semibold',
+                        'px-2.5 py-1 rounded-full',
                         af.tipo === 'mueble'
                           ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300'
                           : 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300',
@@ -532,18 +612,24 @@ export function ActivosFijos() {
                           : <><Brain size={11} /> Phantoma</>}
                       </span>
                     </td>
-                    <td className="px-4 py-3"><EstadoBadge estado={af.estado} /></td>
+                    <td className="px-4 py-3">
+                      <EstadoBadge estado={af.estado} />
+                    </td>
                     <td className="px-4 py-3 text-h-secondary text-sm">
                       {af.sala_nombre ?? (
                         <span className="text-h-tertiary italic text-xs">Sin asignar</span>
                       )}
                     </td>
-                    <td className="px-4 py-3"><FidelidadBadge fidelidad={af.fidelidad} /></td>
+                    <td className="px-4 py-3">
+                      <FidelidadBadge fidelidad={af.fidelidad} />
+                    </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
                         {puedeEscribir && (
-                          <button onClick={() => setModalActivo(af)} title="Editar"
-                            className="p-1.5 rounded-lg text-h-tertiary transition-colors"
+                          <button onClick={() => setModalActivo(af)}
+                            title="Editar"
+                            className="p-1.5 rounded-lg text-h-tertiary
+                                       transition-colors"
                             onMouseEnter={e => {
                               e.currentTarget.style.color = 'var(--h-teal-hover)'
                               e.currentTarget.style.background = 'var(--h-teal-subtle)'
@@ -557,8 +643,10 @@ export function ActivosFijos() {
                           </button>
                         )}
                         {esAdmin && af.estado !== 'dado_de_baja' && (
-                          <button onClick={() => handleDarDeBaja(af)} title="Dar de baja"
-                            className="p-1.5 rounded-lg text-h-tertiary transition-colors"
+                          <button onClick={() => handleDarDeBaja(af)}
+                            title="Dar de baja"
+                            className="p-1.5 rounded-lg text-h-tertiary
+                                       transition-colors"
                             onMouseEnter={e => {
                               e.currentTarget.style.color = 'var(--h-sem-danger-text)'
                               e.currentTarget.style.background = 'var(--h-sem-danger-bg)'
