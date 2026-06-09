@@ -15,26 +15,26 @@ const SOPORTE_EMAIL = 'hestia.soporte.cc@gmail.com'
 
 const FAQ_ITEMS = [
   {
-    q: 'Olvide mi contrasena. Que hago?',
-    a: 'Usa el enlace Olvidaste tu contrasena debajo del boton Ingresar. Recibiras un correo con instrucciones.',
+    q: 'Olvidé mi contraseña. ¿Qué hago?',
+    a: 'Usa el enlace Olvidaste tu contraseña debajo del boton Ingresar. Recibirás un correo con instrucciones.',
   },
   {
     q: 'El stock de un insumo parece incorrecto.',
-    a: 'El inventario se actualiza automaticamente al completar cada pedido. Contacta al operador o al administrador del sistema.',
+    a: 'El inventario se actualiza automáticamente al completar cada pedido. Contacta al operador o al administrador del sistema.',
   },
   {
-    q: 'No recibo el correo de recuperacion de contrasena.',
-    a: 'Revisa tu carpeta de spam. El enlace es valido por 1 hora. Si persiste, envianos un ticket desde este formulario.',
+    q: 'No recibo el correo de recuperación de contraseña.',
+    a: 'Revisa tu carpeta de spam. El enlace es válido por 1 hora. Si persiste, envíanos un ticket desde este formulario.',
   },
   {
-    q: 'No puedo iniciar sesion y tengo 2FA activo.',
-    a: 'Usa uno de tus codigos de recuperacion de un solo uso. Si tampoco los tienes, contacta al administrador.',
+    q: 'No puedo iniciar sesión y tengo 2FA activo.',
+    a: 'Usa uno de tus códigos de recuperación de un solo uso. Si tampoco los tienes, contacta al administrador.',
   },
 ]
 
 const TEMAS = [
-  'Problema al iniciar sesion',
-  'No recibo correo de recuperacion',
+  'Problema al iniciar sesión',
+  'No recibo correo de recuperación',
   'Error en el inventario / stock',
   'Problema con 2FA',
   'Error general del sistema',
@@ -75,17 +75,17 @@ function ModalAcercaDe({ onClose }: { onClose: () => void }) {
         <div className="space-y-3 text-xs text-h-secondary">
           <div className="bg-h-elevated rounded-xl border border-h-subtle px-4 py-3 space-y-2">
             {[
-              ['Institucion', 'DuocUC \u2014 Sede San Bernardo'],
+              ['Institucion', 'DuocUC - Sede San Bernardo'],
               ['Escuela',     'Escuela de Salud'],
-              ['Carrera',     'Informatica Biomedica'],
-              ['Tipo',        'Proyecto de Titulo \u00b7 Ruta IE'],
-              ['Periodo',     '2024 \u2013 2025'],
+              ['Carrera',     'Informática Biomédica'],
+              ['Tipo',        'Proyecto de Titulo - Ruta IE'],
+              ['Periodo',     '2026-2027'],
             ].map(([k, v]) => (
               <p key={k}><span className="text-h-primary font-medium">{k}</span><br />{v}</p>
             ))}
           </div>
           <div className="bg-h-elevated rounded-xl border border-h-subtle px-4 py-3">
-            <p className="text-h-primary font-medium mb-2">Stack tecnologico</p>
+            <p className="text-h-primary font-medium mb-2">Stack tecnológico</p>
             <div className="flex flex-wrap gap-1.5">
               {['FastAPI', 'PostgreSQL', 'React 19', 'TypeScript', 'Tailwind CSS', 'Docker'].map(t => (
                 <span key={t} className="bg-h-highlight text-h-secondary px-2 py-0.5
@@ -95,11 +95,11 @@ function ModalAcercaDe({ onClose }: { onClose: () => void }) {
           </div>
         </div>
         <p className="text-center text-h-tertiary text-[10px] mt-5">
-          <strong className="text-h-secondary">H</strong>ospitalidad\u00b7
-          <strong className="text-h-secondary">E</strong>ficacia\u00b7
-          <strong className="text-h-secondary">S</strong>ervicio\u00b7
-          <strong className="text-h-secondary">T</strong>ransparencia\u00b7
-          <strong className="text-h-secondary">I</strong>nsumos\u00b7
+          <strong className="text-h-secondary">H</strong>ospitalidad
+          <strong className="text-h-secondary">E</strong>ficacia
+          <strong className="text-h-secondary">S</strong>ervicio
+          <strong className="text-h-secondary">T</strong>ransparencia
+          <strong className="text-h-secondary">I</strong>nsumos
           <strong className="text-h-secondary">A</strong>postolado
         </p>
       </div>
@@ -142,7 +142,7 @@ function ModalSoporte({ onClose }: { onClose: () => void }) {
                         border-b border-h-subtle flex-shrink-0">
           <div>
             <h2 className="text-base font-semibold text-h-primary">Centro de soporte</h2>
-            <p className="text-xs text-h-tertiary mt-0.5">Hestia \u2014 Escuela de Salud DuocUC</p>
+            <p className="text-xs text-h-tertiary mt-0.5">Hestia - Escuela de Salud DuocUC</p>
           </div>
           <button onClick={onClose}
             className="text-h-tertiary hover:text-h-secondary text-xl
@@ -156,7 +156,7 @@ function ModalSoporte({ onClose }: { onClose: () => void }) {
                 style={{ background: 'var(--h-sem-success-bg)', borderColor: 'var(--h-sem-success-border)' }}>\u2709\ufe0f</div>
               <h3 className="text-base font-semibold text-h-primary mb-2">Ticket enviado</h3>
               <p className="text-h-secondary text-xs mb-4">
-                Se abrio tu cliente de correo con el mensaje listo para enviar a{' '}
+                Se abrió tu cliente de correo con el mensaje listo para enviar a{' '}
                 <span className="font-semibold" style={{ color: 'var(--h-teal-hover)' }}>{SOPORTE_EMAIL}</span>.
               </p>
               <button onClick={() => setEnviado(false)}
@@ -208,7 +208,7 @@ function ModalSoporte({ onClose }: { onClose: () => void }) {
                                px-4 py-3 text-left hover:bg-h-elevated transition-colors">
                     <span className="text-xs font-medium text-h-secondary">{item.q}</span>
                     <span className="text-h-tertiary flex-shrink-0 text-sm">
-                      {expandFaq === i ? '\u2212' : '+'}
+                      {expandFaq === i ? '-' : '+'}
                     </span>
                   </button>
                   {expandFaq === i && (
@@ -359,7 +359,7 @@ function PanelIzquierdo() {
           ))}
         </div>
         <p className="text-[11px] text-h-tertiary">
-          DuocUC San Bernardo \u00b7 Informatica Biomedica \u00b7 2024\u20132025
+          DuocUC San Bernardo • Informática Biomédica • 2026 - 2027
         </p>
       </div>
     </div>
@@ -492,7 +492,7 @@ export function Login() {
       )
       setSetupQR(data); setSetupStep('qr')
     } catch {
-      setError('No fue posible cargar el QR. Intenta iniciar sesion de nuevo.')
+      setError('No fue posible cargar el QR. Intenta iniciar sesión de nuevo.')
       setIsSetup2FA(false)
     } finally { setSetupLoading(false) }
   }
@@ -518,7 +518,7 @@ export function Login() {
       const msg = (
         err as { response?: { data?: { detail?: string } } }
       ).response?.data?.detail
-      setError(msg ?? 'Error al iniciar sesion')
+      setError(msg ?? 'Error al iniciar sesión. Verifica tus credenciales e intenta de nuevo.')
     } finally { setLoading(false) }
   }
 
@@ -537,7 +537,7 @@ export function Login() {
       const msg = (
         err as { response?: { data?: { detail?: string } } }
       ).response?.data?.detail
-      setError(msg ?? 'Codigo incorrecto')
+      setError(msg ?? 'Código incorrecto')
     } finally { setLoading(false) }
   }
 
@@ -559,7 +559,7 @@ export function Login() {
       const msg = (
         err as { response?: { data?: { detail?: string } } }
       ).response?.data?.detail
-      setError(msg ?? 'Codigo de recuperacion invalido')
+      setError(msg ?? 'Código de recuperación inválido. Verifica que lo ingresaste correctamente.')
     } finally { setLoading(false) }
   }
 
@@ -578,7 +578,7 @@ export function Login() {
       const msg = (
         err as { response?: { data?: { detail?: string } } }
       ).response?.data?.detail
-      setError(msg ?? 'Codigo incorrecto. Verifica que la app este sincronizada.')
+      setError(msg ?? 'Código incorrecto. Verifica que la app este sincronizada.')
     } finally { setLoading(false) }
   }
 
@@ -658,7 +658,7 @@ export function Login() {
         <div className="lg:hidden flex flex-col items-center mb-8">
           <Logo className="w-14 h-14 mb-3" />
           <h1 className="text-2xl font-bold text-h-primary">Hestia</h1>
-          <p className="text-h-tertiary text-xs mt-1">Escuela de Salud \u00b7 DuocUC</p>
+          <p className="text-h-tertiary text-xs mt-1">Escuela de Salud • DuocUC</p>
         </div>
 
         {showAbout   && <ModalAcercaDe onClose={() => setShowAbout(false)} />}
@@ -685,14 +685,14 @@ export function Login() {
                 {/* Boton volver al formulario de credenciales */}
                 <button type="button" onClick={cancelarSetup}
                   className={backBtnCls}>
-                  \u2190 Volver al inicio de sesion
+                  ← Volver al inicio de sesión
                 </button>
                 <div className="flex items-center gap-2 mb-3">
                   <span className="w-6 h-6 rounded-full text-white text-xs font-bold
                                    flex items-center justify-center flex-shrink-0"
                     style={{ background: 'var(--h-teal-rest)' }}>1</span>
                   <h2 className="text-base font-semibold text-h-primary">
-                    Configura la verificacion en dos pasos
+                    Configura la verificación en dos pasos
                   </h2>
                 </div>
                 <p className="text-h-secondary text-xs mb-4 leading-relaxed">
@@ -730,7 +730,7 @@ export function Login() {
                   onClick={() => { setSetupStep('code'); setError(null) }}
                   disabled={!setupQR} className={stdBtnCls}
                   style={{ background: 'var(--h-teal-rest)' }}>
-                  Ya escanee el QR \u2192
+                  Ya escanee el QR →
                 </button>
               </>
 
@@ -738,17 +738,17 @@ export function Login() {
               <>
                 <button type="button"
                   onClick={() => { setSetupStep('qr'); setError(null) }}
-                  className={backBtnCls}>\u2190 Volver al QR</button>
+                  className={backBtnCls}>← Volver al QR</button>
                 <div className="flex items-center gap-2 mb-3">
                   <span className="w-6 h-6 rounded-full text-white text-xs font-bold
                                    flex items-center justify-center flex-shrink-0"
                     style={{ background: 'var(--h-teal-rest)' }}>2</span>
                   <h2 className="text-base font-semibold text-h-primary">
-                    Confirma el codigo
+                    Confirma el código
                   </h2>
                 </div>
                 <p className="text-h-secondary text-xs mb-5">
-                  Ingresa el codigo de 6 digitos que muestra
+                  Ingresa el código de 6 dígitos que muestra
                   Google Authenticator ahora.
                 </p>
                 <div className="space-y-4">
@@ -765,7 +765,7 @@ export function Login() {
                     disabled={loading || setupTotp.length !== 6}
                     onClick={() => setupAnimRef.current?.()}
                   >
-                    {loading ? 'Activando...' : 'Activar verificacion en dos pasos'}
+                    {loading ? 'Activando...' : 'Activar verificación en dos pasos'}
                   </ShimmerButton>
                 </div>
               </>
@@ -777,11 +777,11 @@ export function Login() {
                                    flex items-center justify-center flex-shrink-0"
                     style={{ background: 'var(--h-teal-rest)' }}>3</span>
                   <h2 className="text-base font-semibold text-h-primary">
-                    Guarda tus codigos de respaldo
+                    Guarda tus códigos de respaldo
                   </h2>
                 </div>
                 <p className="text-h-secondary text-xs mb-4 leading-relaxed">
-                  Cada codigo funciona{' '}
+                  Cada código funciona{' '}
                   <strong className="text-h-primary">una sola vez</strong>.{' '}
                   <strong className="text-h-primary">No podras verlos de nuevo.</strong>{' '}
                   Guardalos en un lugar seguro.
@@ -802,7 +802,7 @@ export function Login() {
                   {copiado ? 'Copiados! \u2713' : '\ud83d\udccb Copiar todos los codigos'}
                 </button>
                 <ShimmerButton type="button" onClick={handleSetupFinalizar}>
-                  He guardado mis codigos \u2014 Ingresar al panel
+                  He guardado mis codigos — Ingresar al panel
                 </ShimmerButton>
               </>
             )
@@ -811,21 +811,21 @@ export function Login() {
           ) : !is2FA && !isForgot ? (
             <>
               <h2 className="text-base font-semibold text-h-primary mb-5">
-                Iniciar sesion
+                Iniciar sesión
               </h2>
               <form onSubmit={handleLogin} className="space-y-4">
                 <div>
-                  <label className={labelCls}>Correo electronico</label>
+                  <label className={labelCls}>Correo electrónico</label>
                   <input type="email" value={email}
                     onChange={e => { setEmail(e.target.value); setError(null) }}
                     className={inputCls}
                     placeholder="usuario@hestia.duoc.cl" required />
                 </div>
                 <div>
-                  <label className={labelCls}>Contrasena</label>
+                  <label className={labelCls}>Contraseña</label>
                   <input type="password" value={password}
                     onChange={e => { setPassword(e.target.value); setError(null) }}
-                    className={inputCls} placeholder="\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022" required />
+                    className={inputCls} placeholder="••••••••" required />
                 </div>
                 {error && <p className={errorCls(error.includes('intento'))}>{error}</p>}
                 <ShimmerButton type="submit" disabled={loading}>
@@ -835,11 +835,11 @@ export function Login() {
               <button type="button" onClick={abrirForgot}
                 className="w-full mt-4 text-xs text-h-tertiary hover:text-h-secondary
                            font-medium transition-colors duration-150">
-                Olvidaste tu contrasena?
+                Olvidaste tu contraseña?
               </button>
             </>
 
-          /* ────── Recuperar contrasena ────── */
+          /* ────── Recuperar contraseña ────── */
           ) : !is2FA && isForgot ? (
             <>
               <button onClick={cerrarForgot} className={backBtnCls}>\u2190 Volver</button>
@@ -860,24 +860,24 @@ export function Login() {
                       style={{ color: 'var(--h-teal-hover)' }}>
                       {forgotEmail}
                     </span>{' '}
-                    esta registrado, recibiras un enlace valido por 1 hora.
+                    esta registrado, recibirás un enlace válido por 1 hora.
                   </p>
                   <ShimmerButton type="button" onClick={cerrarForgot}>
-                    Volver al inicio de sesion
+                    Volver al inicio de sesión
                   </ShimmerButton>
                 </div>
               ) : (
                 <>
                   <h2 className="text-base font-semibold text-h-primary mb-1">
-                    Recuperar contrasena
+                    Recuperar contraseña
                   </h2>
                   <p className="text-h-secondary text-xs mb-5">
                     Ingresa tu correo y te enviaremos un enlace para crear
-                    una nueva contrasena.
+                    una nueva contraseña.
                   </p>
                   <form onSubmit={handleForgot} className="space-y-4">
                     <div>
-                      <label className={labelCls}>Correo electronico</label>
+                      <label className={labelCls}>Correo electrónico</label>
                       <input type="email" value={forgotEmail}
                         onChange={e => {
                           setForgotEmail(e.target.value); setForgotError(null)
@@ -890,12 +890,12 @@ export function Login() {
                       type="submit"
                       disabled={forgotLoading || !forgotEmail}
                     >
-                      {forgotLoading ? 'Enviando...' : 'Enviar enlace de recuperacion'}
+                      {forgotLoading ? 'Enviando...' : 'Enviar enlace de recuperación'}
                     </ShimmerButton>
                   </form>
                 </>
               )}
-            </>
+            <>
 
           /* ────── 2FA TOTP ── con animacion HESTIA ────── */
           ) : modo2FA === 'totp' ? (
@@ -904,10 +904,10 @@ export function Login() {
                 \u2190 Volver
               </button>
               <h2 className="text-base font-semibold text-h-primary mb-1">
-                Verificacion 2FA
+                Verificación 2FA
               </h2>
               <p className="text-h-secondary text-xs mb-5">
-                Ingresa el codigo de 6 digitos de Google Authenticator.
+                Ingresa el código de 6 dígitos de Google Authenticator.
               </p>
               <div className="space-y-4">
                 <TotpInput
@@ -923,26 +923,26 @@ export function Login() {
                   disabled={totpValue.length !== 6 || loading}
                   onClick={() => totpAnimRef.current?.()}
                 >
-                  {loading ? 'Verificando...' : 'Confirmar codigo'}
+                  {loading ? 'Verificando...' : 'Confirmar código'}
                 </ShimmerButton>
               </div>
               <button onClick={() => { setModo2FA('recovery'); setError(null) }}
                 className="w-full mt-4 text-xs text-h-tertiary hover:text-h-secondary
                            font-medium transition-colors duration-150">
-                Perdi acceso a mi app \u2014 usar codigo de recuperacion
+                Perdi acceso a mi app — usar código de recuperación
               </button>
             </>
 
-          /* ────── Codigo de recuperacion ────── */
+          /* ────── Código de recuperación ────── */
           ) : (
             <>
               <button onClick={() => { setModo2FA('totp'); setError(null) }}
-                className={backBtnCls}>\u2190 Volver</button>
+                className={backBtnCls}>← Volver</button>
               <h2 className="text-base font-semibold text-h-primary mb-1">
-                Codigo de recuperacion
+                Código de recuperación
               </h2>
               <p className="text-h-secondary text-xs mb-5">
-                Ingresa uno de tus codigos de un solo uso.{' '}
+                Ingresa uno de tus códigos de un solo uso.{' '}
                 Formato:{' '}
                 <code className="font-mono"
                   style={{ color: 'var(--h-teal-hover)' }}>XXXXXXXX-XXXXXXXX</code>
@@ -962,11 +962,11 @@ export function Login() {
                   type="submit"
                   disabled={loading || recovery.length !== 17}
                 >
-                  {loading ? 'Verificando...' : 'Acceder con codigo de recuperacion'}
+                  {loading ? 'Verificando...' : 'Acceder con código de recuperación'}
                 </ShimmerButton>
               </form>
               <p className="text-h-tertiary text-xs text-center mt-4">
-                Al usar un codigo de recuperacion deberas reconfigurar el 2FA.
+                Al usar un código de recuperación deberás reconfigurar el 2FA.
               </p>
             </>
           )}
@@ -983,7 +983,7 @@ export function Login() {
             onMouseLeave={e => (e.currentTarget.style.opacity = '0.4')}>
             Acerca de
           </button>
-          <span className="text-h-tertiary text-[11px]" style={{ opacity: 0.25 }}>\u00b7</span>
+          <span className="text-h-tertiary text-[11px]" style={{ opacity: 0.25 }}>·</span>
           <button type="button" onClick={() => setShowSoporte(true)}
             className="text-[11px] text-h-tertiary hover:text-h-secondary
                        transition-colors duration-150 px-1"
