@@ -77,6 +77,13 @@ importar ambos modelos antes de la primera query ORM en cualquier script.
 Campos: `tipo_mantenimiento` (preventivo|correctivo|validacion_tecnica),
 `fecha_retorno_estimada`, estados: enviado|en_proceso|completado|cancelado.
 
+**`ProgramacionTaller`** (programacion_talleres): instancia concreta de un
+taller en sala+fecha. Importador xlsx en POST /programacion/importar-xlsx.
+
+**`RevisionSala`** (revisiones_sala) + RevisionSalaItem (revisiones_sala_items):
+checklist operativo post-taller. Items generados automaticamente desde
+PaqueteInsumo + ActivosFijo de la sala al momento de crear la revision.
+
 ### 3.2 Endpoints relevantes
 
 **`/unidades-implemento`**

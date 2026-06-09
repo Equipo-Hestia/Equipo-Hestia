@@ -41,6 +41,8 @@ Hestia es una aplicación web para el control de stock de insumos e implementos 
 - **Sidebar colapsable** — menú lateral con colapso a banda de íconos y tooltips; estado persistente entre sesiones (localStorage)
 - **Modo oscuro / claro** — alternancia con botón en el sidebar; preferencia recordada entre sesiones (localStorage); Light Mode por defecto para usuarios nuevos
 - **Seguridad** — rate limiting en login, security headers HTTP, BD no expuesta a la LAN
+- **Vista de Salas** - mapa SVG interactivo del piso -1 y odontologia con estados en tiempo real (en clase, pendiente revision, revisada). Checklist operativo integrado.
+- **Importar Programacion** - carga masiva de los Excel de planificacion semestral al modelo ProgramacionTaller.
 
 ---
 
