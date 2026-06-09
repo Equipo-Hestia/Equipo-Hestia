@@ -18,7 +18,7 @@ type Zona = 'piso-1' | 'odontologia'
 
 type EstadoSala =
   | 'sin_actividad'
-  | 'proxima'
+  | 'próxima'
   | 'en_clase'
   | 'pendiente_revision'
   | 'en_revision'
@@ -52,7 +52,7 @@ function formatearFechaLabel(d: Date): string {
   const ayer   = fechaISO(sumarDias(new Date(), -1))
   const iso    = fechaISO(d)
   if (iso === hoy)    return 'Hoy'
-  if (iso === manana) return 'Manana'
+  if (iso === manana) return 'Mañana'
   if (iso === ayer)   return 'Ayer'
   return d.toLocaleDateString('es-CL', {
     weekday: 'short', day: 'numeric', month: 'short',
@@ -86,15 +86,15 @@ function calcularEstado(
 
   // Para dias que no son hoy mostramos el estado estatico
   if (!esFecha) {
-    return prog.hora_inicio ? 'proxima' : 'sin_actividad'
+    return prog.hora_inicio ? 'próxima' : 'sin_actividad'
   }
 
   const inicio = parseHHMM(prog.hora_inicio)
   const fin    = parseHHMM(prog.hora_fin)
   const ahora  = minutosActuales()
 
-  if (inicio !== null && ahora < inicio) return 'proxima'
-  if (fin    !== null && ahora >= fin)   return 'pendiente_revision'
+  if (inicio !== null && ahora < inicio) return 'próxima'
+  if (fin    !== null && ahora >= fin)   return 'pendiente_revisión'
   return 'en_clase'
 }
 
@@ -125,14 +125,14 @@ const ESTADO_STYLE: Record<EstadoSala, {
 }> = {
   sin_actividad:      { fill: 'var(--h-bg-elevated)',   stroke: 'var(--h-border-subtle)',
                         text: 'var(--h-text-tertiary)',  label: 'Disponible' },
-  proxima:            { fill: 'var(--h-bg-elevated)',   stroke: 'var(--h-border-visible)',
-                        text: 'var(--h-text-secondary)', label: 'Proxima clase' },
+  próxima:            { fill: 'var(--h-bg-elevated)',   stroke: 'var(--h-border-visible)',
+                        text: 'var(--h-text-secondary)', label: 'Próxima clase' },
   en_clase:           { fill: '#0a2e22', stroke: '#1D9E75',
                         text: '#5dcaa5', label: 'En clase' },
   pendiente_revision: { fill: '#2e1f08', stroke: '#BA7517',
-                        text: '#EF9F27', label: 'Pendiente revision' },
+                        text: '#EF9F27', label: 'Pendiente revisión' },
   en_revision:        { fill: '#0d1e2e', stroke: '#378ADD',
-                        text: '#85B7EB', label: 'En revision' },
+                        text: '#85B7EB', label: 'En revisión' },
   revisada:           { fill: '#0a2035', stroke: '#185FA5',
                         text: '#378ADD', label: 'Revisada' },
 }
@@ -527,11 +527,11 @@ function PanelSala(
           )}
           <div><p className={labelCls}>Docente</p>
             <p className={valCls}>{prog.docente_nombre ?? '\u2014'}</p></div>
-          <div><p className={labelCls}>Seccion</p>
+          <div><p className={labelCls}>Sección</p>
             <p className={valCls}>{prog.seccion ?? '\u2014'}</p></div>
           <div><p className={labelCls}>Horario</p>
             <p className={valCls}>
-              {prog.hora_inicio ?? '?'} \u2013 {prog.hora_fin ?? '?'}
+              {prog.hora_inicio ?? '?'} – {prog.hora_fin ?? '?'}
             </p></div>
         </div>
       )}
@@ -555,7 +555,7 @@ function PanelSala(
         </div>
       )}
 
-      {/* Proxima clase */}
+      {/* Próxima clase */}
       {info.estado === 'proxima' && (
         <div className="rounded-xl p-3 flex items-center gap-2"
           style={{
@@ -570,7 +570,7 @@ function PanelSala(
                   {prog?.hora_inicio}
                 </span>
               : <span className="font-bold text-h-primary">
-                  {prog?.hora_inicio} \u2013 {prog?.hora_fin}
+                  {prog?.hora_inicio} – {prog?.hora_fin}
                 </span>
             }
           </p>
@@ -587,7 +587,7 @@ function PanelSala(
               <AlertCircle size={15}
                 style={{ color: '#EF9F27', flexShrink: 0, marginTop: 1 }} />
               <p className="text-xs" style={{ color: '#EF9F27' }}>
-                El taller finalizo. Esta sala necesita revision.
+                El taller finaliz. Esta sala necesita revisión.
               </p>
             </div>
           )}
