@@ -32,10 +32,13 @@ class Usuario(Base):
     totp_secret = Column(String, nullable=True)
     recovery_codes = Column(Text, nullable=True)
 
-    # Relaciones
-    # NOTA: clases_docente fue eliminado — los docentes ya no son usuarios;
-    # tienen su propia tabla 'docentes'. Ver models/docente.py.
+    # Relaciones explicitas
+    # NOTA: 'movimientos' no se declara aqui porque Movimiento.usuario
+    # usa backref='movimientos', que lo crea automaticamente en este mapper.
+    # Declararlo aqui ademas causaria ArgumentError: property name conflict.
+    #
+    # NOTA: 'clases_docente' fue eliminado. Los docentes ya no son usuarios;
+    # tienen su propia tabla. Ver models/docente.py.
     solicitudes_retiro = relationship(
         "SolicitudRetiro", back_populates="docente"
     )
-    movimientos = relationship("Movimiento", back_populates="usuario")

@@ -17,7 +17,7 @@ class SubtipoMovimiento(str, enum.Enum):
     compra = "compra"
     # Reingreso de un item devuelto por el proveedor tras reparacion
     devolucion_proveedor_entrada = "devolucion_proveedor_entrada"
-    # Corrección manual de stock tras conteo físico (sobrante)
+    # Correccion manual de stock tras conteo fisico (sobrante)
     ajuste_entrada = "ajuste_entrada"
 
     # --- Salidas ---
@@ -25,11 +25,11 @@ class SubtipoMovimiento(str, enum.Enum):
     consumo_taller = "consumo_taller"
     # Salida temporal de un implemento reutilizable hacia una sala
     prestamo_implemento = "prestamo_implemento"
-    # Devolución de un item defectuoso/vencido al proveedor
+    # Devolucion de un item defectuoso/vencido al proveedor
     devolucion_proveedor_salida = "devolucion_proveedor_salida"
-    # Baja definitiva: roto, vida útil cumplida o vencido
+    # Baja definitiva: roto, vida util cumplida o vencido
     baja = "baja"
-    # Corrección manual de stock tras conteo físico (faltante)
+    # Correccion manual de stock tras conteo fisico (faltante)
     ajuste_salida = "ajuste_salida"
 
     # --- Internos (no mueven stock, cambian estado del item) ---
@@ -54,16 +54,18 @@ class Movimiento(Base):
     insumo_id = Column(Integer, ForeignKey("insumos.id"), nullable=False)
     usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
 
-    # Contexto opcional: taller que originó el movimiento
+    # Contexto opcional: taller que origino el movimiento
     paquete_id = Column(
         Integer, ForeignKey("paquetes_insumo.id"), nullable=True
     )
-    # Sala destino/origen del movimiento (ej: sala donde va el insumo)
+    # Sala destino/origen del movimiento
     sala_id = Column(
         Integer, ForeignKey("salas.id"), nullable=True
     )
 
     insumo = relationship("Insumo", back_populates="movimientos")
+    # backref crea automaticamente Usuario.movimientos en el lado inverso.
+    # NO declarar relationship('movimientos') en usuario.py.
     usuario = relationship("Usuario", backref="movimientos")
     paquete = relationship("PaqueteInsumo", backref="movimientos")
     sala = relationship("Sala", backref="movimientos")
