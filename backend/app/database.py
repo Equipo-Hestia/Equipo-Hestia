@@ -38,6 +38,11 @@ def get_db():
 # INDEX sobre tablas que ya existen (creadas por Base.metadata.create_all).
 # Nunca CREATE TABLE aqui: las tablas nuevas deben ser modelos ORM para que
 # create_all las cree en el orden correcto segun las FK.
+#
+# REGLA DE IDEMPOTENCIA PARA CONSTRAINTS:
+# Siempre usar pg_constraint para verificar si una FK ya existe.
+# information_schema puede dar falsos negativos cuando la constraint fue
+# creada por SQLAlchemy create_all en lugar de un ALTER TABLE explicito.
 # ---------------------------------------------------------------------------
 
 MIGRACIONES_COLUMNAS = [
@@ -152,7 +157,8 @@ MIGRACIONES_COLUMNAS = [
     "ADD COLUMN IF NOT EXISTS fecha_visita DATE",
     "ALTER TABLE IF EXISTS ordenes_mantenimiento "
     "ADD COLUMN IF NOT EXISTS notas TEXT",
-    # Eliminar FK huerfana activo_fijo_id si aun existe en la cabecera
+    # Eliminar columna huerfana activo_fijo_id si aun existe
+    # (usaba information_schema.columns, que SÍ es correcto para columnas)
     (
         "DO $$ BEGIN "
         "IF EXISTS ("
@@ -171,58 +177,54 @@ MIGRACIONES_COLUMNAS = [
         "('positivo', 'negativo', 'neutro'); "
         "EXCEPTION WHEN duplicate_object THEN NULL; END $$"
     ),
+    # ---------------------------------------------------------------------------
     # Migracion clases_docente: FK docente_id -> docentes.id
-    # Paso 1: borrar clases existentes (entorno desarrollo)
+    #
+    # IMPORTANTE: usa pg_constraint (no information_schema) para detectar si
+    # la constraint ya existe. information_schema.table_constraints +
+    # constraint_column_usage puede dar falsos negativos cuando la constraint
+    # fue creada por SQLAlchemy create_all en lugar de un ALTER explicito,
+    # lo que causa DuplicateObject en el segundo arranque.
+    #
+    # Paso 1: si la FK actual apunta a 'usuarios', borrar clases y soltarla.
     (
-        "DO $$ BEGIN "
-        "IF EXISTS ("
-        "  SELECT 1 FROM information_schema.columns "
-        "  WHERE table_name='clases_docente' "
-        "  AND column_name='docente_id'"
-        ") THEN "
-        "  IF EXISTS ("
-        "    SELECT 1 FROM information_schema.table_constraints tc "
-        "    JOIN information_schema.constraint_column_usage ccu "
-        "      ON tc.constraint_name = ccu.constraint_name "
-        "    WHERE tc.table_name='clases_docente' "
-        "      AND ccu.column_name='docente_id' "
-        "      AND tc.constraint_type='FOREIGN KEY' "
-        "      AND ccu.table_name='usuarios' "
-        "  ) THEN "
+        "DO $$ "
+        "DECLARE fk_a_usuarios BOOLEAN; "
+        "BEGIN "
+        "  SELECT EXISTS ( "
+        "    SELECT 1 FROM pg_constraint c "
+        "    JOIN pg_class r ON c.confrelid = r.oid "
+        "    WHERE c.conname  = 'clases_docente_docente_id_fkey' "
+        "      AND c.conrelid = 'clases_docente'::regclass "
+        "      AND r.relname  = 'usuarios' "
+        "  ) INTO fk_a_usuarios; "
+        "  IF fk_a_usuarios THEN "
         "    DELETE FROM clases_docente; "
         "    ALTER TABLE clases_docente "
-        "      DROP CONSTRAINT IF EXISTS "
-        "        clases_docente_docente_id_fkey; "
+        "      DROP CONSTRAINT clases_docente_docente_id_fkey; "
         "    ALTER TABLE clases_docente "
         "      ALTER COLUMN docente_id DROP NOT NULL; "
         "  END IF; "
-        "END IF; "
         "END $$"
     ),
-    # Paso 2: crear la tabla docentes si no existe aun
-    # (create_all la crea antes de llegar aqui, pero por si acaso)
-    # Paso 3: agregar FK a docentes si no existe
+    # Paso 2: agregar FK a docentes solo si NO existe aun (por nombre exacto).
     (
-        "DO $$ BEGIN "
-        "IF NOT EXISTS ("
-        "  SELECT 1 FROM information_schema.table_constraints tc "
-        "  JOIN information_schema.constraint_column_usage ccu "
-        "    ON tc.constraint_name = ccu.constraint_name "
-        "  WHERE tc.table_name='clases_docente' "
-        "    AND ccu.column_name='docente_id' "
-        "    AND tc.constraint_type='FOREIGN KEY' "
-        "    AND ccu.table_name='docentes' "
-        ") THEN "
-        "  IF EXISTS ("
-        "    SELECT 1 FROM information_schema.tables "
-        "    WHERE table_name='docentes'"
+        "DO $$ "
+        "BEGIN "
+        "  IF NOT EXISTS ( "
+        "    SELECT 1 FROM pg_constraint "
+        "    WHERE conname  = 'clases_docente_docente_id_fkey' "
+        "      AND conrelid = 'clases_docente'::regclass "
         "  ) THEN "
-        "    ALTER TABLE clases_docente "
-        "      ADD CONSTRAINT clases_docente_docente_id_fkey "
-        "      FOREIGN KEY (docente_id) "
-        "      REFERENCES docentes(id) ON DELETE SET NULL; "
+        "    IF EXISTS ( "
+        "      SELECT 1 FROM pg_class WHERE relname = 'docentes' "
+        "    ) THEN "
+        "      ALTER TABLE clases_docente "
+        "        ADD CONSTRAINT clases_docente_docente_id_fkey "
+        "        FOREIGN KEY (docente_id) "
+        "        REFERENCES docentes(id) ON DELETE SET NULL; "
+        "    END IF; "
         "  END IF; "
-        "END IF; "
         "END $$"
     ),
 ]
