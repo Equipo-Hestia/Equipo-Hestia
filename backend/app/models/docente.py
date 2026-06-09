@@ -56,7 +56,7 @@ class ComentarioDocente(Base):
         nullable=False,
         index=True,
     )
-    tipo          = Column(
+    tipo = Column(
         SAEnum(
             TipoComentario,
             name="tipocomentario",
