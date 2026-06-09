@@ -437,7 +437,7 @@ export function ClasesDocente() {
                       Sin docentes registrados
                     </p>
                     <p className="text-xs text-h-tertiary mt-1">
-                      Crea el primer docente con el bot\u00f3n de arriba.
+                      Crea el primer docente con el botón de arriba.
                     </p>
                   </td>
                 </tr>
@@ -699,7 +699,7 @@ export function ClasesDocente() {
                       </td>
                       <td className="px-4 py-3 text-center text-h-secondary text-xs">
                         {c.dia_semana && c.hora_inicio
-                          ? `${c.dia_semana} ${c.hora_inicio}\u2013${c.hora_fin ?? '?'}`
+                          ? `${c.dia_semana} ${c.hora_inicio}–${c.hora_fin ?? '?'}`
                           : <span className="text-h-tertiary">—</span>
                         }
                       </td>
@@ -780,7 +780,7 @@ export function ClasesDocente() {
                 type="text" required value={formDoc.nombre}
                 onChange={e => setFormDoc(f => ({ ...f, nombre: e.target.value }))}
                 className={inputCls}
-                placeholder="Ej: Ana Garc\u00eda" autoFocus
+                placeholder="Ej: Ana García" autoFocus
               />
             </div>
             <div>
@@ -810,7 +810,7 @@ export function ClasesDocente() {
             <div>
               <label className="block text-xs font-bold text-h-tertiary
                                uppercase tracking-wide mb-1.5">
-                Tel\u00e9fono
+                Teléfono
               </label>
               <input
                 type="text" value={formDoc.telefono}
@@ -1022,7 +1022,7 @@ export function ClasesDocente() {
             <div>
               <label className="block text-xs font-bold text-h-tertiary
                                uppercase tracking-wide mb-1.5">
-                Secci\u00f3n *
+                Sección *
               </label>
               <input
                 type="text" required value={formClase.seccion}
@@ -1045,7 +1045,7 @@ export function ClasesDocente() {
                 placeholder="Ej: 2025-1" maxLength={10}
               />
               <p className="text-xs text-h-tertiary mt-1">
-                Formato: A\u00f1o-Semestre (ej: 2025-1, 2025-2)
+                Formato: Año-Semestre (ej: 2026-1, 2026-2)
               </p>
             </div>
             {formError && (
