@@ -225,7 +225,6 @@ Prefijos registrados: `/auth`, `/insumos`, `/importar`, `/resumen`, `/salas`,
 
 | Funcionalidad                                    | Complejidad |
 |---|---|
-| Dark mode en Usuarios y Paquetes                 | Media       |
 | Vista movil de Operadoras — Guia del dia por sala| Media       |
 | Reporte de conflictos de recursos                | Media       |
 | Extraer ShimmerButton a componente reutilizable  | Media       |

@@ -274,8 +274,8 @@ dark mode automaticamente; las clases Tailwind estandar dependen de los override
 | OrdenesMantenimiento | Completo  | Refactorizado a h-*                      |
 | Reportes             | Completo  | Refactorizado a h-*                      |
 | Dashboard            | Parcial   | Overrides globales                       |
-| Usuarios             | Parcial   | Pendiente                                |
-| Paquetes             | Parcial   | Pendiente                                |
+| Usuarios             | Completo  | Migrado a h-* junio 2026                 |
+| Paquetes             | Completo  | Migrado a h-* junio 2026                 |
 | ClasesDocente        | Completo  | Sesion anterior                          |
 
 ---
