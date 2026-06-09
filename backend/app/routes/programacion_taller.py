@@ -395,18 +395,18 @@ def importar_xlsx(
             except ValueError:
                 return None
 
-        ci_taller  = col("nombre de taller") or col("guia de taller")
-        ci_fecha   = col("fecha")
-        ci_sala    = col("sala")
+        ci_taller = col("nombre de taller") or col("guía de taller")
+        ci_fecha = col("fecha")
+        ci_sala = col("sala")
         ci_horario = col("horario")
         ci_docente = col("docente")
-        ci_seccion = col("seccion") or col("secci\u00f3n")
+        ci_seccion = col("sección") or col("sección")
 
         if ci_fecha is None or ci_taller is None:
             errores.append({
                 "hoja": hoja_nombre,
                 "fila": header_idx + 1,
-                "razon": "No se encontraron columnas Fecha o Nombre de Taller",
+                "razón": "No se encontraron columnas Fecha o Nombre de Taller",
             })
             continue
 
@@ -416,9 +416,9 @@ def importar_xlsx(
             if all(v is None for v in fila):
                 continue
 
-            raw_taller  = fila[ci_taller]  if ci_taller  is not None else None
-            raw_fecha   = fila[ci_fecha]
-            raw_sala    = fila[ci_sala]    if ci_sala    is not None else None
+            raw_taller = fila[ci_taller] if ci_taller is not None else None
+            raw_fecha = fila[ci_fecha]
+            raw_sala = fila[ci_sala] if ci_sala is not None else None
             raw_horario = fila[ci_horario] if ci_horario is not None else None
             raw_docente = fila[ci_docente] if ci_docente is not None else None
             raw_seccion = fila[ci_seccion] if ci_seccion is not None else None
@@ -432,7 +432,7 @@ def importar_xlsx(
                 errores.append({
                     "hoja": hoja_nombre,
                     "fila": fila_num,
-                    "razon": f"Fecha no reconocida: {raw_fecha!r}",
+                    "razón": f"Fecha no reconocida: {raw_fecha!r}",
                 })
                 omitidas += 1
                 continue
@@ -462,13 +462,13 @@ def importar_xlsx(
                 errores.append({
                     "hoja": hoja_nombre,
                     "fila": fila_num,
-                    "razon": f"Sala no encontrada: {raw_sala!r}",
+                    "razón": f"Sala no encontrada: {raw_sala!r}",
                 })
                 omitidas += 1
                 continue
 
             hora_inicio: Optional[str] = None
-            hora_fin:    Optional[str] = None
+            hora_fin: Optional[str] = None
             if raw_horario is not None:
                 horario_str = str(raw_horario).strip()
                 partes = re.split(
@@ -494,20 +494,20 @@ def importar_xlsx(
                 .filter(
                     and_(
                         ProgramacionTaller.taller_id == taller_id,
-                        ProgramacionTaller.sala_id   == sala_id,
-                        ProgramacionTaller.fecha     == fecha_val,
-                        ProgramacionTaller.seccion   == seccion_val,
+                        ProgramacionTaller.sala_id == sala_id,
+                        ProgramacionTaller.fecha == fecha_val,
+                        ProgramacionTaller.seccion == seccion_val,
                     )
                 )
                 .first()
             )
 
             if existente:
-                existente.hora_inicio    = hora_inicio
-                existente.hora_fin       = hora_fin
+                existente.hora_inicio = hora_inicio
+                existente.hora_fin = hora_fin
                 existente.docente_nombre = docente_val
-                existente.semestre       = semestre
-                existente.activo         = True
+                existente.semestre = semestre
+                existente.activo = True
                 actualizadas += 1
             else:
                 nueva = ProgramacionTaller(
