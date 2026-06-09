@@ -24,20 +24,16 @@ import { UnidadesImplemento }     from './pages/UnidadesImplemento'
 import { Paquetes }               from './pages/Paquetes'
 import { PrepararTaller }         from './pages/PrepararTaller'
 import { OrdenesMantenimiento }   from './pages/OrdenesMantenimiento'
+import { OrdenesEntrada }         from './pages/OrdenesEntrada'
 import { Proveedores }            from './pages/Proveedores'
 import { VistaSalas }             from './pages/VistaSalas'
 import { Layout }                 from './components/layout/Layout'
 import { useAuthStore }           from './store/auth'
 
-// ---------------------------------------------------------------------------
-// Grupos de roles
-// ---------------------------------------------------------------------------
-const TODOS       = ['admin', 'operador_coordinador', 'operador', 'visor']
-const NO_VISOR    = ['admin', 'operador_coordinador', 'operador']
-const COORD_ADMIN = ['admin', 'operador_coordinador']
-const SOLO_ADMIN  = ['admin']
-
-// Reportes: admin + op_coord + visor (operador no tiene acceso)
+const TODOS          = ['admin', 'operador_coordinador', 'operador', 'visor']
+const NO_VISOR       = ['admin', 'operador_coordinador', 'operador']
+const COORD_ADMIN    = ['admin', 'operador_coordinador']
+const SOLO_ADMIN     = ['admin']
 const ROLES_REPORTES = ['admin', 'operador_coordinador', 'visor']
 
 function ProtectedRoute({ roles, children }: { roles: string[]; children: ReactNode }) {
@@ -80,7 +76,7 @@ export function App() {
           <Route path="salas"
             element={<ProtectedRoute roles={TODOS}><Salas /></ProtectedRoute>} />
 
-          {/* --- Operador + Coord + Admin (no visor) --- */}
+          {/* --- Operador + Coord + Admin --- */}
           <Route path="mantenimiento"
             element={<ProtectedRoute roles={NO_VISOR}><OrdenesMantenimiento /></ProtectedRoute>} />
           <Route path="paquetes"
@@ -99,6 +95,8 @@ export function App() {
             element={<ProtectedRoute roles={COORD_ADMIN}><VerHorario /></ProtectedRoute>} />
           <Route path="importar-programacion"
             element={<ProtectedRoute roles={COORD_ADMIN}><ImportarProgramacion /></ProtectedRoute>} />
+          <Route path="ordenes-entrada"
+            element={<ProtectedRoute roles={COORD_ADMIN}><OrdenesEntrada /></ProtectedRoute>} />
 
           {/* --- Reportes: admin + coord + visor --- */}
           <Route path="reportes"
