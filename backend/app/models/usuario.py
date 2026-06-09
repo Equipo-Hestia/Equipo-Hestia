@@ -20,7 +20,7 @@ class Usuario(Base):
     email = Column(String, unique=True, index=True, nullable=False)
     password_hash = Column(String, nullable=False)
     rol = Column(
-        SAEnum(RolUsuario, name="rolusuario"),
+        SAEnum(RolUsuario, name="rolusuario", create_type=False),
         default=RolUsuario.visor,
         nullable=False,
     )
@@ -32,14 +32,10 @@ class Usuario(Base):
     totp_secret = Column(String, nullable=True)
     recovery_codes = Column(Text, nullable=True)
 
+    # Relaciones
+    # NOTA: clases_docente fue eliminado — los docentes ya no son usuarios;
+    # tienen su propia tabla 'docentes'. Ver models/docente.py.
     solicitudes_retiro = relationship(
         "SolicitudRetiro", back_populates="docente"
     )
-    clases_docente = relationship(
-        "ClaseDocente",
-        back_populates="docente",
-        foreign_keys="ClaseDocente.docente_id",
-    )
-
-
-movimientos = relationship("Movimiento", back_populates="usuario")
+    movimientos = relationship("Movimiento", back_populates="usuario")
