@@ -28,43 +28,36 @@ type NavItem = {
   roles: string[]
 }
 
-const TODOS_ROLES = ['admin', 'operador_coordinador', 'operador', 'visor']
+const TODOS       = ['admin', 'operador_coordinador', 'operador', 'visor']
 const NO_VISOR    = ['admin', 'operador_coordinador', 'operador']
-const SOLO_ADMIN  = ['admin']
 const COORD_ADMIN = ['admin', 'operador_coordinador']
+const SOLO_ADMIN  = ['admin']
 
+// ---------------------------------------------------------------------------
+// Estructura de navegacion
+// ---------------------------------------------------------------------------
 const NAV_SECTIONS: NavSection[] = [
   {
     label: 'General',
-    roles: TODOS_ROLES,
+    roles: TODOS,
     items: [
-      { to: '/dashboard',    icon: LayoutDashboard, label: 'Dashboard',
-        roles: TODOS_ROLES },
-      { to: '/alertas',      icon: AlertTriangle,   label: 'Alertas',
-        roles: TODOS_ROLES },
-      { to: '/insumos',      icon: Package,         label: 'Insumos e Implementos',
-        roles: TODOS_ROLES },
-      { to: '/activos-fijos', icon: Sofa,           label: 'Activos Fijos',
-        roles: TODOS_ROLES },
-      { to: '/mantenimiento', icon: Wrench,         label: 'Mantenimiento',
-        roles: NO_VISOR },
-      { to: '/movimientos',  icon: ArrowLeftRight,  label: 'Movimientos',
-        roles: TODOS_ROLES },
-      { to: '/categorias',   icon: Tag,             label: 'Categorias',
-        roles: TODOS_ROLES },
+      { to: '/dashboard',    icon: LayoutDashboard, label: 'Dashboard',            roles: TODOS },
+      { to: '/alertas',      icon: AlertTriangle,   label: 'Alertas',              roles: TODOS },
+      { to: '/insumos',      icon: Package,         label: 'Insumos e Implementos', roles: TODOS },
+      { to: '/activos-fijos', icon: Sofa,           label: 'Activos Fijos',        roles: TODOS },
+      { to: '/mantenimiento', icon: Wrench,         label: 'Mantenimiento',        roles: NO_VISOR },
+      { to: '/movimientos',  icon: ArrowLeftRight,  label: 'Movimientos',          roles: TODOS },
+      { to: '/categorias',   icon: Tag,             label: 'Categorias',           roles: TODOS },
     ],
   },
   {
     label: 'Planificacion',
-    roles: TODOS_ROLES,
+    roles: TODOS,
     items: [
-      { to: '/vista-salas',    icon: MapPin,          label: 'Vista de Salas',
-        roles: TODOS_ROLES },
-      { to: '/preparar-taller', icon: ClipboardCheck, label: 'Preparar taller',
-        roles: NO_VISOR },
-      { to: '/paquetes',       icon: FlaskConical,    label: 'Paquetes de insumos',
-        roles: NO_VISOR },
-      { to: '/reportes',       icon: BarChart2,       label: 'Reportes',
+      { to: '/vista-salas',     icon: MapPin,          label: 'Vista de Salas',       roles: TODOS },
+      { to: '/preparar-taller', icon: ClipboardCheck,  label: 'Preparar taller',      roles: NO_VISOR },
+      { to: '/paquetes',        icon: FlaskConical,    label: 'Paquetes de insumos',  roles: NO_VISOR },
+      { to: '/reportes',        icon: BarChart2,       label: 'Reportes',
         roles: ['admin', 'operador_coordinador', 'visor'] },
     ],
   },
@@ -72,24 +65,15 @@ const NAV_SECTIONS: NavSection[] = [
     label: 'Administracion',
     roles: COORD_ADMIN,
     items: [
-      { to: '/proveedores',            icon: Building2,     label: 'Proveedores',
-        roles: COORD_ADMIN },
-      { to: '/asignaturas',            icon: BookOpen,      label: 'Asignaturas',
-        roles: SOLO_ADMIN },
-      { to: '/clases-docente',         icon: GraduationCap, label: 'Clases Docentes',
-        roles: SOLO_ADMIN },
-      { to: '/horario',                icon: CalendarDays,  label: 'Ver Horario',
-        roles: SOLO_ADMIN },
-      { to: '/importar-horario',       icon: Calendar,      label: 'Importar Horario',
-        roles: SOLO_ADMIN },
-      { to: '/importar-programacion',  icon: CalendarRange, label: 'Importar Programacion',
-        roles: SOLO_ADMIN },
-      { to: '/importar',               icon: Upload,        label: 'Importar Insumos',
-        roles: SOLO_ADMIN },
-      { to: '/usuarios',               icon: Users,         label: 'Usuarios',
-        roles: SOLO_ADMIN },
-      { to: '/audit-log',              icon: ScrollText,    label: 'Audit Log',
-        roles: SOLO_ADMIN },
+      { to: '/proveedores',           icon: Building2,     label: 'Proveedores',           roles: COORD_ADMIN },
+      { to: '/clases-docente',        icon: GraduationCap, label: 'Docentes y Clases',     roles: COORD_ADMIN },
+      { to: '/asignaturas',           icon: BookOpen,      label: 'Asignaturas',           roles: COORD_ADMIN },
+      { to: '/horario',               icon: CalendarDays,  label: 'Ver Horario',           roles: COORD_ADMIN },
+      { to: '/importar-programacion', icon: CalendarRange, label: 'Importar Programacion', roles: COORD_ADMIN },
+      { to: '/importar-horario',      icon: Calendar,      label: 'Importar Horario',      roles: SOLO_ADMIN },
+      { to: '/importar',              icon: Upload,        label: 'Importar Insumos',      roles: SOLO_ADMIN },
+      { to: '/usuarios',              icon: Users,         label: 'Usuarios',              roles: SOLO_ADMIN },
+      { to: '/audit-log',             icon: ScrollText,    label: 'Audit Log',             roles: SOLO_ADMIN },
     ],
   },
 ]
@@ -101,10 +85,10 @@ const ROL_LABELS: Record<string, string> = {
   visor:                'Visor',
 }
 
-const SIDEBAR_KEY   = 'hestia-sidebar-collapsed'
-const LABEL_OUT_MS  = 110
-const WIDTH_MS      = 260
-const LABEL_IN_MS   = 140
+const SIDEBAR_KEY  = 'hestia-sidebar-collapsed'
+const LABEL_OUT_MS = 110
+const WIDTH_MS     = 260
+const LABEL_IN_MS  = 140
 
 function Tooltip({ label }: { label: string }) {
   return (

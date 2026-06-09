@@ -29,11 +29,16 @@ import { VistaSalas }             from './pages/VistaSalas'
 import { Layout }                 from './components/layout/Layout'
 import { useAuthStore }           from './store/auth'
 
-const TODOS          = ['admin', 'operador_coordinador', 'operador', 'visor']
-const NO_VISOR       = ['admin', 'operador_coordinador', 'operador']
-const SOLO_ADMIN     = ['admin']
+// ---------------------------------------------------------------------------
+// Grupos de roles
+// ---------------------------------------------------------------------------
+const TODOS       = ['admin', 'operador_coordinador', 'operador', 'visor']
+const NO_VISOR    = ['admin', 'operador_coordinador', 'operador']
+const COORD_ADMIN = ['admin', 'operador_coordinador']
+const SOLO_ADMIN  = ['admin']
+
+// Reportes: admin + op_coord + visor (operador no tiene acceso)
 const ROLES_REPORTES = ['admin', 'operador_coordinador', 'visor']
-const COORD_ADMIN    = ['admin', 'operador_coordinador']
 
 function ProtectedRoute({ roles, children }: { roles: string[]; children: ReactNode }) {
   const { user } = useAuthStore()
@@ -51,48 +56,57 @@ export function App() {
         <Route path="/" element={<Layout />}>
           <Route index element={<Navigate to="/dashboard" replace />} />
 
+          {/* --- Acceso universal --- */}
           <Route path="perfil"
             element={<ProtectedRoute roles={TODOS}><Perfil /></ProtectedRoute>} />
           <Route path="seguridad"
             element={<ProtectedRoute roles={TODOS}><Configuracion2FA /></ProtectedRoute>} />
-          <Route path="insumos"
-            element={<ProtectedRoute roles={TODOS}><Insumos /></ProtectedRoute>} />
-          <Route path="insumos/:implemento_id/unidades"
-            element={<ProtectedRoute roles={TODOS}><UnidadesImplemento /></ProtectedRoute>} />
           <Route path="dashboard"
             element={<ProtectedRoute roles={TODOS}><Dashboard /></ProtectedRoute>} />
           <Route path="alertas"
             element={<ProtectedRoute roles={TODOS}><Alertas /></ProtectedRoute>} />
-          <Route path="movimientos"
-            element={<ProtectedRoute roles={TODOS}><Movimientos /></ProtectedRoute>} />
-          <Route path="salas"
-            element={<ProtectedRoute roles={TODOS}><Salas /></ProtectedRoute>} />
-          <Route path="categorias"
-            element={<ProtectedRoute roles={TODOS}><Categorias /></ProtectedRoute>} />
+          <Route path="insumos"
+            element={<ProtectedRoute roles={TODOS}><Insumos /></ProtectedRoute>} />
+          <Route path="insumos/:implemento_id/unidades"
+            element={<ProtectedRoute roles={TODOS}><UnidadesImplemento /></ProtectedRoute>} />
           <Route path="activos-fijos"
             element={<ProtectedRoute roles={TODOS}><ActivosFijos /></ProtectedRoute>} />
+          <Route path="movimientos"
+            element={<ProtectedRoute roles={TODOS}><Movimientos /></ProtectedRoute>} />
+          <Route path="categorias"
+            element={<ProtectedRoute roles={TODOS}><Categorias /></ProtectedRoute>} />
+          <Route path="vista-salas"
+            element={<ProtectedRoute roles={TODOS}><VistaSalas /></ProtectedRoute>} />
+          <Route path="salas"
+            element={<ProtectedRoute roles={TODOS}><Salas /></ProtectedRoute>} />
+
+          {/* --- Operador + Coord + Admin (no visor) --- */}
           <Route path="mantenimiento"
             element={<ProtectedRoute roles={NO_VISOR}><OrdenesMantenimiento /></ProtectedRoute>} />
-          <Route path="reportes"
-            element={<ProtectedRoute roles={ROLES_REPORTES}><Reportes /></ProtectedRoute>} />
           <Route path="paquetes"
             element={<ProtectedRoute roles={NO_VISOR}><Paquetes /></ProtectedRoute>} />
           <Route path="preparar-taller"
             element={<ProtectedRoute roles={NO_VISOR}><PrepararTaller /></ProtectedRoute>} />
-          <Route path="vista-salas"
-            element={<ProtectedRoute roles={TODOS}><VistaSalas /></ProtectedRoute>} />
+
+          {/* --- Coord + Admin --- */}
           <Route path="proveedores"
             element={<ProtectedRoute roles={COORD_ADMIN}><Proveedores /></ProtectedRoute>} />
-          <Route path="asignaturas"
-            element={<ProtectedRoute roles={SOLO_ADMIN}><Asignaturas /></ProtectedRoute>} />
           <Route path="clases-docente"
-            element={<ProtectedRoute roles={SOLO_ADMIN}><ClasesDocente /></ProtectedRoute>} />
+            element={<ProtectedRoute roles={COORD_ADMIN}><ClasesDocente /></ProtectedRoute>} />
+          <Route path="asignaturas"
+            element={<ProtectedRoute roles={COORD_ADMIN}><Asignaturas /></ProtectedRoute>} />
           <Route path="horario"
-            element={<ProtectedRoute roles={SOLO_ADMIN}><VerHorario /></ProtectedRoute>} />
+            element={<ProtectedRoute roles={COORD_ADMIN}><VerHorario /></ProtectedRoute>} />
+          <Route path="importar-programacion"
+            element={<ProtectedRoute roles={COORD_ADMIN}><ImportarProgramacion /></ProtectedRoute>} />
+
+          {/* --- Reportes: admin + coord + visor --- */}
+          <Route path="reportes"
+            element={<ProtectedRoute roles={ROLES_REPORTES}><Reportes /></ProtectedRoute>} />
+
+          {/* --- Solo Admin --- */}
           <Route path="importar-horario"
             element={<ProtectedRoute roles={SOLO_ADMIN}><ImportarHorario /></ProtectedRoute>} />
-          <Route path="importar-programacion"
-            element={<ProtectedRoute roles={SOLO_ADMIN}><ImportarProgramacion /></ProtectedRoute>} />
           <Route path="importar"
             element={<ProtectedRoute roles={SOLO_ADMIN}><ImportarInsumos /></ProtectedRoute>} />
           <Route path="usuarios"
