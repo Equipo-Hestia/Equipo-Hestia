@@ -26,16 +26,16 @@ router = APIRouter(prefix="/programacion", tags=["Programacion"])
 # Tabla de meses en espanol para parseo de fechas texto
 # ---------------------------------------------------------------------------
 _MESES_ES = {
-    'ene': 1, 'enero':  1,
+    'ene': 1, 'enero': 1,
     'feb': 2, 'febrero': 2,
-    'mar': 3, 'marzo':  3,
-    'abr': 4, 'abril':  4,
-    'may': 5, 'mayo':   5,
-    'jun': 6, 'junio':  6,
-    'jul': 7, 'julio':  7,
+    'mar': 3, 'marzo': 3,
+    'abr': 4, 'abril': 4,
+    'may': 5, 'mayo': 5,
+    'jun': 6, 'junio': 6,
+    'jul': 7, 'julio': 7,
     'ago': 8, 'agosto': 8,
     'sep': 9, 'sept': 9, 'septiembre': 9,
-    'oct': 10, 'octubre':  10,
+    'oct': 10, 'octubre': 10,
     'nov': 11, 'noviembre': 11,
     'dic': 12, 'diciembre': 12,
 }
@@ -186,7 +186,7 @@ def _parsear_fecha(raw: object, semestre: str) -> Optional[dt.date]:
         r'^(\d{1,2})[\-/\s](\w+?)(?:[\-/\s](\d{4}))?$', s, re.IGNORECASE
     )
     if m:
-        dia  = int(m.group(1))
+        dia = int(m.group(1))
         mes_s = m.group(2).lower()[:3]   # primeras 3 letras
         ano_s = m.group(3)
 
@@ -394,9 +394,9 @@ def importar_xlsx(
             except ValueError:
                 return None
 
-        ci_taller  = col("nombre de taller") or col("guia de taller")
-        ci_fecha   = col("fecha")
-        ci_sala    = col("sala")
+        ci_taller = col("nombre de taller") or col("guia de taller")
+        ci_fecha = col("fecha")
+        ci_sala = col("sala")
         ci_horario = col("horario")
         ci_docente = col("docente")
         ci_seccion = col("seccion") or col("secci\u00f3n")
@@ -415,9 +415,9 @@ def importar_xlsx(
             if all(v is None for v in fila):
                 continue
 
-            raw_taller  = fila[ci_taller]  if ci_taller  is not None else None
-            raw_fecha   = fila[ci_fecha]
-            raw_sala    = fila[ci_sala]    if ci_sala    is not None else None
+            raw_taller = fila[ci_taller] if ci_taller is not None else None
+            raw_fecha = fila[ci_fecha]
+            raw_sala = fila[ci_sala] if ci_sala is not None else None
             raw_horario = fila[ci_horario] if ci_horario is not None else None
             raw_docente = fila[ci_docente] if ci_docente is not None else None
             raw_seccion = fila[ci_seccion] if ci_seccion is not None else None
@@ -471,7 +471,7 @@ def importar_xlsx(
 
             # Parsear horario
             hora_inicio: Optional[str] = None
-            hora_fin:    Optional[str] = None
+            hora_fin: Optional[str] = None
             if raw_horario is not None:
                 horario_str = str(raw_horario).strip()
                 partes = re.split(
@@ -499,20 +499,20 @@ def importar_xlsx(
                 .filter(
                     and_(
                         ProgramacionTaller.taller_id == taller_id,
-                        ProgramacionTaller.sala_id   == sala_id,
-                        ProgramacionTaller.fecha     == fecha_val,
-                        ProgramacionTaller.seccion   == seccion_val,
+                        ProgramacionTaller.sala_id == sala_id,
+                        ProgramacionTaller.fecha == fecha_val,
+                        ProgramacionTaller.seccion == seccion_val,
                     )
                 )
                 .first()
             )
 
             if existente:
-                existente.hora_inicio    = hora_inicio
-                existente.hora_fin       = hora_fin
+                existente.hora_inicio = hora_inicio
+                existente.hora_fin = hora_fin
                 existente.docente_nombre = docente_val
-                existente.semestre       = semestre
-                existente.activo         = True
+                existente.semestre = semestre
+                existente.activo = True
                 actualizadas += 1
             else:
                 nueva = ProgramacionTaller(
