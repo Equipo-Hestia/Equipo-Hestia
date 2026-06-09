@@ -105,13 +105,13 @@ const ESTADO_STYLE: Record<EstadoSala, {
   sin_actividad:      { fill: 'var(--h-bg-elevated)',   stroke: 'var(--h-border-subtle)',
                         text: 'var(--h-text-tertiary)',  label: 'Disponible' },
   proxima:            { fill: 'var(--h-bg-elevated)',   stroke: 'var(--h-border-visible)',
-                        text: 'var(--h-text-secondary)', label: 'Proxima clase' },
+                        text: 'var(--h-text-secondary)', label: 'Próxima clase' },
   en_clase:           { fill: '#0a2e22', stroke: '#1D9E75',
                         text: '#5dcaa5', label: 'En clase' },
   pendiente_revision: { fill: '#2e1f08', stroke: '#BA7517',
-                        text: '#EF9F27', label: 'Pendiente revision' },
+                        text: '#EF9F27', label: 'Pendiente revisión' },
   en_revision:        { fill: '#0d1e2e', stroke: '#378ADD',
-                        text: '#85B7EB', label: 'En revision' },
+                        text: '#85B7EB', label: 'En revisión' },
   revisada:           { fill: '#0a2035', stroke: '#185FA5',
                         text: '#378ADD', label: 'Revisada' },
 }
@@ -595,7 +595,7 @@ function PanelSala(
                       gap-3 text-h-tertiary">
         <MapPin size={32} strokeWidth={1.2} />
         <p className="text-sm text-center leading-relaxed">
-          Selecciona una sala<br />para ver su informacion
+          Selecciona una sala<br />para ver su información
         </p>
       </div>
     )
@@ -629,7 +629,7 @@ function PanelSala(
 
       {info.estado === 'sin_actividad' && (
         <p className="text-sm text-h-secondary">
-          No hay actividad programada para este dia en esta sala.
+          No hay actividad programada para este día en esta sala.
         </p>
       )}
 
@@ -643,11 +643,11 @@ function PanelSala(
           )}
           <div><p className={lbl}>Docente</p>
             <p className={val}>{prog.docente_nombre ?? '\u2014'}</p></div>
-          <div><p className={lbl}>Seccion</p>
+          <div><p className={lbl}>Sección</p>
             <p className={val}>{prog.seccion ?? '\u2014'}</p></div>
           <div><p className={lbl}>Horario</p>
             <p className={val}>
-              {prog.hora_inicio ?? '?'} \u2013 {prog.hora_fin ?? '?'}
+              {prog.hora_inicio ?? '?'} – {prog.hora_fin ?? '?'}
             </p></div>
         </div>
       )}
@@ -676,7 +676,7 @@ function PanelSala(
           <p className="text-xs text-h-secondary">
             {esHoy ? 'Clase comienza a las ' : 'Horario: '}
             <span className="font-bold text-h-primary">
-              {prog?.hora_inicio}{!esHoy && ` \u2013 ${prog?.hora_fin}`}
+              {prog?.hora_inicio}{!esHoy && ` – ${prog?.hora_fin}`}
             </span>
           </p>
         </div>
@@ -691,7 +691,7 @@ function PanelSala(
               <AlertCircle size={15}
                 style={{ color: '#EF9F27', flexShrink: 0, marginTop: 1 }} />
               <p className="text-xs" style={{ color: '#EF9F27' }}>
-                El taller finalizo. Esta sala necesita revision.
+                El taller finalizó. Esta sala necesita revisión.
               </p>
             </div>
           )}
@@ -707,7 +707,7 @@ function PanelSala(
               onMouseLeave={e =>
                 (e.currentTarget.style.background = 'var(--h-teal-rest)')}
             >
-              <ClipboardList size={15} /> Iniciar revision de sala
+              <ClipboardList size={15} /> Iniciar revisión de sala
             </button>
           )}
           {cargandoRev && (
@@ -835,7 +835,7 @@ function PanelSala(
           style={{ background: 'var(--h-bg-elevated)',
             border: '1px solid var(--h-border-subtle)' }}>
           <p className="text-xs text-h-tertiary">
-            La revision de sala solo esta disponible en el dia actual.
+            La revisión de sala solo esta disponible en el día actual.
           </p>
         </div>
       )}
