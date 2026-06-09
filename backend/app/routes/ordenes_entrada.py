@@ -16,7 +16,8 @@ from app.models.movimiento import Movimiento, TipoMovimiento, SubtipoMovimiento
 from app.models.usuario import Usuario, RolUsuario
 from app.schemas.orden_entrada import (
     OrdenEntradaCreate, OrdenEntradaUpdate,
-    OrdenEntradaItemUpdate, OrdenEntradaResponse,
+    OrdenEntradaItemCreate, OrdenEntradaItemUpdate,
+    OrdenEntradaItemResponse, OrdenEntradaResponse,
 )
 from app.utils.deps import get_usuario_actual, require_operador
 from app.utils.auditoria import registrar, get_ip
@@ -46,23 +47,25 @@ def _to_response(o: OrdenEntrada) -> OrdenEntradaResponse:
     items_resp = []
     for i in o.items:
         items_resp.append(
-            __import__(
-                'app.schemas.orden_entrada', fromlist=['OrdenEntradaItemResponse']
-            ).OrdenEntradaItemResponse(
+            OrdenEntradaItemResponse(
                 id=i.id,
                 orden_id=i.orden_id,
-                tipo_item=i.tipo_item.value if hasattr(i.tipo_item, 'value') else i.tipo_item,
+                tipo_item=(i.tipo_item.value if hasattr(i.tipo_item, 'value')
+                           else i.tipo_item),
                 insumo_id=i.insumo_id,
                 insumo_nombre=i.insumo.nombre if i.insumo else None,
                 activo_fijo_id=i.activo_fijo_id,
-                activo_fijo_nombre=i.activo_fijo.nombre if i.activo_fijo else None,
+                activo_fijo_nombre=(i.activo_fijo.nombre
+                                    if i.activo_fijo else None),
                 nombre_nuevo=i.nombre_nuevo,
                 tipo_insumo_nuevo=i.tipo_insumo_nuevo,
                 tipo_activo_nuevo=i.tipo_activo_nuevo,
                 cantidad_pedida=i.cantidad_pedida,
                 cantidad_recibida=i.cantidad_recibida,
-                costo_unitario=float(i.costo_unitario) if i.costo_unitario else None,
-                estado=i.estado.value if hasattr(i.estado, 'value') else i.estado,
+                costo_unitario=(float(i.costo_unitario)
+                                if i.costo_unitario else None),
+                estado=(i.estado.value if hasattr(i.estado, 'value')
+                        else i.estado),
                 notas_item=i.notas_item,
             )
         )
@@ -70,19 +73,25 @@ def _to_response(o: OrdenEntrada) -> OrdenEntradaResponse:
     total_recibido = sum(
         i.cantidad_recibida for i in o.items if i.cantidad_recibida is not None
     )
+    act_nombre = (ACTIVIDADES_DUOC.get(o.actividad_duoc)
+                  if o.actividad_duoc else None)
+    tipo_val = o.tipo.value if hasattr(o.tipo, 'value') else o.tipo
+    estado_val = o.estado.value if hasattr(o.estado, 'value') else o.estado
+    creado_por_nombre = (o.creado_por.nombre if o.creado_por else None)
+    cerrado_por_nombre = (o.cerrado_por.nombre if o.cerrado_por else None)
     return OrdenEntradaResponse(
         id=o.id,
         proveedor_id=o.proveedor_id,
         proveedor_nombre=o.proveedor.nombre if o.proveedor else None,
         actividad_duoc=o.actividad_duoc,
-        actividad_nombre=ACTIVIDADES_DUOC.get(o.actividad_duoc) if o.actividad_duoc else None,
-        tipo=o.tipo.value if hasattr(o.tipo, 'value') else o.tipo,
-        estado=o.estado.value if hasattr(o.estado, 'value') else o.estado,
+        actividad_nombre=act_nombre,
+        tipo=tipo_val,
+        estado=estado_val,
         notas=o.notas,
         creado_por_id=o.creado_por_id,
-        creado_por_nombre=o.creado_por.nombre if o.creado_por else None,
+        creado_por_nombre=creado_por_nombre,
         cerrado_por_id=o.cerrado_por_id,
-        cerrado_por_nombre=o.cerrado_por.nombre if o.cerrado_por else None,
+        cerrado_por_nombre=cerrado_por_nombre,
         created_at=o.created_at,
         fecha_cierre=o.fecha_cierre,
         items=items_resp,
@@ -224,7 +233,7 @@ def actualizar(
 @router.post("/{orden_id}/items", response_model=OrdenEntradaResponse)
 def agregar_item(
     orden_id: int,
-    datos: __import__('app.schemas.orden_entrada', fromlist=['OrdenEntradaItemCreate']).OrdenEntradaItemCreate,
+    datos: OrdenEntradaItemCreate,
     db: Session = Depends(get_db),
     usuario=Depends(_require_coord_o_admin),
 ):
@@ -484,8 +493,11 @@ def exportar_pdf(
     pdf.set_font("Helvetica", "B", 16)
     pdf.cell(0, 10, "Hestia - Orden de Entrada", ln=True)
     pdf.set_font("Helvetica", "", 10)
-    pdf.cell(0, 6, f"N# {o.id}  |  Estado: {o.estado.value if hasattr(o.estado, 'value') else o.estado}", ln=True)
-    pdf.cell(0, 6, f"Tipo: {o.tipo.value if hasattr(o.tipo, 'value') else o.tipo}", ln=True)
+    estado_str = (o.estado.value if hasattr(o.estado, 'value')
+                   else o.estado)
+    pdf.cell(0, 6, f"N# {o.id}  |  Estado: {estado_str}", ln=True)
+    pdf.cell(0, 6, f"Tipo: {o.tipo.value if hasattr(o.tipo, 'value') else o.tipo}",
+             ln=True)
     if o.proveedor:
         pdf.cell(0, 6, f"Proveedor: {o.proveedor.nombre}", ln=True)
     if o.actividad_duoc:
@@ -518,9 +530,12 @@ def exportar_pdf(
             else it.activo_fijo.nombre if it.activo_fijo
             else (it.nombre_nuevo or "Nuevo")
         )
-        tipo_str = it.tipo_item.value if hasattr(it.tipo_item, 'value') else it.tipo_item
-        recibido_str = str(it.cantidad_recibida) if it.cantidad_recibida is not None else "-"
-        costo_str = f"${float(it.costo_unitario):,.0f}" if it.costo_unitario else "-"
+        tipo_str = (it.tipo_item.value if hasattr(it.tipo_item, 'value')
+                    else it.tipo_item)
+        recibido_str = (str(it.cantidad_recibida)
+                        if it.cantidad_recibida is not None else "-")
+        costo_str = (f"${float(it.costo_unitario):,.0f}"
+                     if it.costo_unitario else "-")
         subtotal = (
             float(it.costo_unitario) * (it.cantidad_recibida or it.cantidad_pedida)
             if it.costo_unitario else 0
@@ -586,15 +601,22 @@ def exportar_excel(
 
     # Encabezado
     ws.append(["Hestia - Orden de Entrada"])
-    ws.append([f"N# {o.id}", f"Estado: {o.estado.value if hasattr(o.estado, 'value') else o.estado}"])
+    estado_str = (o.estado.value if hasattr(o.estado, 'value')
+                   else o.estado)
+    ws.append([f"N# {o.id}", f"Estado: {estado_str}"])
     ws.append(["Proveedor:", o.proveedor.nombre if o.proveedor else "-"])
     if o.actividad_duoc:
-        ws.append(["Actividad DuocUC:", f"({o.actividad_duoc}) {ACTIVIDADES_DUOC.get(o.actividad_duoc, '')}"])
+        act_nombre = ACTIVIDADES_DUOC.get(o.actividad_duoc, '')
+        ws.append(["Actividad DuocUC:",
+                   f"({o.actividad_duoc}) {act_nombre}"])
     ws.append(["Fecha:", o.created_at.strftime("%d/%m/%Y %H:%M")])
     ws.append([])
 
     # Cabecera tabla
-    hdrs = ["Item", "Tipo", "Es nuevo", "Pedido", "Recibido", "Costo unitario", "Subtotal", "Estado", "Notas"]
+    hdrs = [
+        "Item", "Tipo", "Es nuevo", "Pedido", "Recibido",
+        "Costo unitario", "Subtotal", "Estado", "Notas",
+    ]
     ws.append(hdrs)
     fill = PatternFill("solid", fgColor="0F766E")
     bold_white = Font(color="FFFFFF", bold=True)
@@ -610,8 +632,10 @@ def exportar_excel(
             else it.activo_fijo.nombre if it.activo_fijo
             else (it.nombre_nuevo or "Nuevo")
         )
-        es_nuevo = "Si" if (not it.insumo_id and not it.activo_fijo_id) else "No"
-        tipo_str = it.tipo_item.value if hasattr(it.tipo_item, 'value') else str(it.tipo_item)
+        es_nuevo = ("Si" if (not it.insumo_id and not it.activo_fijo_id)
+                    else "No")
+        tipo_str = (it.tipo_item.value if hasattr(it.tipo_item, 'value')
+                    else str(it.tipo_item))
         costo = float(it.costo_unitario) if it.costo_unitario else None
         recibido = it.cantidad_recibida
         subtotal = costo * (recibido or it.cantidad_pedida) if costo else None
@@ -636,9 +660,12 @@ def exportar_excel(
     buf = io.BytesIO()
     wb.save(buf)
     buf.seek(0)
+    media_type = (
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
     return StreamingResponse(
         buf,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        media_type=media_type,
         headers={
             "Content-Disposition": f"attachment; filename=orden_entrada_{o.id}.xlsx"
         },

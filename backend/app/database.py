@@ -219,16 +219,16 @@ MIGRACIONES_COLUMNAS = [
 ]
 
 MIGRACIONES_ENUM = [
-    ("rolusuario",        ["admin", "operador_coordinador", "operador", "visor"]),
+    ("rolusuario", ["admin", "operador_coordinador", "operador", "visor"]),
     ("carreraasignatura", ["TENS", "TQF", "TLCBS", "preparador_fisico", "TONS"]),
-    ("tipomovimiento",    ["entrada", "salida", "interno"]),
-    ("estadoordenitem",   ["en_curso", "cerrada", "cancelada"]),
-    ("resultadoitem",     ["pendiente", "ok", "sale_a_taller", "dar_de_baja"]),
-    ("tipocomentario",    ["positivo", "negativo", "neutro"]),
-    ("tipoorden",         ["semanal", "semestral", "emergencia"]),
+    ("tipomovimiento", ["entrada", "salida", "interno"]),
+    ("estadoordenitem", ["en_curso", "cerrada", "cancelada"]),
+    ("resultadoitem", ["pendiente", "ok", "sale_a_taller", "dar_de_baja"]),
+    ("tipocomentario", ["positivo", "negativo", "neutro"]),
+    ("tipoorden", ["semanal", "semestral", "emergencia"]),
     ("estadoordenentrada", ["borrador", "confirmada", "en_recepcion", "cerrada", "cancelada"]),
-    ("estadoitemorden",   ["pendiente", "recibido", "recibido_parcial", "cancelado"]),
-    ("tipoitemorden",     ["insumo", "activo_fijo"]),
+    ("estadoitemorden", ["pendiente", "recibido", "recibido_parcial", "cancelado"]),
+    ("tipoitemorden", ["insumo", "activo_fijo"]),
 ]
 
 
