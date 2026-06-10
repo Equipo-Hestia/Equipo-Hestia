@@ -38,7 +38,7 @@ function estadoBadge(estado: EstadoOrdenEntrada) {
 }
 
 function formatCLP(n: number | null | undefined) {
-  if (n == null) return '\u2014'
+  if (n == null) return '—'
   return new Intl.NumberFormat('es-CL', {
     style: 'currency', currency: 'CLP', maximumFractionDigits: 0,
   }).format(n)
@@ -241,7 +241,7 @@ export function OrdenesEntrada() {
         }
       }
       await api.post(`/ordenes-entrada/${ordenActiva.id}/items`, payload)
-      showToast('\u00cdtem agregado')
+      showToast('Ítem agregado')
       setShowModalItem(false)
       setFormItem(ITEM_VACIO)
       load()
@@ -256,7 +256,7 @@ export function OrdenesEntrada() {
     if (!confirm('\u00bfEliminar este item?')) return
     try {
       await api.delete(`/ordenes-entrada/${ordenId}/items/${itemId}`)
-      showToast('\u00cdtem eliminado'); load()
+      showToast('Ítem eliminado'); load()
     } catch { showToast('Error al eliminar.', 'err') }
   }
 
@@ -271,18 +271,30 @@ export function OrdenesEntrada() {
           costo_unitario:    costoUnit ? parseFloat(costoUnit) : undefined,
         },
       )
-      showToast('Recepci\u00f3n registrada')
+      showToast('Recepción registrada')
       setShowModalRecepcion(false)
       load()
     } catch { showToast('Error al registrar.', 'err') }
     finally { setSaving(false) }
   }
 
-  function descargarPdf(id: number) {
-    window.open(`/ordenes-entrada/${id}/exportar-pdf`, '_blank')
-  }
-  function descargarExcel(id: number) {
-    window.open(`/ordenes-entrada/${id}/exportar-excel`, '_blank')
+  async function descargarArchivo(id: number, tipo: 'pdf' | 'excel') {
+    const ext = tipo === 'pdf' ? 'exportar-pdf' : 'exportar-excel'
+    const { data, headers } = await api.get(
+      `/ordenes-entrada/${id}/${ext}`,
+      { responseType: 'blob' }
+    )
+    const mime = headers['content-type'] ?? (
+      tipo === 'pdf'
+        ? 'application/pdf'
+        : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    const url = URL.createObjectURL(new Blob([data], { type: mime }))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `orden_entrada_${id}.${tipo === 'pdf' ? 'pdf' : 'xlsx'}`
+    a.click()
+    URL.revokeObjectURL(url)
   }
 
   function abrirModalItem(o: OrdenEntradaResponse) {
@@ -309,7 +321,7 @@ export function OrdenesEntrada() {
   const estadoOpts = [
     { value: 'borrador',     label: 'Borrador'     },
     { value: 'confirmada',   label: 'Confirmada'   },
-    { value: 'en_recepcion', label: 'En recepcion' },
+    { value: 'en_recepcion', label: 'En recepción' },
     { value: 'cerrada',      label: 'Cerrada'      },
     { value: 'cancelada',    label: 'Cancelada'    },
   ]
@@ -346,7 +358,7 @@ export function OrdenesEntrada() {
         <div>
           <h1 className="text-2xl font-black text-h-primary flex items-center gap-2">
             <ShoppingCart size={22} className="text-h-accent" />
-            \u00d3rdenes de Entrada
+            Órdenes de Entrada
           </h1>
           <p className="text-h-secondary text-sm mt-0.5">
             {loading ? '...' : `${ordenes.length} orden${ordenes.length !== 1 ? 'es' : ''}`}
@@ -419,7 +431,7 @@ export function OrdenesEntrada() {
               <tr>
                 <td colSpan={9} className="text-center py-14">
                   <ShoppingCart size={28} className="mx-auto mb-2 text-h-tertiary opacity-40" />
-                  <p className="font-semibold text-h-secondary">Sin \u00f3rdenes registradas</p>
+                  <p className="font-semibold text-h-secondary">Sin órdenes registradas</p>
                 </td>
               </tr>
             ) : ordenes.map(o => {
@@ -437,12 +449,12 @@ export function OrdenesEntrada() {
                       {abierto ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                     </td>
                     <td className="px-4 py-3.5 font-semibold text-h-primary">
-                      {o.proveedor_nombre ?? <span className="text-h-tertiary">\u2014</span>}
+                      {o.proveedor_nombre ?? <span className="text-h-tertiary">—</span>}
                     </td>
                     <td className="px-4 py-3.5 text-h-secondary text-xs">
                       {o.actividad_duoc
                         ? `(${o.actividad_duoc}) ${o.actividad_nombre ?? ''}`
-                        : <span className="text-h-tertiary">\u2014</span>
+                        : <span className="text-h-tertiary">—</span>
                       }
                     </td>
                     <td className="px-4 py-3.5 text-center">
@@ -462,13 +474,13 @@ export function OrdenesEntrada() {
                     <td className="px-4 py-3.5 text-center">{estadoBadge(o.estado)}</td>
                     <td className="px-4 py-3.5 text-center" onClick={e => e.stopPropagation()}>
                       <div className="flex items-center justify-center gap-1">
-                        <button onClick={() => descargarPdf(o.id)} title="PDF"
+                        <button onClick={() => descargarArchivo(o.id, 'pdf')}
                           className="p-1.5 rounded-lg text-h-tertiary transition-colors duration-150"
                           onMouseEnter={e => { e.currentTarget.style.background = 'var(--h-teal-subtle)'; e.currentTarget.style.color = 'var(--h-teal-hover)' }}
                           onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--h-text-tertiary)' }}>
                           <FileText size={14} />
                         </button>
-                        <button onClick={() => descargarExcel(o.id)} title="Excel"
+                        <button onClick={() => descargarArchivo(o.id, 'excel')}
                           className="p-1.5 rounded-lg text-h-tertiary transition-colors duration-150"
                           onMouseEnter={e => { e.currentTarget.style.background = 'var(--h-teal-subtle)'; e.currentTarget.style.color = 'var(--h-teal-hover)' }}
                           onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--h-text-tertiary)' }}>
@@ -507,7 +519,7 @@ export function OrdenesEntrada() {
                       <td colSpan={9} className="bg-h-elevated border-b border-h-subtle px-6 py-4">
                         <div className="flex items-center justify-between mb-3">
                           <p className="text-xs font-bold text-h-tertiary uppercase tracking-wide">
-                            Items de la orden
+                            Ítems de la orden
                           </p>
                           {esCoord && o.estado === 'borrador' && (
                             <button onClick={() => abrirModalItem(o)}
@@ -516,13 +528,13 @@ export function OrdenesEntrada() {
                               style={{ background: 'var(--h-teal-rest)' }}
                               onMouseEnter={e => (e.currentTarget.style.background = 'var(--h-teal-hover)')}
                               onMouseLeave={e => (e.currentTarget.style.background = 'var(--h-teal-rest)')}>
-                              <Plus size={12} /> Agregar item
+                              <Plus size={12} /> Agregar ítem
                             </button>
                           )}
                         </div>
                         {o.items.length === 0 ? (
                           <p className="text-h-tertiary text-sm italic">
-                            Sin items. Agrega items antes de confirmar.
+                            Sin ítems. Agrega ítems antes de confirmar.
                           </p>
                         ) : (
                           <table className="w-full text-xs">
@@ -560,7 +572,7 @@ export function OrdenesEntrada() {
                                     <td className="py-2 pr-4 text-center text-h-secondary">{it.tipo_item}</td>
                                     <td className="py-2 pr-4 text-center font-bold text-h-primary">{it.cantidad_pedida}</td>
                                     <td className="py-2 pr-4 text-center text-h-secondary">
-                                      {it.cantidad_recibida ?? '\u2014'}
+                                      {it.cantidad_recibida ?? '—'}
                                     </td>
                                     <td className="py-2 pr-4 text-right text-h-secondary tabular-nums">
                                       {formatCLP(it.costo_unitario)}
@@ -681,7 +693,7 @@ export function OrdenesEntrada() {
               <input type="checkbox" checked={formItem.es_nuevo}
                 onChange={e => setFormItem(f => ({ ...f, es_nuevo: e.target.checked, insumo_id: '', activo_fijo_id: '', nombre_nuevo: '' }))}
                 className="w-4 h-4 rounded" />
-              <span className="text-sm text-h-secondary font-semibold">Es un item nuevo (no existe en Hestia)</span>
+              <span className="text-sm text-h-secondary font-semibold">Es un ítem nuevo (no existe en Hestia)</span>
             </label>
             {formItem.es_nuevo ? (
               <>
@@ -697,7 +709,7 @@ export function OrdenesEntrada() {
                     <div className="flex items-center gap-1.5 mb-2">
                       <AlertTriangle size={13} style={{ color: 'var(--h-sem-warning-text)' }} />
                       <p className="text-xs font-bold" style={{ color: 'var(--h-sem-warning-text)' }}>
-                        Insumos similares. \u00bfEs alguno de estos?
+                        Insumos similares. ¿Es alguno de estos?
                       </p>
                     </div>
                     {similares.map(s => (
@@ -787,7 +799,7 @@ export function OrdenesEntrada() {
       {/* MODAL: Recepcion */}
       {showModalRecepcion && itemRecepcion && (
         <Modal
-          title={`Recepci\u00f3n \u2014 ${itemRecepcion.insumo_nombre ?? itemRecepcion.nombre_nuevo ?? 'Item'}`}
+          title={`Recepción — ${itemRecepcion.insumo_nombre ?? itemRecepcion.nombre_nuevo ?? 'Ítem'}`}
           onClose={() => setShowModalRecepcion(false)} size="sm">
           <div className="space-y-4">
             <p className="text-h-secondary text-sm">

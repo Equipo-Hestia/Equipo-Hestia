@@ -17,17 +17,17 @@ export const ETIQUETA_TIPO_ORDEN: Record<TipoOrden, string> = {
 export const ETIQUETA_ESTADO_ORDEN_ENTRADA: Record<EstadoOrdenEntrada, string> = {
   borrador:     'Borrador',
   confirmada:   'Confirmada',
-  en_recepcion: 'En recepcion',
+  en_recepcion: 'En recepción',
   cerrada:      'Cerrada',
   cancelada:    'Cancelada',
 }
 
 export const ACTIVIDADES_DUOC: { codigo: string; nombre: string }[] = [
-  { codigo: '1010', nombre: 'Materiales de ensenanza - talleres y laboratorios' },
-  { codigo: '1060', nombre: 'Mantenciones varias de Equipos de Ensenanza' },
+  { codigo: '1010', nombre: 'Materiales de enseñanza - talleres y laboratorios' },
+  { codigo: '1060', nombre: 'Mantenciones varias de Equipos de Enseñanza' },
   { codigo: '1064', nombre: 'Materiales e insumos varios' },
-  { codigo: '1084', nombre: 'Articulos escritorio, papeleria y computacion' },
-  { codigo: '1137', nombre: 'Insumos academicos y tecnologia' },
+  { codigo: '1084', nombre: 'Artículos escritorio, papelería y computación' },
+  { codigo: '1137', nombre: 'Insumos académicos y tecnología' },
 ]
 
 export interface OrdenEntradaItemResponse {
