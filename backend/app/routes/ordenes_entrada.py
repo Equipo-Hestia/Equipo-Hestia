@@ -3,6 +3,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 from sqlalchemy.orm import Session, joinedload
 
 from app.database import get_db
@@ -25,12 +26,7 @@ from app.utils.auditoria import registrar, get_ip
 router = APIRouter(prefix="/ordenes-entrada", tags=["Ordenes de Entrada"])
 
 
-# ---------------------------------------------------------------------------
-# RBAC helpers
-# ---------------------------------------------------------------------------
-
 def _require_coord_o_admin(usuario: Usuario = Depends(get_usuario_actual)):
-    """Crear, confirmar y cerrar ordenes: solo coord/admin."""
     if usuario.rol not in (RolUsuario.admin, RolUsuario.operador_coordinador):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -39,10 +35,6 @@ def _require_coord_o_admin(usuario: Usuario = Depends(get_usuario_actual)):
     return usuario
 
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
 def _to_response(o: OrdenEntrada) -> OrdenEntradaResponse:
     items_resp = []
     for i in o.items:
@@ -50,48 +42,53 @@ def _to_response(o: OrdenEntrada) -> OrdenEntradaResponse:
             OrdenEntradaItemResponse(
                 id=i.id,
                 orden_id=i.orden_id,
-                tipo_item=(i.tipo_item.value if hasattr(i.tipo_item, 'value')
-                           else i.tipo_item),
+                tipo_item=(
+                    i.tipo_item.value if hasattr(i.tipo_item, 'value')
+                    else i.tipo_item
+                ),
                 insumo_id=i.insumo_id,
                 insumo_nombre=i.insumo.nombre if i.insumo else None,
                 activo_fijo_id=i.activo_fijo_id,
-                activo_fijo_nombre=(i.activo_fijo.nombre
-                                    if i.activo_fijo else None),
+                activo_fijo_nombre=(
+                    i.activo_fijo.nombre if i.activo_fijo else None
+                ),
                 nombre_nuevo=i.nombre_nuevo,
                 tipo_insumo_nuevo=i.tipo_insumo_nuevo,
                 tipo_activo_nuevo=i.tipo_activo_nuevo,
                 cantidad_pedida=i.cantidad_pedida,
                 cantidad_recibida=i.cantidad_recibida,
-                costo_unitario=(float(i.costo_unitario)
-                                if i.costo_unitario else None),
-                estado=(i.estado.value if hasattr(i.estado, 'value')
-                        else i.estado),
+                costo_unitario=(
+                    float(i.costo_unitario) if i.costo_unitario else None
+                ),
+                estado=(
+                    i.estado.value if hasattr(i.estado, 'value')
+                    else i.estado
+                ),
                 notas_item=i.notas_item,
             )
         )
     total_pedido = sum(i.cantidad_pedida for i in o.items)
     total_recibido = sum(
-        i.cantidad_recibida for i in o.items if i.cantidad_recibida is not None
+        i.cantidad_recibida
+        for i in o.items
+        if i.cantidad_recibida is not None
     )
-    act_nombre = (ACTIVIDADES_DUOC.get(o.actividad_duoc)
-                  if o.actividad_duoc else None)
-    tipo_val = o.tipo.value if hasattr(o.tipo, 'value') else o.tipo
-    estado_val = o.estado.value if hasattr(o.estado, 'value') else o.estado
-    creado_por_nombre = (o.creado_por.nombre if o.creado_por else None)
-    cerrado_por_nombre = (o.cerrado_por.nombre if o.cerrado_por else None)
+    act_nombre = (
+        ACTIVIDADES_DUOC.get(o.actividad_duoc) if o.actividad_duoc else None
+    )
     return OrdenEntradaResponse(
         id=o.id,
         proveedor_id=o.proveedor_id,
         proveedor_nombre=o.proveedor.nombre if o.proveedor else None,
         actividad_duoc=o.actividad_duoc,
         actividad_nombre=act_nombre,
-        tipo=tipo_val,
-        estado=estado_val,
+        tipo=o.tipo.value if hasattr(o.tipo, 'value') else o.tipo,
+        estado=o.estado.value if hasattr(o.estado, 'value') else o.estado,
         notas=o.notas,
         creado_por_id=o.creado_por_id,
-        creado_por_nombre=creado_por_nombre,
+        creado_por_nombre=o.creado_por.nombre if o.creado_por else None,
         cerrado_por_id=o.cerrado_por_id,
-        cerrado_por_nombre=cerrado_por_nombre,
+        cerrado_por_nombre=o.cerrado_por.nombre if o.cerrado_por else None,
         created_at=o.created_at,
         fecha_cierre=o.fecha_cierre,
         items=items_resp,
@@ -107,8 +104,10 @@ def _cargar(orden_id: int, db: Session) -> OrdenEntrada:
             joinedload(OrdenEntrada.proveedor),
             joinedload(OrdenEntrada.creado_por),
             joinedload(OrdenEntrada.cerrado_por),
-            joinedload(OrdenEntrada.items).joinedload(OrdenEntradaItem.insumo),
-            joinedload(OrdenEntrada.items).joinedload(OrdenEntradaItem.activo_fijo),
+            joinedload(OrdenEntrada.items)
+            .joinedload(OrdenEntradaItem.insumo),
+            joinedload(OrdenEntrada.items)
+            .joinedload(OrdenEntradaItem.activo_fijo),
         )
         .filter(OrdenEntrada.id == orden_id)
         .first()
@@ -118,19 +117,30 @@ def _cargar(orden_id: int, db: Session) -> OrdenEntrada:
     return o
 
 
+def _make_item(orden_id: int, datos: OrdenEntradaItemCreate) -> OrdenEntradaItem:
+    return OrdenEntradaItem(
+        orden_id=orden_id,
+        tipo_item=datos.tipo_item,
+        insumo_id=datos.insumo_id,
+        activo_fijo_id=datos.activo_fijo_id,
+        nombre_nuevo=datos.nombre_nuevo,
+        tipo_insumo_nuevo=datos.tipo_insumo_nuevo,
+        tipo_activo_nuevo=datos.tipo_activo_nuevo,
+        cantidad_pedida=datos.cantidad_pedida,
+        costo_unitario=datos.costo_unitario,
+        notas_item=datos.notas_item,
+        estado=EstadoItem.pendiente,
+    )
+
+
 # ---------------------------------------------------------------------------
 # Endpoints
+# IMPORTANTE: rutas estaticas antes de rutas dinamicas /{orden_id}
 # ---------------------------------------------------------------------------
 
 @router.get("/actividades", response_model=list[dict])
-def listar_actividades(
-    _=Depends(get_usuario_actual),
-):
-    """Retorna los codigos y nombres de actividades DuocUC disponibles."""
-    return [
-        {"codigo": k, "nombre": v}
-        for k, v in ACTIVIDADES_DUOC.items()
-    ]
+def listar_actividades(_=Depends(get_usuario_actual)):
+    return [{"codigo": k, "nombre": v} for k, v in ACTIVIDADES_DUOC.items()]
 
 
 @router.get("/", response_model=list[OrdenEntradaResponse])
@@ -148,15 +158,20 @@ def listar(
             joinedload(OrdenEntrada.proveedor),
             joinedload(OrdenEntrada.creado_por),
             joinedload(OrdenEntrada.cerrado_por),
-            joinedload(OrdenEntrada.items).joinedload(OrdenEntradaItem.insumo),
-            joinedload(OrdenEntrada.items).joinedload(OrdenEntradaItem.activo_fijo),
+            joinedload(OrdenEntrada.items)
+            .joinedload(OrdenEntradaItem.insumo),
+            joinedload(OrdenEntrada.items)
+            .joinedload(OrdenEntradaItem.activo_fijo),
         )
     )
     if estado:
         q = q.filter(OrdenEntrada.estado == estado)
     if proveedor_id:
         q = q.filter(OrdenEntrada.proveedor_id == proveedor_id)
-    ordenes = q.order_by(OrdenEntrada.created_at.desc()).offset(skip).limit(limit).all()
+    ordenes = (
+        q.order_by(OrdenEntrada.created_at.desc())
+        .offset(skip).limit(limit).all()
+    )
     return [_to_response(o) for o in ordenes]
 
 
@@ -178,19 +193,7 @@ def crear(
     db.add(o)
     db.flush()
     for it in datos.items:
-        db.add(OrdenEntradaItem(
-            orden_id=o.id,
-            tipo_item=it.tipo_item,
-            insumo_id=it.insumo_id,
-            activo_fijo_id=it.activo_fijo_id,
-            nombre_nuevo=it.nombre_nuevo,
-            tipo_insumo_nuevo=it.tipo_insumo_nuevo,
-            tipo_activo_nuevo=it.tipo_activo_nuevo,
-            cantidad_pedida=it.cantidad_pedida,
-            costo_unitario=it.costo_unitario,
-            notas_item=it.notas_item,
-            estado=EstadoItem.pendiente,
-        ))
+        db.add(_make_item(o.id, it))
     db.commit()
     registrar(
         db, "CREAR_ORDEN_ENTRADA", usuario=usuario,
@@ -239,25 +242,52 @@ def agregar_item(
 ):
     o = _cargar(orden_id, db)
     if o.estado != EstadoOrden.borrador:
-        raise HTTPException(status_code=400, detail="La orden no esta en borrador.")
-    db.add(OrdenEntradaItem(
-        orden_id=orden_id,
-        tipo_item=datos.tipo_item,
-        insumo_id=datos.insumo_id,
-        activo_fijo_id=datos.activo_fijo_id,
-        nombre_nuevo=datos.nombre_nuevo,
-        tipo_insumo_nuevo=datos.tipo_insumo_nuevo,
-        tipo_activo_nuevo=datos.tipo_activo_nuevo,
-        cantidad_pedida=datos.cantidad_pedida,
-        costo_unitario=datos.costo_unitario,
-        notas_item=datos.notas_item,
-        estado=EstadoItem.pendiente,
-    ))
+        raise HTTPException(
+            status_code=400, detail="La orden no esta en borrador."
+        )
+    db.add(_make_item(orden_id, datos))
     db.commit()
     return _to_response(_cargar(orden_id, db))
 
 
-@router.delete("/{orden_id}/items/{item_id}", response_model=OrdenEntradaResponse)
+class BulkItemsPayload(BaseModel):
+    items: list[OrdenEntradaItemCreate]
+
+
+@router.post(
+    "/{orden_id}/items/bulk",
+    response_model=OrdenEntradaResponse,
+)
+def agregar_items_bulk(
+    orden_id: int,
+    payload: BulkItemsPayload,
+    db: Session = Depends(get_db),
+    usuario=Depends(_require_coord_o_admin),
+):
+    """Agrega multiples items en una sola transaccion atomica.
+
+    Si cualquier item es invalido, ningun item se guarda.
+    Requiere que la orden este en estado borrador.
+    """
+    o = _cargar(orden_id, db)
+    if o.estado != EstadoOrden.borrador:
+        raise HTTPException(
+            status_code=400, detail="La orden no esta en borrador."
+        )
+    if not payload.items:
+        raise HTTPException(
+            status_code=400, detail="Se requiere al menos un item."
+        )
+    for datos in payload.items:
+        db.add(_make_item(orden_id, datos))
+    db.commit()
+    return _to_response(_cargar(orden_id, db))
+
+
+@router.delete(
+    "/{orden_id}/items/{item_id}",
+    response_model=OrdenEntradaResponse,
+)
 def eliminar_item(
     orden_id: int,
     item_id: int,
@@ -266,7 +296,9 @@ def eliminar_item(
 ):
     o = _cargar(orden_id, db)
     if o.estado != EstadoOrden.borrador:
-        raise HTTPException(status_code=400, detail="La orden no esta en borrador.")
+        raise HTTPException(
+            status_code=400, detail="La orden no esta en borrador."
+        )
     item = db.query(OrdenEntradaItem).filter(
         OrdenEntradaItem.id == item_id,
         OrdenEntradaItem.orden_id == orden_id,
@@ -287,15 +319,22 @@ def confirmar(
 ):
     o = _cargar(orden_id, db)
     if o.estado != EstadoOrden.borrador:
-        raise HTTPException(status_code=400, detail="La orden ya fue confirmada.")
+        raise HTTPException(
+            status_code=400, detail="La orden ya fue confirmada."
+        )
     if not o.items:
-        raise HTTPException(status_code=400, detail="La orden no tiene items.")
+        raise HTTPException(
+            status_code=400, detail="La orden no tiene items."
+        )
     o.estado = EstadoOrden.confirmada
     db.commit()
     registrar(
         db, "CONFIRMAR_ORDEN_ENTRADA", usuario=usuario,
         entidad="orden_entrada", entidad_id=orden_id,
-        detalle=f"Proveedor: {o.proveedor.nombre if o.proveedor else 'sin proveedor'}",
+        detalle=(
+            f"Proveedor: "
+            f"{o.proveedor.nombre if o.proveedor else 'sin proveedor'}"
+        ),
         ip=get_ip(request),
     )
     return _to_response(_cargar(orden_id, db))
@@ -337,7 +376,6 @@ def registrar_recepcion_item(
         item.costo_unitario = datos.costo_unitario
     if datos.notas_item is not None:
         item.notas_item = datos.notas_item
-    # Si al menos un item tiene cantidad, pasar a en_recepcion
     if o.estado == EstadoOrden.confirmada:
         o.estado = EstadoOrden.en_recepcion
     db.commit()
@@ -351,7 +389,7 @@ def cerrar(
     db: Session = Depends(get_db),
     usuario=Depends(_require_coord_o_admin),
 ):
-    """Cierra la orden: impacta stock, crea insumos/activos nuevos, genera movimientos."""
+    """Cierra la orden: impacta stock, crea registros nuevos, genera movimientos."""
     o = _cargar(orden_id, db)
     if o.estado not in (EstadoOrden.confirmada, EstadoOrden.en_recepcion):
         raise HTTPException(
@@ -369,11 +407,8 @@ def cerrar(
 
         if item.tipo_item == TipoItemOrden.insumo:
             insumo = item.insumo
-            # Crear insumo nuevo si no existe
             if insumo is None and item.nombre_nuevo:
-                tipo_nuevo = TipoInsumo(
-                    item.tipo_insumo_nuevo or "insumo"
-                )
+                tipo_nuevo = TipoInsumo(item.tipo_insumo_nuevo or "insumo")
                 insumo = Insumo(
                     nombre=item.nombre_nuevo,
                     stock_actual=0,
@@ -389,16 +424,16 @@ def cerrar(
                 db.flush()
             if insumo:
                 insumo.stock_actual += cant
+                motivo = f"Orden entrada #{o.id}"
+                if o.proveedor:
+                    motivo += f" - {o.proveedor.nombre}"
                 db.add(Movimiento(
                     tipo=TipoMovimiento.entrada,
                     subtipo=SubtipoMovimiento.compra,
                     cantidad=cant,
                     insumo_id=insumo.id,
                     usuario_id=usuario.id,
-                    motivo=(
-                        f"Orden entrada #{o.id}"
-                        + (f" - {o.proveedor.nombre}" if o.proveedor else "")
-                    ),
+                    motivo=motivo,
                 ))
                 item.estado = (
                     EstadoItem.recibido
@@ -408,13 +443,10 @@ def cerrar(
                 items_procesados += 1
 
         elif item.tipo_item == TipoItemOrden.activo_fijo:
+            from app.models.activo_fijo import TipoActivo
             activo = item.activo_fijo
-            # Crear activo nuevo si no existe
             if activo is None and item.nombre_nuevo:
-                from app.models.activo_fijo import TipoActivo
-                tipo_af = TipoActivo(
-                    item.tipo_activo_nuevo or "mueble"
-                )
+                tipo_af = TipoActivo(item.tipo_activo_nuevo or "mueble")
                 activo = ActivoFijo(
                     nombre=item.nombre_nuevo,
                     tipo=tipo_af,
@@ -430,25 +462,18 @@ def cerrar(
             item.estado = EstadoItem.recibido
             items_procesados += 1
 
-    # Determinar estado final
-    estados = {i.estado for i in o.items}
-    if EstadoItem.recibido_parcial in estados or EstadoItem.pendiente in estados:
-        o.estado = EstadoOrden.cerrada  # cerrada aunque sea parcial
-    else:
-        o.estado = EstadoOrden.cerrada
-
+    o.estado = EstadoOrden.cerrada
     o.cerrado_por_id = usuario.id
     o.fecha_cierre = datetime.now(timezone.utc)
     db.commit()
 
+    detalle = f"{items_procesados} items procesados"
+    if o.proveedor:
+        detalle += f" - {o.proveedor.nombre}"
     registrar(
         db, "CERRAR_ORDEN_ENTRADA", usuario=usuario,
         entidad="orden_entrada", entidad_id=orden_id,
-        detalle=(
-            f"{items_procesados} items procesados"
-            + (f" - {o.proveedor.nombre}" if o.proveedor else "")
-        ),
-        ip=get_ip(request),
+        detalle=detalle, ip=get_ip(request),
     )
     return _to_response(_cargar(orden_id, db))
 
@@ -462,7 +487,10 @@ def cancelar(
 ):
     o = _cargar(orden_id, db)
     if o.estado == EstadoOrden.cerrada:
-        raise HTTPException(status_code=400, detail="No se puede cancelar una orden cerrada.")
+        raise HTTPException(
+            status_code=400,
+            detail="No se puede cancelar una orden cerrada.",
+        )
     o.estado = EstadoOrden.cancelada
     db.commit()
     registrar(
@@ -479,13 +507,23 @@ def exportar_pdf(
     db: Session = Depends(get_db),
     usuario=Depends(get_usuario_actual),
 ):
-    """Genera PDF de la orden (borrador o cerrada)."""
+    """Genera PDF. Solo disponible para ordenes en borrador, confirmada o cerrada."""
     try:
         from fpdf import FPDF
     except ImportError:
         raise HTTPException(status_code=500, detail="fpdf2 no instalado.")
+    import io
 
     o = _cargar(orden_id, db)
+    estados_permitidos = (
+        EstadoOrden.borrador, EstadoOrden.confirmada, EstadoOrden.cerrada
+    )
+    if o.estado not in estados_permitidos:
+        raise HTTPException(
+            status_code=400,
+            detail="El PDF solo esta disponible para ordenes en borrador, "
+                   "confirmada o cerrada.",
+        )
 
     pdf = FPDF()
     pdf.set_margins(15, 15, 15)
@@ -494,29 +532,39 @@ def exportar_pdf(
     pdf.cell(0, 10, "Hestia - Orden de Entrada", ln=True)
     pdf.set_font("Helvetica", "", 10)
     estado_str = o.estado.value if hasattr(o.estado, 'value') else o.estado
+    tipo_str = o.tipo.value if hasattr(o.tipo, 'value') else o.tipo
     pdf.cell(0, 6, f"N# {o.id}  |  Estado: {estado_str}", ln=True)
-    pdf.cell(0, 6, f"Tipo: {o.tipo.value if hasattr(o.tipo, 'value') else o.tipo}",
-             ln=True)
+    pdf.cell(0, 6, f"Tipo: {tipo_str}", ln=True)
     if o.proveedor:
         pdf.cell(0, 6, f"Proveedor: {o.proveedor.nombre}", ln=True)
     if o.actividad_duoc:
         nombre_act = ACTIVIDADES_DUOC.get(o.actividad_duoc, o.actividad_duoc)
-        pdf.cell(0, 6, f"Actividad DuocUC: ({o.actividad_duoc}) {nombre_act}", ln=True)
-    pdf.cell(0, 6, f"Creado: {o.created_at.strftime('%d/%m/%Y %H:%M')}", ln=True)
+        pdf.cell(
+            0, 6,
+            f"Actividad DuocUC: ({o.actividad_duoc}) {nombre_act}",
+            ln=True,
+        )
+    pdf.cell(
+        0, 6, f"Creado: {o.created_at.strftime('%d/%m/%Y %H:%M')}", ln=True
+    )
     if o.fecha_cierre:
-        pdf.cell(0, 6, f"Cerrado: {o.fecha_cierre.strftime('%d/%m/%Y %H:%M')}", ln=True)
+        pdf.cell(
+            0, 6,
+            f"Cerrado: {o.fecha_cierre.strftime('%d/%m/%Y %H:%M')}",
+            ln=True,
+        )
     if o.notas:
         pdf.cell(0, 6, f"Notas: {o.notas}", ln=True)
     pdf.ln(4)
 
-    # Tabla de items
     pdf.set_font("Helvetica", "B", 9)
     pdf.set_fill_color(15, 118, 110)
     pdf.set_text_color(255, 255, 255)
-    for txt, w in [
+    cols = [
         ("Item", 65), ("Tipo", 22), ("Pedido", 20),
         ("Recibido", 22), ("Costo unit.", 28), ("Subtotal", 28),
-    ]:
+    ]
+    for txt, w in cols:
         pdf.cell(w, 7, txt, border=1, fill=True)
     pdf.ln()
     pdf.set_font("Helvetica", "", 9)
@@ -529,36 +577,36 @@ def exportar_pdf(
             else it.activo_fijo.nombre if it.activo_fijo
             else (it.nombre_nuevo or "Nuevo")
         )
-        tipo_str = (it.tipo_item.value if hasattr(it.tipo_item, 'value')
-                    else it.tipo_item)
-        recibido_str = (str(it.cantidad_recibida)
-                        if it.cantidad_recibida is not None else "-")
-        costo_str = (f"${float(it.costo_unitario):,.0f}"
-                     if it.costo_unitario else "-")
+        it_tipo = (
+            it.tipo_item.value if hasattr(it.tipo_item, 'value')
+            else it.tipo_item
+        )
+        recibido_str = (
+            str(it.cantidad_recibida)
+            if it.cantidad_recibida is not None else "-"
+        )
+        costo_str = (
+            f"${float(it.costo_unitario):,.0f}" if it.costo_unitario else "-"
+        )
         subtotal = (
-            float(it.costo_unitario) * (it.cantidad_recibida or it.cantidad_pedida)
+            float(it.costo_unitario)
+            * (it.cantidad_recibida or it.cantidad_pedida)
             if it.costo_unitario else 0
         )
         total_costo += subtotal
         subtotal_str = f"${subtotal:,.0f}" if it.costo_unitario else "-"
-        fill = False
         for txt, w in [
-            (nombre[:38], 65), (tipo_str, 22), (str(it.cantidad_pedida), 20),
+            (nombre[:38], 65), (it_tipo, 22), (str(it.cantidad_pedida), 20),
             (recibido_str, 22), (costo_str, 28), (subtotal_str, 28),
         ]:
-            pdf.cell(w, 6, txt, border=1, fill=fill)
+            pdf.cell(w, 6, txt, border=1)
         pdf.ln()
 
     if total_costo > 0:
         pdf.set_font("Helvetica", "B", 9)
-        pdf.cell(137, 7, "TOTAL ESTIMADO", border=1)
+        pdf.cell(137, 7, "TOTAL", border=1)
         pdf.cell(28, 7, f"${total_costo:,.0f}", border=1)
         pdf.ln()
-
-    if o.notas:
-        pdf.ln(4)
-        pdf.set_font("Helvetica", "I", 8)
-        pdf.multi_cell(0, 5, f"Notas: {o.notas}")
 
     pdf.ln(8)
     pdf.set_font("Helvetica", "I", 7)
@@ -569,13 +617,13 @@ def exportar_pdf(
         align="C",
     )
 
-    import io
     buf = io.BytesIO(pdf.output())
-    nombre_archivo = f"orden_entrada_{o.id}.pdf"
     return StreamingResponse(
         buf,
         media_type="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename={nombre_archivo}"},
+        headers={
+            "Content-Disposition": f"attachment; filename=orden_entrada_{o.id}.pdf"
+        },
     )
 
 
@@ -585,86 +633,113 @@ def exportar_excel(
     db: Session = Depends(get_db),
     usuario=Depends(get_usuario_actual),
 ):
-    """Genera Excel de la orden (borrador o cerrada)."""
+    """Genera Excel. Solo para ordenes en borrador, confirmada o cerrada."""
     try:
         import openpyxl
         from openpyxl.styles import Font, PatternFill, Alignment
         from openpyxl.utils import get_column_letter
     except ImportError:
         raise HTTPException(status_code=500, detail="openpyxl no instalado.")
+    import io
 
     o = _cargar(orden_id, db)
+    estados_permitidos = (
+        EstadoOrden.borrador, EstadoOrden.confirmada, EstadoOrden.cerrada
+    )
+    if o.estado not in estados_permitidos:
+        raise HTTPException(
+            status_code=400,
+            detail="El Excel solo esta disponible para ordenes en borrador, "
+                   "confirmada o cerrada.",
+        )
+
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = f"Orden {o.id}"
 
-    # Encabezado
-    ws.append(["Hestia - Orden de Entrada"])
     estado_str = o.estado.value if hasattr(o.estado, 'value') else o.estado
+    ws.append(["Hestia - Orden de Entrada"])
     ws.append([f"N# {o.id}", f"Estado: {estado_str}"])
     ws.append(["Proveedor:", o.proveedor.nombre if o.proveedor else "-"])
     if o.actividad_duoc:
         act_nombre = ACTIVIDADES_DUOC.get(o.actividad_duoc, '')
-        ws.append(["Actividad DuocUC:",
-                   f"({o.actividad_duoc}) {act_nombre}"])
+        ws.append([
+            "Actividad DuocUC:",
+            f"({o.actividad_duoc}) {act_nombre}",
+        ])
     ws.append(["Fecha:", o.created_at.strftime("%d/%m/%Y %H:%M")])
     ws.append([])
 
-    # Cabecera tabla
     hdrs = [
         "Item", "Tipo", "Es nuevo", "Pedido", "Recibido",
         "Costo unitario", "Subtotal", "Estado", "Notas",
     ]
     ws.append(hdrs)
-    fill = PatternFill("solid", fgColor="0F766E")
+    hdr_fill = PatternFill("solid", fgColor="0F766E")
     bold_white = Font(color="FFFFFF", bold=True)
     for col, _ in enumerate(hdrs, 1):
         cell = ws.cell(row=ws.max_row, column=col)
-        cell.fill = fill
+        cell.fill = hdr_fill
         cell.font = bold_white
         cell.alignment = Alignment(horizontal="center")
 
+    total_costo = 0.0
     for it in o.items:
         nombre = (
             it.insumo.nombre if it.insumo
             else it.activo_fijo.nombre if it.activo_fijo
             else (it.nombre_nuevo or "Nuevo")
         )
-        es_nuevo = ("Si" if (not it.insumo_id and not it.activo_fijo_id)
-                    else "No")
-        tipo_str = (it.tipo_item.value if hasattr(it.tipo_item, 'value')
-                    else str(it.tipo_item))
+        es_nuevo = (
+            "Si" if (not it.insumo_id and not it.activo_fijo_id) else "No"
+        )
+        it_tipo = (
+            it.tipo_item.value if hasattr(it.tipo_item, 'value')
+            else str(it.tipo_item)
+        )
         costo = float(it.costo_unitario) if it.costo_unitario else None
         recibido = it.cantidad_recibida
         subtotal = costo * (recibido or it.cantidad_pedida) if costo else None
+        if subtotal:
+            total_costo += subtotal
         ws.append([
-            nombre, tipo_str, es_nuevo,
+            nombre, it_tipo, es_nuevo,
             it.cantidad_pedida, recibido, costo, subtotal,
             it.estado.value if hasattr(it.estado, 'value') else str(it.estado),
             it.notas_item or "",
         ])
 
-    # Ancho de columnas
+    # Fila de total
+    if total_costo > 0:
+        ws.append(["", "", "", "", "", "TOTAL", total_costo, "", ""])
+        total_row = ws.max_row
+        for col in (6, 7):
+            cell = ws.cell(row=total_row, column=col)
+            cell.font = Font(bold=True)
+
     for col_idx in range(1, len(hdrs) + 1):
         col_letter = get_column_letter(col_idx)
         max_len = max(
-            (len(str(ws.cell(row=r, column=col_idx).value or ""))
-             for r in range(1, ws.max_row + 1)),
+            (
+                len(str(ws.cell(row=r, column=col_idx).value or ""))
+                for r in range(1, ws.max_row + 1)
+            ),
             default=10,
         )
         ws.column_dimensions[col_letter].width = min(max_len + 4, 50)
 
-    import io
     buf = io.BytesIO()
     wb.save(buf)
     buf.seek(0)
     media_type = (
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        "application/vnd.openxmlformats-"
+        "officedocument.spreadsheetml.sheet"
     )
     return StreamingResponse(
         buf,
         media_type=media_type,
         headers={
-            "Content-Disposition": f"attachment; filename=orden_entrada_{o.id}.xlsx"
+            "Content-Disposition":
+                f"attachment; filename=orden_entrada_{o.id}.xlsx"
         },
     )
