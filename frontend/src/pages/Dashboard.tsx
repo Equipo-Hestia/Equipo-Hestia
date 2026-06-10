@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import GridLayout, { Layout } from 'react-grid-layout'
 import {
@@ -23,8 +23,11 @@ import { useLastUpdated } from '../hooks/useLastUpdated'
 // ---------------------------------------------------------------------------
 
 const COLS = 12
-const ROW_H = 60  // px por unidad de fila
+const ROW_H = 60
 const MARGIN: [number, number] = [12, 12]
+// Clase literal — debe existir tal cual en el JSX para que Tailwind no la purgue
+// y para que react-grid-layout encuentre el handle con el selector CSS correcto.
+const DRAG_CLS = 'wdg-drag-handle'
 
 type WidgetId =
   | 'grafico_semana'
@@ -35,12 +38,12 @@ type WidgetId =
   | 'alertas'
 
 const DEFAULT_LAYOUT: Layout[] = [
-  { i: 'grafico_semana',    x: 0, y: 0, w: 8,  h: 5, minW: 4, minH: 4 },
-  { i: 'estado_inventario', x: 8, y: 0, w: 4,  h: 5, minW: 3, minH: 4 },
-  { i: 'actividad',         x: 0, y: 5, w: 5,  h: 6, minW: 3, minH: 4 },
-  { i: 'top_insumos',       x: 5, y: 5, w: 4,  h: 6, minW: 3, minH: 4 },
-  { i: 'salas_hoy',         x: 9, y: 5, w: 3,  h: 6, minW: 2, minH: 4 },
-  { i: 'alertas',           x: 0, y: 11, w: 12, h: 4, minW: 6, minH: 3 },
+  { i: 'grafico_semana',    x: 0,  y: 0,  w: 8,  h: 5, minW: 4, minH: 4 },
+  { i: 'estado_inventario', x: 8,  y: 0,  w: 4,  h: 5, minW: 3, minH: 4 },
+  { i: 'actividad',         x: 0,  y: 5,  w: 5,  h: 6, minW: 3, minH: 4 },
+  { i: 'top_insumos',       x: 5,  y: 5,  w: 4,  h: 6, minW: 3, minH: 4 },
+  { i: 'salas_hoy',         x: 9,  y: 5,  w: 3,  h: 6, minW: 2, minH: 4 },
+  { i: 'alertas',           x: 0,  y: 11, w: 12, h: 4, minW: 6, minH: 3 },
 ]
 
 const WIDGET_LABELS: Record<WidgetId, string> = {
@@ -57,6 +60,24 @@ const ALL_WIDGET_IDS = Object.keys(WIDGET_LABELS) as WidgetId[]
 const STORAGE_LAYOUT_KEY = (uid: number) => `hestia_dash_layout_${uid}`
 const STORAGE_HIDDEN_KEY = (uid: number) => `hestia_dash_hidden_${uid}`
 
+// Fusiona un layout guardado con el default para que ningún item se pierda.
+// Items del guardado conservan su posición/tamaño; items nuevos del default
+// se añaden al final si faltan.
+function mergeLayouts(saved: Layout[], base: Layout[]): Layout[] {
+  const byId = new Map(saved.map(l => [l.i, l]))
+  return base.map(def => {
+    const s = byId.get(def.i)
+    if (!s) return def
+    // Preservar posición y tamaño pero respetar minW/minH del default
+    return {
+      ...def,
+      x: s.x, y: s.y,
+      w: Math.max(s.w, def.minW ?? 1),
+      h: Math.max(s.h, def.minH ?? 1),
+    }
+  })
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -71,61 +92,19 @@ function tiempoRelativo(isoFecha: string): string {
 }
 
 // ---------------------------------------------------------------------------
-// Métricas fijas (no están en el bento)
+// Métricas fijas (siempre arriba, no forman parte del bento)
 // ---------------------------------------------------------------------------
 
 function MetricasFijas({
   resumen, loading,
 }: { resumen: ResumenResponse | null; loading: boolean }) {
   const items = [
-    {
-      label: 'Total insumos',
-      value: resumen?.total_insumos ?? 0,
-      color: 'var(--h-teal-hover)',
-      bg: 'var(--h-teal-subtle)',
-      icon: <Package size={16} />,
-      accent: false,
-    },
-    {
-      label: 'Bajo stock',
-      value: resumen?.insumos_bajo_stock ?? 0,
-      color: 'var(--h-sem-warning-text)',
-      bg: 'var(--h-sem-warning-bg)',
-      icon: <AlertTriangle size={16} />,
-      accent: (resumen?.insumos_bajo_stock ?? 0) > 0,
-    },
-    {
-      label: 'Agotados',
-      value: resumen?.insumos_agotados ?? 0,
-      color: 'var(--h-sem-danger-text)',
-      bg: 'var(--h-sem-danger-bg)',
-      icon: <XCircle size={16} />,
-      accent: (resumen?.insumos_agotados ?? 0) > 0,
-    },
-    {
-      label: 'Movimientos hoy',
-      value: resumen?.movimientos_hoy ?? 0,
-      color: 'var(--h-text-secondary)',
-      bg: 'var(--h-bg-elevated)',
-      icon: <Package size={16} />,
-      accent: false,
-    },
-    {
-      label: 'Entradas hoy',
-      value: resumen?.entradas_hoy ?? 0,
-      color: 'var(--h-teal-hover)',
-      bg: 'var(--h-teal-subtle)',
-      icon: <ArrowUpCircle size={16} />,
-      accent: false,
-    },
-    {
-      label: 'Salidas hoy',
-      value: resumen?.salidas_hoy ?? 0,
-      color: 'var(--h-sem-warning-text)',
-      bg: 'var(--h-sem-warning-bg)',
-      icon: <ArrowDownCircle size={16} />,
-      accent: false,
-    },
+    { label: 'Total insumos',   value: resumen?.total_insumos ?? 0,      color: 'var(--h-teal-hover)',        bg: 'var(--h-teal-subtle)',     icon: <Package size={16} />,       accent: false },
+    { label: 'Bajo stock',      value: resumen?.insumos_bajo_stock ?? 0, color: 'var(--h-sem-warning-text)', bg: 'var(--h-sem-warning-bg)',  icon: <AlertTriangle size={16} />, accent: (resumen?.insumos_bajo_stock ?? 0) > 0 },
+    { label: 'Agotados',        value: resumen?.insumos_agotados ?? 0,   color: 'var(--h-sem-danger-text)',  bg: 'var(--h-sem-danger-bg)',   icon: <XCircle size={16} />,       accent: (resumen?.insumos_agotados ?? 0) > 0 },
+    { label: 'Movimientos hoy', value: resumen?.movimientos_hoy ?? 0,    color: 'var(--h-text-secondary)',   bg: 'var(--h-bg-elevated)',     icon: <Package size={16} />,       accent: false },
+    { label: 'Entradas hoy',    value: resumen?.entradas_hoy ?? 0,       color: 'var(--h-teal-hover)',        bg: 'var(--h-teal-subtle)',     icon: <ArrowUpCircle size={16} />, accent: false },
+    { label: 'Salidas hoy',     value: resumen?.salidas_hoy ?? 0,        color: 'var(--h-sem-warning-text)', bg: 'var(--h-sem-warning-bg)',  icon: <ArrowDownCircle size={16} />, accent: false },
   ]
 
   if (loading) {
@@ -141,8 +120,7 @@ function MetricasFijas({
       {items.map(it => (
         <div
           key={it.label}
-          className="bg-h-surface border border-h-subtle rounded-xl px-4 py-3
-                     flex flex-col gap-1.5"
+          className="bg-h-surface border border-h-subtle rounded-xl px-4 py-3 flex flex-col gap-1.5"
           style={{
             borderLeftWidth: it.accent ? '3px' : undefined,
             borderLeftColor: it.accent ? it.color : undefined,
@@ -160,9 +138,7 @@ function MetricasFijas({
           >
             {it.value}
           </p>
-          <p className="text-[11px] text-h-tertiary font-medium leading-tight">
-            {it.label}
-          </p>
+          <p className="text-[11px] text-h-tertiary font-medium leading-tight">{it.label}</p>
         </div>
       ))}
     </div>
@@ -170,28 +146,27 @@ function MetricasFijas({
 }
 
 // ---------------------------------------------------------------------------
-// Widget wrapper — cabecera con grip y contenido
+// Widget wrapper
+// IMPORTANTE: la clase "wdg-drag-handle" debe aparecer literalmente aquí para
+// que Tailwind no la purgue y react-grid-layout encuentre el elemento por
+// el selector CSS ".wdg-drag-handle".
 // ---------------------------------------------------------------------------
 
 function WidgetCard({
-  title, icon, extra, children, dragHandle,
+  title, icon, extra, children,
 }: {
   title: string
   icon?: React.ReactNode
   extra?: React.ReactNode
   children: React.ReactNode
-  dragHandle: string
 }) {
   return (
-    <div
-      className="bg-h-surface border border-h-subtle rounded-2xl
-                 flex flex-col h-full overflow-hidden"
-    >
-      {/* Cabecera con handle de drag */}
+    <div className="bg-h-surface border border-h-subtle rounded-2xl flex flex-col h-full overflow-hidden">
+      {/* cabecera: clase literal wdg-drag-handle para el draggableHandle */}
       <div
-        className={`${dragHandle} flex items-center justify-between
-                    px-4 py-3 border-b border-h-subtle cursor-grab
-                    active:cursor-grabbing select-none shrink-0`}
+        className="wdg-drag-handle flex items-center justify-between
+                   px-4 py-3 border-b border-h-subtle
+                   cursor-grab active:cursor-grabbing select-none shrink-0"
         style={{ background: 'var(--h-bg-elevated)' }}
       >
         <div className="flex items-center gap-2">
@@ -201,7 +176,6 @@ function WidgetCard({
         </div>
         {extra}
       </div>
-      {/* Contenido con scroll */}
       <div className="flex-1 overflow-y-auto p-4">
         {children}
       </div>
@@ -210,7 +184,7 @@ function WidgetCard({
 }
 
 // ---------------------------------------------------------------------------
-// Widgets de contenido
+// Contenidos de widgets
 // ---------------------------------------------------------------------------
 
 function GraficoBarras({ datos }: { datos: DiaMovimiento[] }) {
@@ -232,25 +206,15 @@ function GraficoBarras({ datos }: { datos: DiaMovimiento[] }) {
               <div
                 title={`Entradas: ${d.entradas}`}
                 className="flex-1 rounded-t-sm transition-all duration-500"
-                style={{
-                  background: 'var(--h-teal-hover)',
-                  height: `${(d.entradas / max) * 100}%`,
-                  minHeight: d.entradas ? 3 : 0,
-                }}
+                style={{ background: 'var(--h-teal-hover)', height: `${(d.entradas / max) * 100}%`, minHeight: d.entradas ? 3 : 0 }}
               />
               <div
                 title={`Salidas: ${d.salidas}`}
                 className="flex-1 rounded-t-sm transition-all duration-500"
-                style={{
-                  background: '#EF9F27',
-                  height: `${(d.salidas / max) * 100}%`,
-                  minHeight: d.salidas ? 3 : 0,
-                }}
+                style={{ background: '#EF9F27', height: `${(d.salidas / max) * 100}%`, minHeight: d.salidas ? 3 : 0 }}
               />
             </div>
-            <span className="text-[10px] text-h-tertiary mt-1 capitalize">
-              {labelDia(d.fecha)}
-            </span>
+            <span className="text-[10px] text-h-tertiary mt-1 capitalize">{labelDia(d.fecha)}</span>
           </div>
         ))}
       </div>
@@ -271,14 +235,14 @@ function GraficoBarras({ datos }: { datos: DiaMovimiento[] }) {
 function GraficoEstado({ total, bajo, agotados }: {
   total: number; bajo: number; agotados: number
 }) {
-  const ok         = total - bajo
+  const ok = total - bajo
   const soloAlerta = bajo - agotados
-  const base       = Math.max(total, 1)
+  const base = Math.max(total, 1)
 
   const filas = [
-    { label: 'Stock OK',    valor: ok,         pct: ok / base,         barBg: 'var(--h-teal-hover)',         textStyle: { color: 'var(--h-sem-success-text)' } },
-    { label: 'Bajo mínimo', valor: soloAlerta,  pct: soloAlerta / base, barBg: '#EF9F27',                    textStyle: { color: 'var(--h-sem-warning-text)' } },
-    { label: 'Agotados',    valor: agotados,    pct: agotados / base,   barBg: 'var(--h-sem-danger-border)', textStyle: { color: 'var(--h-sem-danger-text)' } },
+    { label: 'Stock OK',    valor: ok,        pct: ok / base,        barBg: 'var(--h-teal-hover)',         textStyle: { color: 'var(--h-sem-success-text)' } },
+    { label: 'Bajo mínimo', valor: soloAlerta, pct: soloAlerta / base, barBg: '#EF9F27',                   textStyle: { color: 'var(--h-sem-warning-text)' } },
+    { label: 'Agotados',    valor: agotados,   pct: agotados / base,   barBg: 'var(--h-sem-danger-border)', textStyle: { color: 'var(--h-sem-danger-text)' } },
   ]
 
   return (
@@ -302,9 +266,7 @@ function GraficoEstado({ total, bajo, agotados }: {
   )
 }
 
-function FeedActividadContent({ items, loading }: {
-  items: ActividadReciente[]; loading: boolean
-}) {
+function FeedActividadContent({ items, loading }: { items: ActividadReciente[]; loading: boolean }) {
   if (loading) {
     return (
       <div className="space-y-3">
@@ -329,9 +291,7 @@ function FeedActividadContent({ items, loading }: {
         <li key={m.id} className="flex items-center gap-3 py-2.5">
           <div
             className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-            style={{
-              background: m.tipo === 'entrada' ? 'var(--h-teal-subtle)' : 'var(--h-sem-warning-bg)',
-            }}
+            style={{ background: m.tipo === 'entrada' ? 'var(--h-teal-subtle)' : 'var(--h-sem-warning-bg)' }}
           >
             {m.tipo === 'entrada'
               ? <ArrowUpCircle size={15} style={{ color: 'var(--h-teal-hover)' }} />
@@ -359,9 +319,7 @@ function FeedActividadContent({ items, loading }: {
   )
 }
 
-function TopInsumosContent({ items, loading }: {
-  items: TopInsumo[]; loading: boolean
-}) {
+function TopInsumosContent({ items, loading }: { items: TopInsumo[]; loading: boolean }) {
   const maxSalidas = Math.max(...items.map(i => i.total_salidas), 1)
   if (loading) {
     return (
@@ -395,9 +353,7 @@ function TopInsumosContent({ items, loading }: {
               >
                 {idx + 1}
               </span>
-              <span className="text-xs font-medium text-h-secondary truncate">
-                {item.nombre}
-              </span>
+              <span className="text-xs font-medium text-h-secondary truncate">{item.nombre}</span>
             </div>
             <span className="text-xs font-bold flex-shrink-0 ml-2" style={{ color: 'var(--h-sem-warning-text)' }}>
               {item.total_salidas} u.
@@ -415,9 +371,7 @@ function TopInsumosContent({ items, loading }: {
   )
 }
 
-function SalasHoyContent({ items, loading }: {
-  items: SalaHoy[]; loading: boolean
-}) {
+function SalasHoyContent({ items, loading }: { items: SalaHoy[]; loading: boolean }) {
   if (loading) {
     return (
       <div className="space-y-3">
@@ -467,9 +421,7 @@ function SalasHoyContent({ items, loading }: {
   )
 }
 
-function AlertasContent({ alertas, loading }: {
-  alertas: InsumoAlerta[]; loading: boolean
-}) {
+function AlertasContent({ alertas, loading }: { alertas: InsumoAlerta[]; loading: boolean }) {
   if (loading) {
     return (
       <div className="space-y-3">
@@ -497,8 +449,7 @@ function AlertasContent({ alertas, loading }: {
       {alertas.map(a => (
         <div
           key={a.id}
-          className="bg-h-elevated rounded-xl border border-h-subtle p-3
-                     flex items-start justify-between gap-3"
+          className="bg-h-elevated rounded-xl border border-h-subtle p-3 flex items-start justify-between gap-3"
         >
           <div className="flex items-start gap-2.5">
             <div
@@ -513,7 +464,8 @@ function AlertasContent({ alertas, loading }: {
                 {a.sala ?? 'Sin sala'} · {a.categoria ?? 'Sin categoría'}
               </p>
               <p className="text-[10px] text-h-secondary mt-1">
-                Stock: <span className="font-bold" style={{ color: 'var(--h-sem-danger-text)' }}>{a.stock_actual}</span>
+                Stock:{' '}
+                <span className="font-bold" style={{ color: 'var(--h-sem-danger-text)' }}>{a.stock_actual}</span>
                 <span className="text-h-tertiary"> / mín. {a.stock_minimo}</span>
               </p>
             </div>
@@ -532,10 +484,7 @@ function AlertasContent({ alertas, loading }: {
 // ---------------------------------------------------------------------------
 
 function PanelPersonalizar({
-  hiddenWidgets,
-  onToggle,
-  onReset,
-  onClose,
+  hiddenWidgets, onToggle, onReset, onClose,
 }: {
   hiddenWidgets: Set<WidgetId>
   onToggle: (id: WidgetId) => void
@@ -544,16 +493,14 @@ function PanelPersonalizar({
 }) {
   return (
     <div
-      className="absolute right-0 top-12 z-40 w-64 rounded-2xl border border-h-subtle
-                 shadow-2xl p-4"
+      className="absolute right-0 top-12 z-40 w-64 rounded-2xl border border-h-subtle shadow-2xl p-4"
       style={{ background: 'var(--h-bg-surface)' }}
     >
       <div className="flex items-center justify-between mb-3">
         <p className="text-sm font-bold text-h-primary">Personalizar</p>
         <button
           onClick={onReset}
-          className="flex items-center gap-1 text-xs text-h-tertiary
-                     transition-colors duration-150"
+          className="flex items-center gap-1 text-xs text-h-tertiary transition-colors duration-150"
           onMouseEnter={e => (e.currentTarget.style.color = 'var(--h-teal-hover)')}
           onMouseLeave={e => (e.currentTarget.style.color = 'var(--h-text-tertiary)')}
         >
@@ -584,8 +531,7 @@ function PanelPersonalizar({
       </ul>
       <button
         onClick={onClose}
-        className="mt-3 w-full text-center text-xs text-h-tertiary
-                   transition-colors duration-150"
+        className="mt-3 w-full text-center text-xs text-h-tertiary transition-colors duration-150"
         onMouseEnter={e => (e.currentTarget.style.color = 'var(--h-text-secondary)')}
         onMouseLeave={e => (e.currentTarget.style.color = 'var(--h-text-tertiary)')}
       >
@@ -610,21 +556,23 @@ export function Dashboard() {
   const [topInsumos, setTopInsumos] = useState<TopInsumo[]>([])
   const [salasHoy,   setSalasHoy]   = useState<SalaHoy[]>([])
 
-  const [loading,          setLoading]       = useState(true)
-  const [chartLoading,     setChartLoading]  = useState(true)
-  const [actividadLoading, setActLoading]    = useState(true)
-  const [topLoading,       setTopLoading]    = useState(true)
-  const [salasLoading,     setSalasLoading]  = useState(true)
+  const [loading,          setLoading]      = useState(true)
+  const [chartLoading,     setChartLoading] = useState(true)
+  const [actividadLoading, setActLoading]   = useState(true)
+  const [topLoading,       setTopLoading]   = useState(true)
+  const [salasLoading,     setSalasLoading] = useState(true)
 
-  // Layout bento
+  // ── Layout bento ─────────────────────────────────────────────────────────
+  // Guardamos SIEMPRE el layout completo (todos los widgets, visibles o no).
+  // Esto evita que al volver a mostrar un widget oculto su posición se pierda.
   const [layout, setLayout] = useState<Layout[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_LAYOUT_KEY(uid))
-      return saved ? JSON.parse(saved) : DEFAULT_LAYOUT
+      return saved ? mergeLayouts(JSON.parse(saved), DEFAULT_LAYOUT) : DEFAULT_LAYOUT
     } catch { return DEFAULT_LAYOUT }
   })
 
-  // Widgets ocultos
+  // ── Widgets ocultos ───────────────────────────────────────────────────────
   const [hiddenWidgets, setHiddenWidgets] = useState<Set<WidgetId>>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_HIDDEN_KEY(uid))
@@ -634,20 +582,26 @@ export function Dashboard() {
 
   const [showPersonalizar, setShowPersonalizar] = useState(false)
 
-  // Ancho del contenedor para react-grid-layout
+  // ── Ancho del contenedor — ResizeObserver en vez de window resize ────────
+  // El sidebar de Hestia cambia el ancho del contenido sin disparar window
+  // resize. ResizeObserver detecta el cambio directamente en el elemento.
   const [gridWidth, setGridWidth] = useState(0)
-  const { labelTiempo, marcarActualizado } = useLastUpdated()
+  const containerRef = useRef<HTMLDivElement>(null)
 
-  // Medir el ancho real del contenedor
   useEffect(() => {
-    function measure() {
-      const el = document.getElementById('dashboard-grid-container')
-      if (el) setGridWidth(el.offsetWidth)
-    }
-    measure()
-    window.addEventListener('resize', measure)
-    return () => window.removeEventListener('resize', measure)
+    const el = containerRef.current
+    if (!el) return
+    const ro = new ResizeObserver(entries => {
+      const w = entries[0]?.contentRect.width
+      if (w && w > 0) setGridWidth(w)
+    })
+    ro.observe(el)
+    // Medición inicial (el callback del observer puede tardar un frame)
+    setGridWidth(el.offsetWidth)
+    return () => ro.disconnect()
   }, [])
+
+  const { labelTiempo, marcarActualizado } = useLastUpdated()
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -696,9 +650,15 @@ export function Dashboard() {
     loadChart(); loadActividad(); loadTop(); loadSalas()
   }, [])
 
+  // ── Handlers ──────────────────────────────────────────────────────────────
+
   function handleLayoutChange(newLayout: Layout[]) {
-    setLayout(newLayout)
-    localStorage.setItem(STORAGE_LAYOUT_KEY(uid), JSON.stringify(newLayout))
+    // Fusionar con el layout completo para no perder los widgets ocultos
+    setLayout(prev => {
+      const updated = mergeLayouts(newLayout, prev)
+      localStorage.setItem(STORAGE_LAYOUT_KEY(uid), JSON.stringify(updated))
+      return updated
+    })
   }
 
   function toggleWidget(id: WidgetId) {
@@ -719,10 +679,10 @@ export function Dashboard() {
     setShowPersonalizar(false)
   }
 
-  // Filtrar layout para widgets visibles
+  // Solo los items visibles pasan al GridLayout
   const visibleLayout = layout.filter(l => !hiddenWidgets.has(l.i as WidgetId))
 
-  const DRAG_HANDLE = 'widget-drag-handle'
+  // ── Contenido de widgets ──────────────────────────────────────────────────
 
   const widgetContent: Record<WidgetId, React.ReactNode> = {
     grafico_semana: (
@@ -730,7 +690,6 @@ export function Dashboard() {
         title="Actividad semanal"
         icon={<ArrowUpCircle size={13} style={{ color: 'var(--h-teal-hover)' }} />}
         extra={<span className="text-xs text-h-tertiary">últimos 7 días</span>}
-        dragHandle={DRAG_HANDLE}
       >
         {chartLoading
           ? <div className="h-full flex items-end gap-1.5">{Array.from({ length: 7 }).map((_, i) => (<div key={i} className="flex-1"><div className="w-full bg-h-elevated rounded-t skeleton" style={{ height: `${30 + (i * 11) % 60}%` }} /></div>))}</div>
@@ -742,7 +701,6 @@ export function Dashboard() {
       <WidgetCard
         title="Estado del inventario"
         icon={<Package size={13} className="text-h-tertiary" />}
-        dragHandle={DRAG_HANDLE}
       >
         {loading || !resumen
           ? <div className="space-y-4">{Array.from({ length: 3 }).map((_, i) => (<div key={i}><div className="skeleton h-3 w-24 rounded mb-1.5" /><div className="skeleton h-2 w-full rounded-full" /></div>))}</div>
@@ -756,8 +714,7 @@ export function Dashboard() {
               {resumen.insumos_bajo_stock > 0 && (
                 <Link
                   to="/alertas"
-                  className="mt-4 flex items-center justify-between p-2.5 rounded-xl border
-                             transition-colors duration-150"
+                  className="mt-4 flex items-center justify-between p-2.5 rounded-xl border transition-colors duration-150"
                   style={{ background: 'var(--h-sem-danger-bg)', borderColor: 'var(--h-sem-danger-border)' }}
                 >
                   <div className="flex items-center gap-2">
@@ -787,7 +744,6 @@ export function Dashboard() {
             Ver todo <ArrowRight size={11} />
           </Link>
         }
-        dragHandle={DRAG_HANDLE}
       >
         <FeedActividadContent items={actividad} loading={actividadLoading} />
       </WidgetCard>
@@ -797,7 +753,6 @@ export function Dashboard() {
         title="Más retirados"
         icon={<TrendingDown size={13} style={{ color: 'var(--h-sem-warning-text)' }} />}
         extra={<span className="text-xs text-h-tertiary">últimos 30 días</span>}
-        dragHandle={DRAG_HANDLE}
       >
         <TopInsumosContent items={topInsumos} loading={topLoading} />
       </WidgetCard>
@@ -811,7 +766,6 @@ export function Dashboard() {
             ? <span className="text-xs font-bold" style={{ color: 'var(--h-teal-hover)' }}>{salasHoy.length}</span>
             : null
         }
-        dragHandle={DRAG_HANDLE}
       >
         <SalasHoyContent items={salasHoy} loading={salasLoading} />
       </WidgetCard>
@@ -829,7 +783,6 @@ export function Dashboard() {
             Ver todas <ArrowRight size={11} />
           </Link>
         }
-        dragHandle={DRAG_HANDLE}
       >
         <AlertasContent alertas={alertas} loading={loading} />
       </WidgetCard>
@@ -844,9 +797,7 @@ export function Dashboard() {
         <div>
           <h1 className="text-2xl font-black text-h-primary">Dashboard</h1>
           <p className="text-h-secondary text-sm mt-0.5">
-            {new Date().toLocaleDateString('es-CL', {
-              weekday: 'long', day: 'numeric', month: 'long',
-            })}
+            {new Date().toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long' })}
           </p>
           <p className="text-xs text-h-tertiary mt-1">{labelTiempo}</p>
         </div>
@@ -854,8 +805,7 @@ export function Dashboard() {
           <button
             onClick={load}
             title="Actualizar"
-            className="p-2 rounded-lg border border-h-subtle bg-h-elevated
-                       text-h-tertiary transition-colors duration-150"
+            className="p-2 rounded-lg border border-h-subtle bg-h-elevated text-h-tertiary transition-colors duration-150"
             onMouseEnter={e => (e.currentTarget.style.background = 'var(--h-bg-highlight)')}
             onMouseLeave={e => (e.currentTarget.style.background = 'var(--h-bg-elevated)')}
           >
@@ -864,9 +814,8 @@ export function Dashboard() {
           <button
             onClick={() => setShowPersonalizar(v => !v)}
             title="Personalizar dashboard"
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg border
-                       border-h-subtle bg-h-elevated text-h-secondary
-                       text-xs font-semibold transition-colors duration-150"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-h-subtle
+                       bg-h-elevated text-h-secondary text-xs font-semibold transition-colors duration-150"
             onMouseEnter={e => (e.currentTarget.style.background = 'var(--h-bg-highlight)')}
             onMouseLeave={e => (e.currentTarget.style.background = 'var(--h-bg-elevated)')}
           >
@@ -886,7 +835,7 @@ export function Dashboard() {
       {/* Métricas fijas */}
       <MetricasFijas resumen={resumen} loading={loading} />
 
-      {/* Footer rápido */}
+      {/* Info rápida */}
       {!loading && resumen && (
         <p className="text-xs text-h-tertiary flex items-center gap-3 mb-3">
           <span className="flex items-center gap-1"><DoorOpen size={12} /> {resumen.total_salas} salas</span>
@@ -894,8 +843,8 @@ export function Dashboard() {
         </p>
       )}
 
-      {/* Bento grid */}
-      <div id="dashboard-grid-container" className="w-full">
+      {/* Bento grid — ref para ResizeObserver */}
+      <div ref={containerRef} className="w-full">
         {gridWidth > 0 && (
           <GridLayout
             layout={visibleLayout}
@@ -903,7 +852,7 @@ export function Dashboard() {
             rowHeight={ROW_H}
             width={gridWidth}
             margin={MARGIN}
-            draggableHandle={`.${DRAG_HANDLE}`}
+            draggableHandle={`.${DRAG_CLS}`}
             onLayoutChange={handleLayoutChange}
             isResizable
             isDraggable
