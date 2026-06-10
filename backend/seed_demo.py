@@ -8,6 +8,7 @@ Uso:
 Genera:
     - 18 salas clinicas, 10 categorias
     - 5 usuarios (admin, 2 operadores, 2 visores)
+    - 2 docentes demo
     - 20 asignaturas de 5 carreras
     - 88 insumos/implementos en Bodega
     - Unidades fisicas de implementos
@@ -114,6 +115,14 @@ USUARIOS = [
     ("Luis Perez", "lperez@hestia.duoc.cl", "Visor2024!", RolUsuario.visor),
 ]
 
+# Formato: (nombre, email, rut)
+# Los docentes NO tienen cuenta en Hestia; son entidades externas gestionadas
+# por el operador coordinador. docente_idx 0 y 1 se referencian en CLASES_DOCENTE.
+DOCENTES_DATA = [
+    ("Paz Rodriguez", "paz.rodriguez@duoc.cl", "12.345.678-9"),
+    ("Michael Torres", "michael.torres@duoc.cl", "98.765.432-1"),
+]
+
 ASIGNATURAS = [
     ("Primeros Auxilios", "CIS1101", TENS),
     ("Rol del Tecnico en Enfermeria y Cuidados Basicos", "CIS1102", TENS),
@@ -137,15 +146,17 @@ ASIGNATURAS = [
     ("Evaluacion para la Condicion Fisica", "EAS1102", PF),
 ]
 
+# Formato: (docente_idx, asig_idx, seccion, semestre, num_estudiantes)
+# docente_idx referencia DOCENTES_DATA (0=Paz, 1=Michael)
 CLASES_DOCENTE = [
-    (1, 0, "001D", "2026-1", 28),
-    (1, 1, "001D", "2026-1", 32),
-    (2, 2, "001D", "2026-1", 30),
-    (2, 3, "002D", "2026-1", 35),
-    (1, 5, "001D", "2026-1", 22),
-    (2, 9, "001D", "2026-1", 25),
-    (1, 13, "001D", "2026-1", 20),
-    (2, 17, "001D", "2026-1", 18),
+    (0, 0, "001D", "2026-1", 28),
+    (0, 1, "001D", "2026-1", 32),
+    (1, 2, "001D", "2026-1", 30),
+    (1, 3, "002D", "2026-1", 35),
+    (0, 5, "001D", "2026-1", 22),
+    (1, 9, "001D", "2026-1", 25),
+    (0, 13, "001D", "2026-1", 20),
+    (1, 17, "001D", "2026-1", 18),
 ]
 
 # Formato: (nombre, unidad_medida, stock, minimo, cat_idx, tipo, costo)
@@ -438,6 +449,8 @@ def main():
         db.query(SolicitudRetiro).delete()
         db.query(Movimiento).delete()
         db.query(ClaseDocente).delete()
+        db.query(ComentarioDocente).delete()
+        db.query(Docente).delete()
         db.query(Insumo).delete()
         db.query(Asignatura).delete()
         db.query(Sala).delete()
@@ -512,6 +525,16 @@ def main():
         }
         print("  2 proveedores (Laerdal Chile, MedSupply SpA)")
 
+        # --- Docentes ---
+        print("Insertando docentes...")
+        docentes = []
+        for nombre, email, rut in DOCENTES_DATA:
+            d = Docente(nombre=nombre, email=email, rut=rut, activo=True)
+            db.add(d)
+            docentes.append(d)
+        db.flush()
+        print(f"  {len(docentes)} docentes (Paz Rodriguez, Michael Torres)")
+
         # --- Asignaturas ---
         print("Insertando asignaturas...")
         asignaturas = []
@@ -525,9 +548,9 @@ def main():
         # --- Clases ---
         print("Insertando clases...")
         clases = []
-        for u_idx, asig_idx, seccion, semestre, num_est in CLASES_DOCENTE:
+        for doc_idx, asig_idx, seccion, semestre, num_est in CLASES_DOCENTE:
             c = ClaseDocente(
-                docente_id=usuarios[u_idx].id,
+                docente_id=docentes[doc_idx].id,
                 asignatura_id=asignaturas[asig_idx].id,
                 seccion=seccion, semestre=semestre, num_estudiantes=num_est,
             )
@@ -744,6 +767,7 @@ def main():
         print(f"  Categorias:        {len(cats)}")
         print(f"  Usuarios:          {len(usuarios)}")
         print(f"  Proveedores:       2 (Laerdal Chile, MedSupply SpA)")
+        print(f"  Docentes:          {len(docentes)} (Paz Rodriguez, Michael Torres)")
         print(f"  Asignaturas:       {len(asignaturas)} (5 carreras)")
         print(f"  Clases:            {len(clases)}")
         print(
