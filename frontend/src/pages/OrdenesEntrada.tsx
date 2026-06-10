@@ -255,7 +255,9 @@ export function OrdenesEntrada() {
         return base
       })
       await api.post(`/ordenes-entrada/${ordenActiva.id}/items/bulk`, { items })
-      showToast(`${carrito.length} item${carrito.length !== 1 ? 's' : ''} agregado${carrito.length !== 1 ? 's' : ''}`)
+      showToast(
+        `${carrito.length} item${carrito.length !== 1 ? 's' : ''} agregado${carrito.length !== 1 ? 's' : ''}`,
+      )
       setShowCarrito(false)
       load()
     } catch (err: unknown) {
@@ -288,16 +290,20 @@ export function OrdenesEntrada() {
   }
 
   async function confirmar(id: number) {
-    try { await api.post(`/ordenes-entrada/${id}/confirmar`); showToast('Orden confirmada'); load() }
-    catch (err: unknown) {
+    try {
+      await api.post(`/ordenes-entrada/${id}/confirmar`)
+      showToast('Orden confirmada'); load()
+    } catch (err: unknown) {
       const msg = (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
       showToast(msg ?? 'Error al confirmar.', 'err')
     }
   }
 
   async function cerrar(id: number) {
-    try { await api.post(`/ordenes-entrada/${id}/cerrar`); showToast('Orden cerrada. Stock actualizado.'); load() }
-    catch (err: unknown) {
+    try {
+      await api.post(`/ordenes-entrada/${id}/cerrar`)
+      showToast('Orden cerrada. Stock actualizado.'); load()
+    } catch (err: unknown) {
       const msg = (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
       showToast(msg ?? 'Error al cerrar.', 'err')
     }
@@ -311,7 +317,10 @@ export function OrdenesEntrada() {
 
   async function eliminarItem(ordenId: number, itemId: number) {
     if (!confirm('\u00bfEliminar este item?')) return
-    try { await api.delete(`/ordenes-entrada/${ordenId}/items/${itemId}`); showToast('Ítem eliminado'); load() }
+    try {
+      await api.delete(`/ordenes-entrada/${ordenId}/items/${itemId}`)
+      showToast('\u00cdtem eliminado'); load()
+    }
     catch { showToast('Error al eliminar.', 'err') }
   }
 
@@ -319,11 +328,14 @@ export function OrdenesEntrada() {
     if (!ordenRecepcion || !itemRecepcion) return
     setSaving(true)
     try {
-      await api.patch(`/ordenes-entrada/${ordenRecepcion.id}/items/${itemRecepcion.id}/recepcion`, {
-        cantidad_recibida: parseInt(cantRecibida),
-        costo_unitario: costoUnit ? parseFloat(costoUnit) : undefined,
-      })
-      showToast('Recepción registrada'); setShowModalRecepcion(false); load()
+      await api.patch(
+        `/ordenes-entrada/${ordenRecepcion.id}/items/${itemRecepcion.id}/recepcion`,
+        {
+          cantidad_recibida: parseInt(cantRecibida),
+          costo_unitario: costoUnit ? parseFloat(costoUnit) : undefined,
+        },
+      )
+      showToast('Recepc\u00f3n registrada'); setShowModalRecepcion(false); load()
     } catch { showToast('Error al registrar.', 'err') }
     finally { setSaving(false) }
   }
@@ -331,7 +343,9 @@ export function OrdenesEntrada() {
   async function descargarArchivo(id: number, tipo: 'pdf' | 'excel') {
     try {
       const ext = tipo === 'pdf' ? 'exportar-pdf' : 'exportar-excel'
-      const { data, headers } = await api.get(`/ordenes-entrada/${id}/${ext}`, { responseType: 'blob' })
+      const { data, headers } = await api.get(
+        `/ordenes-entrada/${id}/${ext}`, { responseType: 'blob' },
+      )
       const mime = headers['content-type'] ?? (
         tipo === 'pdf' ? 'application/pdf'
           : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
@@ -359,12 +373,15 @@ export function OrdenesEntrada() {
   const estadoOpts = [
     { value: 'borrador',     label: 'Borrador'     },
     { value: 'confirmada',   label: 'Confirmada'   },
-    { value: 'en_recepcion', label: 'En recepción' },
+    { value: 'en_recepcion', label: 'En recepci\u00f3n' },
     { value: 'cerrada',      label: 'Cerrada'      },
     { value: 'cancelada',    label: 'Cancelada'    },
   ]
 
-  const inputCls = 'w-full px-3 py-2 rounded-lg border border-h-visible text-h-primary text-sm bg-h-elevated placeholder:text-h-tertiary focus:outline-none'
+  const inputCls = [
+    'w-full px-3 py-2 rounded-lg border border-h-visible',
+    'text-h-primary text-sm bg-h-elevated placeholder:text-h-tertiary focus:outline-none',
+  ].join(' ')
 
   // Total del carrito
   const totalCarrito = carrito.reduce((acc, it) => {
@@ -374,11 +391,20 @@ export function OrdenesEntrada() {
     return acc
   }, 0)
 
+  // Estado de la zona de sugerencias del carrito
+  const busquedaTrim = busqueda.trim()
+  const sugEstado: 'hint' | 'empty' | 'results' =
+    busquedaTrim.length < 2 ? 'hint'
+      : sugerencias.length > 0 ? 'results'
+      : 'empty'
+
   return (
     <div className="p-8 w-full">
 
       {toast && (
-        <div className="fixed top-6 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg text-sm font-semibold text-white"
+        <div
+          className="fixed top-6 right-6 z-50 flex items-center gap-2
+                     px-4 py-3 rounded-xl shadow-lg text-sm font-semibold text-white"
           style={{ background: toast.tipo === 'ok' ? 'var(--h-teal-rest)' : 'var(--h-sem-danger-text)' }}>
           <CheckCircle size={16} />{toast.msg}
         </div>
@@ -389,7 +415,7 @@ export function OrdenesEntrada() {
         <div>
           <h1 className="text-2xl font-black text-h-primary flex items-center gap-2">
             <ShoppingCart size={22} className="text-h-accent" />
-            Órdenes de Entrada
+            \u00d3rdenes de Entrada
           </h1>
           <p className="text-h-secondary text-sm mt-0.5">
             {loading ? '...' : `${ordenes.length} orden${ordenes.length !== 1 ? 'es' : ''}`}
@@ -426,12 +452,14 @@ export function OrdenesEntrada() {
               <th className="w-8 px-3 py-3" />
               {([
                 ['Proveedor', 'left'], ['Actividad DuocUC', 'left'],
-                ['Tipo', 'center'], ['Ítems', 'center'],
+                ['Tipo', 'center'], ['\u00cdtems', 'center'],
                 ['Recibido / Pedido', 'center'], ['Fecha', 'center'],
                 ['Estado', 'center'], ['Acciones', 'center'],
               ] as [string, string][]).map(([label, align]) => (
                 <th key={label}
-                  className={`px-4 py-3 text-xs font-bold text-h-tertiary uppercase tracking-wide ${align === 'left' ? 'text-left' : 'text-center'}`}>
+                  className={`px-4 py-3 text-xs font-bold text-h-tertiary uppercase tracking-wide ${
+                    align === 'left' ? 'text-left' : 'text-center'
+                  }`}>
                   {label}
                 </th>
               ))}
@@ -443,12 +471,11 @@ export function OrdenesEntrada() {
             ) : ordenes.length === 0 ? (
               <tr><td colSpan={9} className="text-center py-14">
                 <ShoppingCart size={28} className="mx-auto mb-2 text-h-tertiary opacity-40" />
-                <p className="font-semibold text-h-secondary">Sin órdenes registradas</p>
+                <p className="font-semibold text-h-secondary">Sin \u00f3rdenes registradas</p>
               </td></tr>
             ) : ordenes.map(o => {
               const abierto = expandido === o.id
               const puedeExportar = ESTADOS_CON_EXPORT.includes(o.estado)
-              // Total con costo de los items
               const totalOrden = o.items.reduce((acc, it) => {
                 if (it.costo_unitario == null) return acc
                 const qty = it.cantidad_recibida ?? it.cantidad_pedida
@@ -466,12 +493,12 @@ export function OrdenesEntrada() {
                       {abierto ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                     </td>
                     <td className="px-4 py-3.5 font-semibold text-h-primary">
-                      {o.proveedor_nombre ?? <span className="text-h-tertiary">—</span>}
+                      {o.proveedor_nombre ?? <span className="text-h-tertiary">\u2014</span>}
                     </td>
                     <td className="px-4 py-3.5 text-h-secondary text-xs">
                       {o.actividad_duoc
                         ? `(${o.actividad_duoc}) ${o.actividad_nombre ?? ''}`
-                        : <span className="text-h-tertiary">—</span>}
+                        : <span className="text-h-tertiary">\u2014</span>}
                     </td>
                     <td className="px-4 py-3.5 text-center">
                       <span className="font-mono text-xs text-h-secondary bg-h-elevated border border-h-subtle px-2 py-0.5 rounded-full">
@@ -540,17 +567,17 @@ export function OrdenesEntrada() {
                             style={{ background: 'var(--h-teal-rest)' }}
                             onMouseEnter={e => (e.currentTarget.style.background = 'var(--h-teal-hover)')}
                             onMouseLeave={e => (e.currentTarget.style.background = 'var(--h-teal-rest)')}>
-                            <Plus size={12} /> Agregar ítems
+                            <Plus size={12} /> Agregar \u00edtems
                           </button>
                         )}
                       </div>
                       {o.items.length === 0 ? (
-                        <p className="text-h-tertiary text-sm italic">Sin ítems. Agrega ítems antes de confirmar.</p>
+                        <p className="text-h-tertiary text-sm italic">Sin \u00edtems. Agrega \u00edtems antes de confirmar.</p>
                       ) : (
                         <table className="w-full text-xs">
                           <thead>
                             <tr className="text-h-tertiary font-bold uppercase tracking-wide">
-                              <th className="text-left py-1.5 pr-4">Ítem</th>
+                              <th className="text-left py-1.5 pr-4">\u00cdtem</th>
                               <th className="text-center py-1.5 pr-4">Tipo</th>
                               <th className="text-center py-1.5 pr-4">Pedido</th>
                               <th className="text-center py-1.5 pr-4">Recibido</th>
@@ -580,7 +607,7 @@ export function OrdenesEntrada() {
                                   </td>
                                   <td className="py-2 pr-4 text-center text-h-secondary">{it.tipo_item}</td>
                                   <td className="py-2 pr-4 text-center font-bold text-h-primary">{it.cantidad_pedida}</td>
-                                  <td className="py-2 pr-4 text-center text-h-secondary">{it.cantidad_recibida ?? '—'}</td>
+                                  <td className="py-2 pr-4 text-center text-h-secondary">{it.cantidad_recibida ?? '\u2014'}</td>
                                   <td className="py-2 pr-4 text-right text-h-secondary tabular-nums">{formatCLP(it.costo_unitario)}</td>
                                   <td className="py-2 pr-4 text-right font-semibold text-h-primary tabular-nums">{formatCLP(subtotal)}</td>
                                   <td className="py-2 pr-4 text-center">
@@ -599,7 +626,7 @@ export function OrdenesEntrada() {
                                           setCantRecibida(String(it.cantidad_recibida ?? ''))
                                           setCostoUnit(String(it.costo_unitario ?? ''))
                                           setShowModalRecepcion(true)
-                                        }} title="Registrar recepción"
+                                        }} title="Registrar recepci\u00f3n"
                                           className="p-1 rounded text-h-tertiary transition-colors duration-150"
                                           onMouseEnter={e => { e.currentTarget.style.background = 'var(--h-teal-subtle)'; e.currentTarget.style.color = 'var(--h-teal-hover)' }}
                                           onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--h-text-tertiary)' }}>
@@ -620,7 +647,6 @@ export function OrdenesEntrada() {
                               )
                             })}
                           </tbody>
-                          {/* Total de la orden */}
                           {totalOrden > 0 && (
                             <tfoot>
                               <tr>
@@ -703,8 +729,8 @@ export function OrdenesEntrada() {
           MODAL: Carrito de ítems
       ================================================================ */}
       {showCarrito && ordenActiva && (
-        <Modal title={`Agregar ítems — Orden #${ordenActiva.id}`}
-          onClose={() => setShowCarrito(false)} size="lg">
+        <Modal title={`Agregar \u00edtems \u2014 Orden #${ordenActiva.id}`}
+          onClose={() => setShowCarrito(false)} size="xl">
           <div className="flex flex-col gap-4">
 
             {/* Buscador */}
@@ -747,47 +773,77 @@ export function OrdenesEntrada() {
               </div>
             </div>
 
-            {/* Sugerencias */}
-            {sugerencias.length > 0 && (
-              <div className="rounded-xl border border-h-subtle overflow-hidden"
-                style={{ background: 'var(--h-bg-elevated)' }}>
-                {sugerencias.map(s => (
-                  <button key={s.id}
-                    onClick={() => agregarExistente(s)}
-                    className="w-full text-left px-4 py-2.5 text-sm text-h-primary font-semibold
-                               border-b border-h-subtle last:border-0 transition-colors duration-100"
-                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--h-bg-highlight)')}
-                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                    {s.nombre}
-                    {'stock_actual' in s && (
-                      <span className="ml-2 text-xs font-normal text-h-tertiary">
-                        stock: {s.stock_actual}
-                      </span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {/* Agregar nuevo */}
-            {busqueda.trim().length >= 2 && sugerencias.length === 0 && (
-              <div className="rounded-xl border p-3"
-                style={{ background: 'var(--h-sem-warning-bg)', borderColor: 'var(--h-sem-warning-border)' }}>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <AlertTriangle size={13} style={{ color: 'var(--h-sem-warning-text)' }} />
-                    <span className="text-xs font-bold" style={{ color: 'var(--h-sem-warning-text)' }}>
-                      No encontrado. ¿Agregar "{busqueda}" como nuevo?
-                    </span>
-                  </div>
-                  <button onClick={agregarNuevo}
-                    className="text-xs font-bold px-3 py-1.5 rounded-lg text-white"
-                    style={{ background: 'var(--h-sem-warning-text)' }}>
-                    + Agregar nuevo
-                  </button>
+            {/* Zona de sugerencias — siempre visible, tres estados */}
+            <div
+              className="rounded-xl border overflow-hidden"
+              style={{
+                borderColor: sugEstado === 'empty'
+                  ? 'var(--h-sem-warning-border)'
+                  : 'var(--h-border-subtle)',
+                background: sugEstado === 'hint'
+                  ? 'var(--h-bg-elevated)'
+                  : sugEstado === 'empty'
+                  ? 'var(--h-sem-warning-bg)'
+                  : 'var(--h-bg-elevated)',
+              }}
+            >
+              {sugEstado === 'hint' && (
+                <div className="flex items-center gap-2 px-4 py-3">
+                  <Search size={13} className="text-h-tertiary shrink-0" />
+                  <span className="text-xs text-h-tertiary">
+                    Escribe al menos 2 caracteres para ver sugerencias
+                  </span>
                 </div>
-              </div>
-            )}
+              )}
+
+              {sugEstado === 'empty' && (
+                <div className="px-4 py-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle size={13} style={{ color: 'var(--h-sem-warning-text)' }} className="shrink-0" />
+                      <span className="text-xs font-bold" style={{ color: 'var(--h-sem-warning-text)' }}>
+                        Sin coincidencias para &ldquo;{busquedaTrim}&rdquo;
+                      </span>
+                    </div>
+                    <button onClick={agregarNuevo}
+                      className="text-xs font-bold px-3 py-1.5 rounded-lg text-white shrink-0"
+                      style={{ background: 'var(--h-sem-warning-text)' }}>
+                      + Agregar nuevo
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {sugEstado === 'results' && (
+                <div
+                  style={{
+                    animation: 'hestia-sug-in 150ms ease-out both',
+                  }}
+                >
+                  <style>{`
+                    @keyframes hestia-sug-in {
+                      from { opacity: 0; transform: translateY(-4px); }
+                      to   { opacity: 1; transform: translateY(0); }
+                    }
+                  `}</style>
+                  {sugerencias.map(s => (
+                    <button key={s.id}
+                      onClick={() => agregarExistente(s)}
+                      className="w-full text-left px-4 py-2.5 text-sm text-h-primary font-semibold
+                                 border-b border-h-subtle last:border-0 transition-colors duration-100"
+                      onMouseEnter={e => (e.currentTarget.style.background = 'var(--h-bg-highlight)')}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                      {s.nombre}
+                      {'stock_actual' in s && (
+                        <span className="ml-2 text-xs font-normal text-h-tertiary">
+                          stock: {s.stock_actual}
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
 
             {/* Carrito */}
             {carrito.length > 0 && (
@@ -795,7 +851,7 @@ export function OrdenesEntrada() {
                 <table className="w-full text-xs">
                   <thead>
                     <tr className="bg-h-elevated border-b border-h-subtle">
-                      <th className="text-left px-3 py-2 text-h-tertiary font-bold uppercase tracking-wide">Ítem</th>
+                      <th className="text-left px-3 py-2 text-h-tertiary font-bold uppercase tracking-wide">\u00cdtem</th>
                       <th className="text-center px-3 py-2 text-h-tertiary font-bold uppercase tracking-wide">Cantidad *</th>
                       <th className="text-center px-3 py-2 text-h-tertiary font-bold uppercase tracking-wide">Costo unit. ($) *</th>
                       <th className="text-right px-3 py-2 text-h-tertiary font-bold uppercase tracking-wide">Subtotal</th>
@@ -848,7 +904,7 @@ export function OrdenesEntrada() {
                               placeholder="0" />
                           </td>
                           <td className="px-3 py-2 text-right font-semibold text-h-primary tabular-nums">
-                            {sub != null ? formatCLP(sub) : '—'}
+                            {sub != null ? formatCLP(sub) : '\u2014'}
                           </td>
                           <td className="px-2 py-2 text-center">
                             <button onClick={() => quitarCarritoItem(it.id)}
@@ -895,7 +951,11 @@ export function OrdenesEntrada() {
                 style={{ background: 'var(--h-teal-rest)' }}
                 onMouseEnter={e => (e.currentTarget.style.background = 'var(--h-teal-hover)')}
                 onMouseLeave={e => (e.currentTarget.style.background = 'var(--h-teal-rest)')}>
-                {saving ? 'Guardando...' : `Guardar ${carrito.length > 0 ? `${carrito.length} ítem${carrito.length !== 1 ? 's' : ''}` : 'ítems'}`}
+                {saving ? 'Guardando...' : `Guardar ${
+                  carrito.length > 0
+                    ? `${carrito.length} \u00edtem${carrito.length !== 1 ? 's' : ''}`
+                    : '\u00edtems'
+                }`}
               </button>
             </div>
           </div>
@@ -907,7 +967,9 @@ export function OrdenesEntrada() {
       ================================================================ */}
       {showModalRecepcion && itemRecepcion && (
         <Modal
-          title={`Recepción — ${itemRecepcion.insumo_nombre ?? itemRecepcion.nombre_nuevo ?? 'Ítem'}`}
+          title={`Recepci\u00f3n \u2014 ${
+            itemRecepcion.insumo_nombre ?? itemRecepcion.nombre_nuevo ?? '\u00cdtem'
+          }`}
           onClose={() => setShowModalRecepcion(false)} size="sm">
           <div className="space-y-4">
             <p className="text-h-secondary text-sm">
