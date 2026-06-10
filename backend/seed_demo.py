@@ -41,6 +41,10 @@ from app.models.usuario import Usuario, RolUsuario
 from app.models.audit_log import AuditLog
 from app.models.solicitud import SolicitudRetiro, SolicitudItem, EstadoSolicitud
 from app.models.asignatura import Asignatura, CarreraAsignatura
+# Docente y ComentarioDocente deben importarse ANTES de ClaseDocente para que
+# el mapper de SQLAlchemy pueda resolver relationship("Docente", ...) al
+# inicializar ClaseDocente.
+from app.models.docente import Docente, ComentarioDocente  # noqa: F401
 from app.models.clase_docente import ClaseDocente
 from app.models.retorno_implemento import RetornoImplemento
 from app.models.activo_fijo import (
@@ -610,7 +614,7 @@ def main():
             prefijo_af = "MUE" if tipo == TipoActivo.mueble else "PHN"
             af.codigo_interno = f"{prefijo_af}-{af.id:05d}"
         db.commit()
-        n_muebles   = sum(1 for a in ACTIVOS_FIJOS_DEMO if a[2] == TipoActivo.mueble)
+        n_muebles = sum(1 for a in ACTIVOS_FIJOS_DEMO if a[2] == TipoActivo.mueble)
         n_phantomas = len(ACTIVOS_FIJOS_DEMO) - n_muebles
         print(
             f"  {len(activos_db)} activos fijos "
@@ -623,9 +627,9 @@ def main():
         # Estado: en_curso | cerrada | cancelada
         print("Insertando orden de mantenimiento demo...")
         simman = activos_db[3]   # SimMan 3G
-        als    = activos_db[5]   # ALS Simulator neonatal
+        als = activos_db[5]      # ALS Simulator neonatal
         simman.estado = EstadoActivo.en_mantenimiento
-        als.estado    = EstadoActivo.en_mantenimiento
+        als.estado = EstadoActivo.en_mantenimiento
 
         orden_demo = OrdenMantenimiento(
             proveedor_id=prov_laerdal.id,
