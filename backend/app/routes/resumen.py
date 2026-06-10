@@ -10,6 +10,7 @@ from app.models.insumo import Insumo
 from app.models.movimiento import Movimiento, TipoMovimiento
 from app.models.sala import Sala
 from app.models.usuario import Usuario
+from app.models.programacion_taller import ProgramacionTaller
 from app.utils.deps import get_usuario_actual
 
 router = APIRouter(prefix="/resumen", tags=["Resumen"])
@@ -48,6 +49,15 @@ class TopInsumo(BaseModel):
     nombre: str
     total_salidas: int
     sala: Optional[str]
+
+
+class SalaHoy(BaseModel):
+    sala_nombre: str
+    taller_nombre: str
+    hora_inicio: Optional[str]
+    hora_fin: Optional[str]
+    docente_nombre: Optional[str]
+    seccion: Optional[str]
 
 
 # --- Endpoints ---
@@ -180,7 +190,7 @@ def actividad_reciente(
             joinedload(Movimiento.usuario),
         )
         .order_by(desc(Movimiento.fecha))
-        .limit(max(1, min(limit, 20)))  # clampear entre 1 y 20
+        .limit(max(1, min(limit, 20)))
         .all()
     )
 
@@ -209,7 +219,7 @@ def top_insumos_retirados(
 
     Util para identificar insumos de alta rotacion y planificar reposicion.
     Agrupa por insumo_id y suma las cantidades de todas las salidas del
-    periodo — no cuenta movimientos sino unidades retiradas.
+    periodo - no cuenta movimientos sino unidades retiradas.
     """
     desde = datetime.now(timezone.utc) - timedelta(days=dias)
 
@@ -228,7 +238,6 @@ def top_insumos_retirados(
         .all()
     )
 
-    # Cargar los insumos correspondientes en una sola query (IN clause)
     ids = [r.insumo_id for r in resultados]
     insumos_map = {
         i.id: i
@@ -240,7 +249,11 @@ def top_insumos_retirados(
 
     return [
         TopInsumo(
-            nombre=insumos_map[r.insumo_id].nombre if r.insumo_id in insumos_map else "Desconocido",
+            nombre=(
+                insumos_map[r.insumo_id].nombre
+                if r.insumo_id in insumos_map
+                else "Desconocido"
+            ),
             total_salidas=int(r.total),
             sala=(
                 insumos_map[r.insumo_id].sala.nombre
@@ -249,4 +262,46 @@ def top_insumos_retirados(
             ),
         )
         for r in resultados
+    ]
+
+
+@router.get("/salas-hoy", response_model=List[SalaHoy])
+def salas_hoy(
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_usuario_actual),
+):
+    """Programaciones de taller activas para el dia de hoy.
+
+    Devuelve sala, taller, horario, docente y seccion de cada clase
+    programada para hoy segun la tabla programacion_talleres.
+    Ordenadas por hora de inicio (nulas al final).
+    """
+    hoy = date.today()
+
+    programaciones = (
+        db.query(ProgramacionTaller)
+        .options(
+            joinedload(ProgramacionTaller.sala),
+            joinedload(ProgramacionTaller.taller),
+        )
+        .filter(
+            ProgramacionTaller.fecha == hoy,
+            ProgramacionTaller.activo.is_(True),
+        )
+        .order_by(
+            ProgramacionTaller.hora_inicio.asc().nulls_last()
+        )
+        .all()
+    )
+
+    return [
+        SalaHoy(
+            sala_nombre=p.sala.nombre if p.sala else "Sin sala",
+            taller_nombre=p.taller.nombre if p.taller else "Sin taller",
+            hora_inicio=p.hora_inicio,
+            hora_fin=p.hora_fin,
+            docente_nombre=p.docente_nombre,
+            seccion=p.seccion,
+        )
+        for p in programaciones
     ]
