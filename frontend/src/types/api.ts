@@ -270,6 +270,15 @@ export interface TopInsumo {
   sala: string | null
 }
 
+export interface SalaHoy {
+  sala_nombre: string
+  taller_nombre: string
+  hora_inicio: string | null
+  hora_fin: string | null
+  docente_nombre: string | null
+  seccion: string | null
+}
+
 export type TipoInsumo = 'insumo' | 'implemento'
 
 export interface InsumoAlerta {

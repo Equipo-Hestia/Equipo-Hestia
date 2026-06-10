@@ -1,3 +1,6 @@
+@import 'react-grid-layout/css/styles.css';
+@import 'react-resizable/css/styles.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -121,6 +124,27 @@
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite linear;
   border-radius: 0.5rem;
+}
+
+
+/* ─── react-grid-layout overrides ───────────────────────── */
+/* Neutralizar el fondo blanco que inyecta la librería      */
+.react-grid-item.react-grid-placeholder {
+  background: var(--h-teal-subtle) !important;
+  border: 1px dashed var(--h-teal-border) !important;
+  border-radius: 1rem;
+  opacity: 0.5 !important;
+}
+
+.react-resizable-handle {
+  opacity: 0;
+  transition: opacity 150ms;
+}
+.react-grid-item:hover .react-resizable-handle {
+  opacity: 1;
+}
+.react-resizable-handle::after {
+  border-color: var(--h-border-visible) !important;
 }
 
 

@@ -1,18 +1,65 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
+import GridLayout, { Layout } from 'react-grid-layout'
 import {
   Package, AlertTriangle, ArrowUpCircle,
   ArrowDownCircle, DoorOpen, Users, ArrowRight,
-  XCircle, Activity, TrendingDown
+  XCircle, Activity, TrendingDown, GripVertical,
+  RefreshCw, CalendarDays, Eye, EyeOff, RotateCcw,
+  Clock,
 } from 'lucide-react'
 import { api } from '../api/client'
 import type {
   ResumenResponse, InsumoAlerta, DiaMovimiento,
-  ActividadReciente, TopInsumo
+  ActividadReciente, TopInsumo, SalaHoy,
 } from '../types/api'
-import { MetricCard } from '../components/ui/Card'
 import { MetricCardSkeleton, AlertaCardSkeleton } from '../components/ui/Skeleton'
 import { Badge } from '../components/ui/Badge'
+import { useAuthStore } from '../store/auth'
+import { useLastUpdated } from '../hooks/useLastUpdated'
+
+// ---------------------------------------------------------------------------
+// Constantes de layout
+// ---------------------------------------------------------------------------
+
+const COLS = 12
+const ROW_H = 60  // px por unidad de fila
+const MARGIN: [number, number] = [12, 12]
+
+type WidgetId =
+  | 'grafico_semana'
+  | 'estado_inventario'
+  | 'actividad'
+  | 'top_insumos'
+  | 'salas_hoy'
+  | 'alertas'
+
+const DEFAULT_LAYOUT: Layout[] = [
+  { i: 'grafico_semana',    x: 0, y: 0, w: 8,  h: 5, minW: 4, minH: 4 },
+  { i: 'estado_inventario', x: 8, y: 0, w: 4,  h: 5, minW: 3, minH: 4 },
+  { i: 'actividad',         x: 0, y: 5, w: 5,  h: 6, minW: 3, minH: 4 },
+  { i: 'top_insumos',       x: 5, y: 5, w: 4,  h: 6, minW: 3, minH: 4 },
+  { i: 'salas_hoy',         x: 9, y: 5, w: 3,  h: 6, minW: 2, minH: 4 },
+  { i: 'alertas',           x: 0, y: 11, w: 12, h: 4, minW: 6, minH: 3 },
+]
+
+const WIDGET_LABELS: Record<WidgetId, string> = {
+  grafico_semana:    'Actividad semanal',
+  estado_inventario: 'Estado del inventario',
+  actividad:         'Actividad reciente',
+  top_insumos:       'Más retirados',
+  salas_hoy:         'Salas con clase hoy',
+  alertas:           'Alertas de stock',
+}
+
+const ALL_WIDGET_IDS = Object.keys(WIDGET_LABELS) as WidgetId[]
+
+const STORAGE_LAYOUT_KEY = (uid: number) => `hestia_dash_layout_${uid}`
+const STORAGE_HIDDEN_KEY = (uid: number) => `hestia_dash_hidden_${uid}`
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 
 function tiempoRelativo(isoFecha: string): string {
   const diff = Math.floor((Date.now() - new Date(isoFecha).getTime()) / 1000)
@@ -22,6 +69,149 @@ function tiempoRelativo(isoFecha: string): string {
   if (diff < 172800) return 'Ayer'
   return new Date(isoFecha).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit' })
 }
+
+// ---------------------------------------------------------------------------
+// Métricas fijas (no están en el bento)
+// ---------------------------------------------------------------------------
+
+function MetricasFijas({
+  resumen, loading,
+}: { resumen: ResumenResponse | null; loading: boolean }) {
+  const items = [
+    {
+      label: 'Total insumos',
+      value: resumen?.total_insumos ?? 0,
+      color: 'var(--h-teal-hover)',
+      bg: 'var(--h-teal-subtle)',
+      icon: <Package size={16} />,
+      accent: false,
+    },
+    {
+      label: 'Bajo stock',
+      value: resumen?.insumos_bajo_stock ?? 0,
+      color: 'var(--h-sem-warning-text)',
+      bg: 'var(--h-sem-warning-bg)',
+      icon: <AlertTriangle size={16} />,
+      accent: (resumen?.insumos_bajo_stock ?? 0) > 0,
+    },
+    {
+      label: 'Agotados',
+      value: resumen?.insumos_agotados ?? 0,
+      color: 'var(--h-sem-danger-text)',
+      bg: 'var(--h-sem-danger-bg)',
+      icon: <XCircle size={16} />,
+      accent: (resumen?.insumos_agotados ?? 0) > 0,
+    },
+    {
+      label: 'Movimientos hoy',
+      value: resumen?.movimientos_hoy ?? 0,
+      color: 'var(--h-text-secondary)',
+      bg: 'var(--h-bg-elevated)',
+      icon: <Package size={16} />,
+      accent: false,
+    },
+    {
+      label: 'Entradas hoy',
+      value: resumen?.entradas_hoy ?? 0,
+      color: 'var(--h-teal-hover)',
+      bg: 'var(--h-teal-subtle)',
+      icon: <ArrowUpCircle size={16} />,
+      accent: false,
+    },
+    {
+      label: 'Salidas hoy',
+      value: resumen?.salidas_hoy ?? 0,
+      color: 'var(--h-sem-warning-text)',
+      bg: 'var(--h-sem-warning-bg)',
+      icon: <ArrowDownCircle size={16} />,
+      accent: false,
+    },
+  ]
+
+  if (loading) {
+    return (
+      <div className="grid grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
+        {Array.from({ length: 6 }).map((_, i) => <MetricCardSkeleton key={i} />)}
+      </div>
+    )
+  }
+
+  return (
+    <div className="grid grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
+      {items.map(it => (
+        <div
+          key={it.label}
+          className="bg-h-surface border border-h-subtle rounded-xl px-4 py-3
+                     flex flex-col gap-1.5"
+          style={{
+            borderLeftWidth: it.accent ? '3px' : undefined,
+            borderLeftColor: it.accent ? it.color : undefined,
+          }}
+        >
+          <div
+            className="w-7 h-7 rounded-lg flex items-center justify-center"
+            style={{ background: it.bg, color: it.color }}
+          >
+            {it.icon}
+          </div>
+          <p
+            className="text-2xl font-black tabular-nums"
+            style={{ color: it.accent ? it.color : 'var(--h-text-primary)' }}
+          >
+            {it.value}
+          </p>
+          <p className="text-[11px] text-h-tertiary font-medium leading-tight">
+            {it.label}
+          </p>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Widget wrapper — cabecera con grip y contenido
+// ---------------------------------------------------------------------------
+
+function WidgetCard({
+  title, icon, extra, children, dragHandle,
+}: {
+  title: string
+  icon?: React.ReactNode
+  extra?: React.ReactNode
+  children: React.ReactNode
+  dragHandle: string
+}) {
+  return (
+    <div
+      className="bg-h-surface border border-h-subtle rounded-2xl
+                 flex flex-col h-full overflow-hidden"
+    >
+      {/* Cabecera con handle de drag */}
+      <div
+        className={`${dragHandle} flex items-center justify-between
+                    px-4 py-3 border-b border-h-subtle cursor-grab
+                    active:cursor-grabbing select-none shrink-0`}
+        style={{ background: 'var(--h-bg-elevated)' }}
+      >
+        <div className="flex items-center gap-2">
+          <GripVertical size={13} className="text-h-tertiary opacity-50" />
+          {icon}
+          <span className="text-sm font-semibold text-h-primary">{title}</span>
+        </div>
+        {extra}
+      </div>
+      {/* Contenido con scroll */}
+      <div className="flex-1 overflow-y-auto p-4">
+        {children}
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Widgets de contenido
+// ---------------------------------------------------------------------------
 
 function GraficoBarras({ datos }: { datos: DiaMovimiento[] }) {
   if (!datos.length) return null
@@ -34,18 +224,18 @@ function GraficoBarras({ datos }: { datos: DiaMovimiento[] }) {
   }
 
   return (
-    <div>
-      <div className="flex items-end gap-1.5 h-28">
+    <div className="h-full flex flex-col">
+      <div className="flex items-end gap-1.5 flex-1 min-h-0">
         {datos.map(d => (
-          <div key={d.fecha} className="flex-1 flex flex-col items-center">
-            <div className="flex items-end gap-0.5 h-24 w-full">
+          <div key={d.fecha} className="flex-1 flex flex-col items-center h-full">
+            <div className="flex items-end gap-0.5 flex-1 w-full">
               <div
                 title={`Entradas: ${d.entradas}`}
                 className="flex-1 rounded-t-sm transition-all duration-500"
                 style={{
-                  background:  'var(--h-teal-hover)',
-                  height:      `${(d.entradas / max) * 100}%`,
-                  minHeight:   d.entradas ? 3 : 0,
+                  background: 'var(--h-teal-hover)',
+                  height: `${(d.entradas / max) * 100}%`,
+                  minHeight: d.entradas ? 3 : 0,
                 }}
               />
               <div
@@ -53,8 +243,8 @@ function GraficoBarras({ datos }: { datos: DiaMovimiento[] }) {
                 className="flex-1 rounded-t-sm transition-all duration-500"
                 style={{
                   background: '#EF9F27',
-                  height:     `${(d.salidas / max) * 100}%`,
-                  minHeight:  d.salidas ? 3 : 0,
+                  height: `${(d.salidas / max) * 100}%`,
+                  minHeight: d.salidas ? 3 : 0,
                 }}
               />
             </div>
@@ -64,10 +254,9 @@ function GraficoBarras({ datos }: { datos: DiaMovimiento[] }) {
           </div>
         ))}
       </div>
-      <div className="flex gap-4 mt-3">
+      <div className="flex gap-4 mt-3 shrink-0">
         <div className="flex items-center gap-1.5 text-xs text-h-tertiary">
-          <div className="w-2.5 h-2.5 rounded-sm"
-            style={{ background: 'var(--h-teal-hover)' }} />
+          <div className="w-2.5 h-2.5 rounded-sm" style={{ background: 'var(--h-teal-hover)' }} />
           Entradas
         </div>
         <div className="flex items-center gap-1.5 text-xs text-h-tertiary">
@@ -82,32 +271,14 @@ function GraficoBarras({ datos }: { datos: DiaMovimiento[] }) {
 function GraficoEstado({ total, bajo, agotados }: {
   total: number; bajo: number; agotados: number
 }) {
-  const ok        = total - bajo
+  const ok         = total - bajo
   const soloAlerta = bajo - agotados
-  const base      = Math.max(total, 1)
+  const base       = Math.max(total, 1)
 
   const filas = [
-    {
-      label: 'Stock OK',
-      valor: ok,
-      pct:   ok / base,
-      barBg: 'var(--h-teal-hover)',
-      textStyle: { color: 'var(--h-sem-success-text)' },
-    },
-    {
-      label: 'Bajo mínimo',
-      valor: soloAlerta,
-      pct:   soloAlerta / base,
-      barBg: '#EF9F27',
-      textStyle: { color: 'var(--h-sem-warning-text)' },
-    },
-    {
-      label: 'Agotados',
-      valor: agotados,
-      pct:   agotados / base,
-      barBg: 'var(--h-sem-danger-border)',
-      textStyle: { color: 'var(--h-sem-danger-text)' },
-    },
+    { label: 'Stock OK',    valor: ok,         pct: ok / base,         barBg: 'var(--h-teal-hover)',         textStyle: { color: 'var(--h-sem-success-text)' } },
+    { label: 'Bajo mínimo', valor: soloAlerta,  pct: soloAlerta / base, barBg: '#EF9F27',                    textStyle: { color: 'var(--h-sem-warning-text)' } },
+    { label: 'Agotados',    valor: agotados,    pct: agotados / base,   barBg: 'var(--h-sem-danger-border)', textStyle: { color: 'var(--h-sem-danger-text)' } },
   ]
 
   return (
@@ -131,177 +302,369 @@ function GraficoEstado({ total, bajo, agotados }: {
   )
 }
 
-function FeedActividad({ items, loading }: {
+function FeedActividadContent({ items, loading }: {
   items: ActividadReciente[]; loading: boolean
 }) {
-  return (
-    <div className="bg-h-surface rounded-2xl border border-h-subtle p-5">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <Activity size={15} className="text-h-tertiary" />
-          <p className="text-sm font-semibold text-h-primary">Actividad reciente</p>
-        </div>
-        <Link
-          to="/movimientos"
-          className="text-xs font-semibold flex items-center gap-1
-                     transition-colors duration-150"
-          style={{ color: 'var(--h-teal-hover)' }}
-        >
-          Ver todo <ArrowRight size={12} />
-        </Link>
-      </div>
-
-      {loading ? (
-        <div className="space-y-3">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="flex items-center gap-3">
-              <div className="skeleton w-8 h-8 rounded-lg flex-shrink-0" />
-              <div className="flex-1 space-y-1.5">
-                <div className="skeleton h-3 rounded w-3/4" />
-                <div className="skeleton h-2.5 rounded w-1/2" />
-              </div>
-              <div className="skeleton h-3 rounded w-14" />
+  if (loading) {
+    return (
+      <div className="space-y-3">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="flex items-center gap-3">
+            <div className="skeleton w-8 h-8 rounded-lg flex-shrink-0" />
+            <div className="flex-1 space-y-1.5">
+              <div className="skeleton h-3 rounded w-3/4" />
+              <div className="skeleton h-2.5 rounded w-1/2" />
             </div>
-          ))}
-        </div>
-      ) : items.length === 0 ? (
-        <p className="text-sm text-h-tertiary text-center py-8">Sin movimientos recientes.</p>
-      ) : (
-        <ul className="divide-y border-h-subtle">
-          {items.map(m => (
-            <li key={m.id} className="flex items-center gap-3 py-2.5">
-              <div
-                className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                style={{
-                  background: m.tipo === 'entrada'
-                    ? 'var(--h-teal-subtle)'
-                    : 'var(--h-sem-warning-bg)',
-                }}
-              >
-                {m.tipo === 'entrada'
-                  ? <ArrowUpCircle size={15} style={{ color: 'var(--h-teal-hover)' }} />
-                  : <ArrowDownCircle size={15} style={{ color: 'var(--h-sem-warning-text)' }} />
-                }
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-h-primary truncate">{m.insumo}</p>
-                <p className="text-xs text-h-tertiary truncate">
-                  {m.usuario}{m.sala ? ` · ${m.sala}` : ''}
-                </p>
-              </div>
-              <div className="text-right flex-shrink-0">
-                <p
-                  className="text-sm font-bold"
-                  style={{
-                    color: m.tipo === 'entrada'
-                      ? 'var(--h-teal-hover)'
-                      : 'var(--h-sem-warning-text)',
-                  }}
-                >
-                  {m.tipo === 'entrada' ? '+' : '-'}{m.cantidad}
-                </p>
-                <p className="text-[10px] text-h-tertiary">{tiempoRelativo(m.fecha)}</p>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
+          </div>
+        ))}
+      </div>
+    )
+  }
+  if (items.length === 0) {
+    return <p className="text-sm text-h-tertiary text-center py-8">Sin movimientos recientes.</p>
+  }
+  return (
+    <ul className="divide-y" style={{ borderColor: 'var(--h-border-subtle)' }}>
+      {items.map(m => (
+        <li key={m.id} className="flex items-center gap-3 py-2.5">
+          <div
+            className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+            style={{
+              background: m.tipo === 'entrada' ? 'var(--h-teal-subtle)' : 'var(--h-sem-warning-bg)',
+            }}
+          >
+            {m.tipo === 'entrada'
+              ? <ArrowUpCircle size={15} style={{ color: 'var(--h-teal-hover)' }} />
+              : <ArrowDownCircle size={15} style={{ color: 'var(--h-sem-warning-text)' }} />
+            }
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-h-primary truncate">{m.insumo}</p>
+            <p className="text-xs text-h-tertiary truncate">
+              {m.usuario}{m.sala ? ` · ${m.sala}` : ''}
+            </p>
+          </div>
+          <div className="text-right flex-shrink-0">
+            <p
+              className="text-sm font-bold"
+              style={{ color: m.tipo === 'entrada' ? 'var(--h-teal-hover)' : 'var(--h-sem-warning-text)' }}
+            >
+              {m.tipo === 'entrada' ? '+' : '-'}{m.cantidad}
+            </p>
+            <p className="text-[10px] text-h-tertiary">{tiempoRelativo(m.fecha)}</p>
+          </div>
+        </li>
+      ))}
+    </ul>
   )
 }
 
-function TopInsumos({ items, loading }: {
+function TopInsumosContent({ items, loading }: {
   items: TopInsumo[]; loading: boolean
 }) {
   const maxSalidas = Math.max(...items.map(i => i.total_salidas), 1)
-
-  return (
-    <div className="bg-h-surface rounded-2xl border border-h-subtle p-5">
-      <div className="flex items-center gap-2 mb-4">
-        <TrendingDown size={15} style={{ color: 'var(--h-sem-warning-text)' }} />
-        <p className="text-sm font-semibold text-h-primary">Más retirados</p>
-        <span className="ml-auto text-xs text-h-tertiary">últimos 30 días</span>
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i}>
+            <div className="skeleton h-3 rounded w-3/4 mb-2" />
+            <div className="skeleton h-2 rounded-full w-full" />
+          </div>
+        ))}
       </div>
-
-      {loading ? (
-        <div className="space-y-4">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i}>
-              <div className="skeleton h-3 rounded w-3/4 mb-2" />
-              <div className="skeleton h-2 rounded-full w-full" />
+    )
+  }
+  if (items.length === 0) {
+    return <p className="text-sm text-h-tertiary text-center py-8">Sin salidas en los últimos 30 días.</p>
+  }
+  return (
+    <ol className="space-y-3.5">
+      {items.map((item, idx) => (
+        <li key={item.nombre}>
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center gap-2 min-w-0">
+              <span
+                className="text-xs font-bold w-4 flex-shrink-0"
+                style={{
+                  color: idx === 0 ? 'var(--h-sem-warning-text)'
+                       : idx === 1 ? 'var(--h-text-secondary)'
+                       : idx === 2 ? '#EF9F27'
+                       : 'var(--h-text-tertiary)',
+                }}
+              >
+                {idx + 1}
+              </span>
+              <span className="text-xs font-medium text-h-secondary truncate">
+                {item.nombre}
+              </span>
             </div>
-          ))}
-        </div>
-      ) : items.length === 0 ? (
-        <p className="text-sm text-h-tertiary text-center py-8">
-          Sin salidas en los últimos 30 días.
-        </p>
-      ) : (
-        <ol className="space-y-3.5">
-          {items.map((item, idx) => (
-            <li key={item.nombre}>
-              <div className="flex items-center justify-between mb-1">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span
-                    className="text-xs font-bold w-4 flex-shrink-0"
-                    style={{
-                      color: idx === 0 ? 'var(--h-sem-warning-text)'
-                           : idx === 1 ? 'var(--h-text-secondary)'
-                           : idx === 2 ? '#EF9F27'
-                           : 'var(--h-text-tertiary)',
-                    }}
-                  >
-                    {idx + 1}
-                  </span>
-                  <span className="text-xs font-medium text-h-secondary truncate">
-                    {item.nombre}
-                  </span>
-                </div>
-                <span
-                  className="text-xs font-bold flex-shrink-0 ml-2"
-                  style={{ color: 'var(--h-sem-warning-text)' }}
-                >
-                  {item.total_salidas} u.
+            <span className="text-xs font-bold flex-shrink-0 ml-2" style={{ color: 'var(--h-sem-warning-text)' }}>
+              {item.total_salidas} u.
+            </span>
+          </div>
+          <div className="h-1.5 bg-h-elevated rounded-full overflow-hidden">
+            <div
+              className="h-full rounded-full transition-all duration-700"
+              style={{ width: `${(item.total_salidas / maxSalidas) * 100}%`, background: '#EF9F27' }}
+            />
+          </div>
+        </li>
+      ))}
+    </ol>
+  )
+}
+
+function SalasHoyContent({ items, loading }: {
+  items: SalaHoy[]; loading: boolean
+}) {
+  if (loading) {
+    return (
+      <div className="space-y-3">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i}>
+            <div className="skeleton h-3 rounded w-2/3 mb-1.5" />
+            <div className="skeleton h-2.5 rounded w-1/2" />
+          </div>
+        ))}
+      </div>
+    )
+  }
+  if (items.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full py-6 gap-2">
+        <CalendarDays size={28} className="text-h-tertiary opacity-40" />
+        <p className="text-sm text-h-tertiary text-center">Sin talleres programados hoy</p>
+      </div>
+    )
+  }
+  return (
+    <ul className="space-y-2.5">
+      {items.map((s, i) => (
+        <li
+          key={i}
+          className="p-2.5 rounded-xl border border-h-subtle"
+          style={{ background: 'var(--h-bg-elevated)' }}
+        >
+          <p className="text-xs font-bold text-h-primary truncate">{s.sala_nombre}</p>
+          <p className="text-[11px] text-h-secondary truncate mt-0.5">{s.taller_nombre}</p>
+          {(s.hora_inicio || s.seccion) && (
+            <div className="flex items-center gap-2 mt-1">
+              {s.hora_inicio && (
+                <span className="flex items-center gap-1 text-[10px] text-h-tertiary">
+                  <Clock size={9} />
+                  {s.hora_inicio}{s.hora_fin ? `–${s.hora_fin}` : ''}
                 </span>
-              </div>
-              <div className="h-1.5 bg-h-elevated rounded-full overflow-hidden">
-                <div
-                  className="h-full rounded-full transition-all duration-700"
-                  style={{
-                    width:      `${(item.total_salidas / maxSalidas) * 100}%`,
-                    background: '#EF9F27',
-                  }}
-                />
-              </div>
-            </li>
-          ))}
-        </ol>
-      )}
+              )}
+              {s.seccion && (
+                <span className="text-[10px] text-h-tertiary">Secc. {s.seccion}</span>
+              )}
+            </div>
+          )}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+function AlertasContent({ alertas, loading }: {
+  alertas: InsumoAlerta[]; loading: boolean
+}) {
+  if (loading) {
+    return (
+      <div className="space-y-3">
+        {Array.from({ length: 3 }).map((_, i) => <AlertaCardSkeleton key={i} />)}
+      </div>
+    )
+  }
+  if (alertas.length === 0) {
+    return (
+      <div
+        className="rounded-xl p-4 text-center border"
+        style={{ background: 'var(--h-sem-success-bg)', borderColor: 'var(--h-sem-success-border)' }}
+      >
+        <p className="font-semibold text-sm" style={{ color: 'var(--h-sem-success-text)' }}>
+          Sin alertas activas
+        </p>
+        <p className="text-xs mt-0.5" style={{ color: 'var(--h-sem-success-text)', opacity: 0.75 }}>
+          Todos los insumos están sobre el mínimo.
+        </p>
+      </div>
+    )
+  }
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+      {alertas.map(a => (
+        <div
+          key={a.id}
+          className="bg-h-elevated rounded-xl border border-h-subtle p-3
+                     flex items-start justify-between gap-3"
+        >
+          <div className="flex items-start gap-2.5">
+            <div
+              className="mt-0.5 w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+              style={{ background: 'var(--h-sem-danger-bg)' }}
+            >
+              <AlertTriangle size={13} style={{ color: 'var(--h-sem-danger-text)' }} />
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-h-primary">{a.nombre}</p>
+              <p className="text-[10px] text-h-tertiary mt-0.5">
+                {a.sala ?? 'Sin sala'} · {a.categoria ?? 'Sin categoría'}
+              </p>
+              <p className="text-[10px] text-h-secondary mt-1">
+                Stock: <span className="font-bold" style={{ color: 'var(--h-sem-danger-text)' }}>{a.stock_actual}</span>
+                <span className="text-h-tertiary"> / mín. {a.stock_minimo}</span>
+              </p>
+            </div>
+          </div>
+          <Badge variant={a.stock_actual === 0 ? 'danger' : 'warning'}>
+            {a.stock_actual === 0 ? 'Agotado' : `Déficit ${a.deficit}`}
+          </Badge>
+        </div>
+      ))}
     </div>
   )
 }
 
+// ---------------------------------------------------------------------------
+// Panel de personalización
+// ---------------------------------------------------------------------------
+
+function PanelPersonalizar({
+  hiddenWidgets,
+  onToggle,
+  onReset,
+  onClose,
+}: {
+  hiddenWidgets: Set<WidgetId>
+  onToggle: (id: WidgetId) => void
+  onReset: () => void
+  onClose: () => void
+}) {
+  return (
+    <div
+      className="absolute right-0 top-12 z-40 w-64 rounded-2xl border border-h-subtle
+                 shadow-2xl p-4"
+      style={{ background: 'var(--h-bg-surface)' }}
+    >
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-sm font-bold text-h-primary">Personalizar</p>
+        <button
+          onClick={onReset}
+          className="flex items-center gap-1 text-xs text-h-tertiary
+                     transition-colors duration-150"
+          onMouseEnter={e => (e.currentTarget.style.color = 'var(--h-teal-hover)')}
+          onMouseLeave={e => (e.currentTarget.style.color = 'var(--h-text-tertiary)')}
+        >
+          <RotateCcw size={11} /> Restablecer
+        </button>
+      </div>
+      <ul className="space-y-1">
+        {ALL_WIDGET_IDS.map(id => {
+          const visible = !hiddenWidgets.has(id)
+          return (
+            <li key={id}>
+              <button
+                onClick={() => onToggle(id)}
+                className="w-full flex items-center justify-between px-2 py-1.5
+                           rounded-lg text-left transition-colors duration-150"
+                onMouseEnter={e => (e.currentTarget.style.background = 'var(--h-bg-elevated)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+              >
+                <span className="text-xs text-h-secondary">{WIDGET_LABELS[id]}</span>
+                {visible
+                  ? <Eye size={13} style={{ color: 'var(--h-teal-hover)' }} />
+                  : <EyeOff size={13} className="text-h-tertiary" />
+                }
+              </button>
+            </li>
+          )
+        })}
+      </ul>
+      <button
+        onClick={onClose}
+        className="mt-3 w-full text-center text-xs text-h-tertiary
+                   transition-colors duration-150"
+        onMouseEnter={e => (e.currentTarget.style.color = 'var(--h-text-secondary)')}
+        onMouseLeave={e => (e.currentTarget.style.color = 'var(--h-text-tertiary)')}
+      >
+        Cerrar
+      </button>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Dashboard principal
+// ---------------------------------------------------------------------------
+
 export function Dashboard() {
-  const [resumen,        setResumen]        = useState<ResumenResponse | null>(null)
-  const [alertas,        setAlertas]        = useState<InsumoAlerta[]>([])
-  const [semana,         setSemana]         = useState<DiaMovimiento[]>([])
-  const [actividad,      setActividad]      = useState<ActividadReciente[]>([])
-  const [topInsumos,     setTopInsumos]     = useState<TopInsumo[]>([])
-  const [loading,        setLoading]        = useState(true)
-  const [chartLoading,   setChartLoading]   = useState(true)
-  const [actividadLoading, setActLoading]   = useState(true)
-  const [topLoading,     setTopLoading]     = useState(true)
+  const { user } = useAuthStore()
+  const uid = user?.id ?? 0
+
+  const [resumen,    setResumen]    = useState<ResumenResponse | null>(null)
+  const [alertas,    setAlertas]    = useState<InsumoAlerta[]>([])
+  const [semana,     setSemana]     = useState<DiaMovimiento[]>([])
+  const [actividad,  setActividad]  = useState<ActividadReciente[]>([])
+  const [topInsumos, setTopInsumos] = useState<TopInsumo[]>([])
+  const [salasHoy,   setSalasHoy]   = useState<SalaHoy[]>([])
+
+  const [loading,          setLoading]       = useState(true)
+  const [chartLoading,     setChartLoading]  = useState(true)
+  const [actividadLoading, setActLoading]    = useState(true)
+  const [topLoading,       setTopLoading]    = useState(true)
+  const [salasLoading,     setSalasLoading]  = useState(true)
+
+  // Layout bento
+  const [layout, setLayout] = useState<Layout[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_LAYOUT_KEY(uid))
+      return saved ? JSON.parse(saved) : DEFAULT_LAYOUT
+    } catch { return DEFAULT_LAYOUT }
+  })
+
+  // Widgets ocultos
+  const [hiddenWidgets, setHiddenWidgets] = useState<Set<WidgetId>>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_HIDDEN_KEY(uid))
+      return saved ? new Set<WidgetId>(JSON.parse(saved)) : new Set()
+    } catch { return new Set() }
+  })
+
+  const [showPersonalizar, setShowPersonalizar] = useState(false)
+
+  // Ancho del contenedor para react-grid-layout
+  const [gridWidth, setGridWidth] = useState(0)
+  const { labelTiempo, marcarActualizado } = useLastUpdated()
+
+  // Medir el ancho real del contenedor
+  useEffect(() => {
+    function measure() {
+      const el = document.getElementById('dashboard-grid-container')
+      if (el) setGridWidth(el.offsetWidth)
+    }
+    measure()
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
+  }, [])
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const [r, a] = await Promise.all([
+        api.get<ResumenResponse>('/resumen/'),
+        api.get<InsumoAlerta[]>('/insumos/alertas'),
+      ])
+      setResumen(r.data)
+      setAlertas(a.data.slice(0, 12))
+      marcarActualizado()
+    } finally { setLoading(false) }
+  }, [marcarActualizado])
+
+  useEffect(() => { load() }, [load])
 
   useEffect(() => {
-    async function loadPrincipal() {
-      try {
-        const [r, a] = await Promise.all([
-          api.get<ResumenResponse>('/resumen/'),
-          api.get<InsumoAlerta[]>('/insumos/alertas'),
-        ])
-        setResumen(r.data); setAlertas(a.data.slice(0, 5))
-      } finally { setLoading(false) }
-    }
     async function loadChart() {
       try {
         const { data } = await api.get<DiaMovimiento[]>('/resumen/grafico-semana')
@@ -311,7 +674,7 @@ export function Dashboard() {
     async function loadActividad() {
       try {
         const { data } = await api.get<ActividadReciente[]>(
-          '/resumen/actividad-reciente', { params: { limit: 8 } }
+          '/resumen/actividad-reciente', { params: { limit: 10 } },
         )
         setActividad(data)
       } finally { setActLoading(false) }
@@ -319,265 +682,242 @@ export function Dashboard() {
     async function loadTop() {
       try {
         const { data } = await api.get<TopInsumo[]>(
-          '/resumen/top-insumos-retirados', { params: { dias: 30, limit: 8 } }
+          '/resumen/top-insumos-retirados', { params: { dias: 30, limit: 8 } },
         )
         setTopInsumos(data)
       } finally { setTopLoading(false) }
     }
-    loadPrincipal(); loadChart(); loadActividad(); loadTop()
+    async function loadSalas() {
+      try {
+        const { data } = await api.get<SalaHoy[]>('/resumen/salas-hoy')
+        setSalasHoy(data)
+      } finally { setSalasLoading(false) }
+    }
+    loadChart(); loadActividad(); loadTop(); loadSalas()
   }, [])
 
-  return (
-    <div className="p-8 max-w-6xl mx-auto">
+  function handleLayoutChange(newLayout: Layout[]) {
+    setLayout(newLayout)
+    localStorage.setItem(STORAGE_LAYOUT_KEY(uid), JSON.stringify(newLayout))
+  }
 
-      {/* Título de página */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-h-primary">Dashboard</h1>
-        <p className="text-h-secondary text-sm mt-0.5">
-          Vista general del inventario —{' '}
-          {new Date().toLocaleDateString('es-CL', {
-            weekday: 'long', day: 'numeric', month: 'long',
-          })}
-        </p>
-      </div>
+  function toggleWidget(id: WidgetId) {
+    setHiddenWidgets(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      localStorage.setItem(STORAGE_HIDDEN_KEY(uid), JSON.stringify([...next]))
+      return next
+    })
+  }
 
-      {/* Métricas de inventario */}
-      <section className="mb-8">
-        <h2 className="text-[10px] font-semibold text-h-tertiary uppercase tracking-widest mb-3">
-          Inventario
-        </h2>
-        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-          {loading ? (
-            Array.from({ length: 6 }).map((_, i) => <MetricCardSkeleton key={i} />)
-          ) : resumen && (
+  function resetLayout() {
+    setLayout(DEFAULT_LAYOUT)
+    setHiddenWidgets(new Set())
+    localStorage.removeItem(STORAGE_LAYOUT_KEY(uid))
+    localStorage.removeItem(STORAGE_HIDDEN_KEY(uid))
+    setShowPersonalizar(false)
+  }
+
+  // Filtrar layout para widgets visibles
+  const visibleLayout = layout.filter(l => !hiddenWidgets.has(l.i as WidgetId))
+
+  const DRAG_HANDLE = 'widget-drag-handle'
+
+  const widgetContent: Record<WidgetId, React.ReactNode> = {
+    grafico_semana: (
+      <WidgetCard
+        title="Actividad semanal"
+        icon={<ArrowUpCircle size={13} style={{ color: 'var(--h-teal-hover)' }} />}
+        extra={<span className="text-xs text-h-tertiary">últimos 7 días</span>}
+        dragHandle={DRAG_HANDLE}
+      >
+        {chartLoading
+          ? <div className="h-full flex items-end gap-1.5">{Array.from({ length: 7 }).map((_, i) => (<div key={i} className="flex-1"><div className="w-full bg-h-elevated rounded-t skeleton" style={{ height: `${30 + (i * 11) % 60}%` }} /></div>))}</div>
+          : <GraficoBarras datos={semana} />
+        }
+      </WidgetCard>
+    ),
+    estado_inventario: (
+      <WidgetCard
+        title="Estado del inventario"
+        icon={<Package size={13} className="text-h-tertiary" />}
+        dragHandle={DRAG_HANDLE}
+      >
+        {loading || !resumen
+          ? <div className="space-y-4">{Array.from({ length: 3 }).map((_, i) => (<div key={i}><div className="skeleton h-3 w-24 rounded mb-1.5" /><div className="skeleton h-2 w-full rounded-full" /></div>))}</div>
+          : (
             <>
-              <MetricCard
-                label="Total insumos" value={resumen.total_insumos}
-                icon={<Package size={18} style={{ color: 'var(--h-teal-hover)' }} />}
-              />
-              <MetricCard
-                label="Bajo stock" value={resumen.insumos_bajo_stock}
-                icon={<AlertTriangle size={18} style={{ color: 'var(--h-sem-warning-text)' }} />}
-                iconBg="bg-h-warning"
-                accent={resumen.insumos_bajo_stock > 0}
-              />
-              <MetricCard
-                label="Agotados" value={resumen.insumos_agotados}
-                icon={<XCircle size={18} style={{ color: 'var(--h-sem-danger-text)' }} />}
-                iconBg="bg-h-danger"
-                accent={resumen.insumos_agotados > 0}
-              />
-              <MetricCard
-                label="Movimientos hoy" value={resumen.movimientos_hoy}
-                icon={<Package size={18} className="text-h-tertiary" />}
-                iconBg="bg-h-elevated"
-              />
-              <MetricCard
-                label="Entradas hoy" value={resumen.entradas_hoy}
-                icon={<ArrowUpCircle size={18} style={{ color: 'var(--h-teal-hover)' }} />}
-              />
-              <MetricCard
-                label="Salidas hoy" value={resumen.salidas_hoy}
-                icon={<ArrowDownCircle size={18} style={{ color: 'var(--h-sem-warning-text)' }} />}
-                iconBg="bg-h-warning"
-              />
-            </>
-          )}
-        </div>
-      </section>
-
-      {/* Análisis */}
-      <section className="mb-8">
-        <h2 className="text-[10px] font-semibold text-h-tertiary uppercase tracking-widest mb-3">
-          Análisis
-        </h2>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-
-          {/* Gráfico semanal */}
-          <div className="lg:col-span-2 bg-h-surface rounded-2xl border border-h-subtle p-5">
-            <div className="flex items-center justify-between mb-4">
-              <p className="text-sm font-semibold text-h-primary">Actividad semanal</p>
-              <div className="flex items-center gap-1">
-                <ArrowUpCircle size={12} style={{ color: 'var(--h-teal-hover)' }} />
-                <ArrowDownCircle size={12} style={{ color: '#EF9F27' }} />
-                <span className="text-xs text-h-tertiary ml-1">últimos 7 días</span>
-              </div>
-            </div>
-            {chartLoading ? (
-              <div className="h-28 flex items-end gap-1.5">
-                {Array.from({ length: 7 }).map((_, i) => (
-                  <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                    <div
-                      className="w-full bg-h-elevated rounded-t skeleton"
-                      style={{ height: `${30 + (i * 11) % 60}%` }}
-                    />
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <GraficoBarras datos={semana} />
-            )}
-          </div>
-
-          {/* Estado del inventario */}
-          <div className="bg-h-surface rounded-2xl border border-h-subtle p-5">
-            <p className="text-sm font-semibold text-h-primary mb-4">Estado del inventario</p>
-            {loading || !resumen ? (
-              <div className="space-y-4">
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <div key={i}>
-                    <div className="skeleton h-3 w-24 rounded mb-1.5" />
-                    <div className="skeleton h-2 w-full rounded-full" />
-                  </div>
-                ))}
-              </div>
-            ) : (
               <GraficoEstado
                 total={resumen.total_insumos}
                 bajo={resumen.insumos_bajo_stock}
                 agotados={resumen.insumos_agotados}
               />
-            )}
-            {!loading && resumen && resumen.insumos_bajo_stock > 0 && (
-              <Link
-                to="/alertas"
-                className="
-                  mt-5 flex items-center justify-between p-3 rounded-xl
-                  border transition-colors duration-150
-                "
-                style={{
-                  background:   'var(--h-sem-danger-bg)',
-                  borderColor:  'var(--h-sem-danger-border)',
-                }}
-              >
-                <div className="flex items-center gap-2">
-                  <AlertTriangle size={14} style={{ color: 'var(--h-sem-danger-text)' }} />
-                  <span
-                    className="text-xs font-semibold"
-                    style={{ color: 'var(--h-sem-danger-text)' }}
-                  >
-                    {resumen.insumos_bajo_stock} alertas activas
-                  </span>
-                </div>
-                <ArrowRight size={13} style={{ color: 'var(--h-sem-danger-text)' }} />
-              </Link>
-            )}
-          </div>
-        </div>
-      </section>
-
-      {/* Movimientos */}
-      <section className="mb-8">
-        <h2 className="text-[10px] font-semibold text-h-tertiary uppercase tracking-widest mb-3">
-          Movimientos
-        </h2>
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-          <div className="lg:col-span-3">
-            <FeedActividad items={actividad} loading={actividadLoading} />
-          </div>
-          <div className="lg:col-span-2">
-            <TopInsumos items={topInsumos} loading={topLoading} />
-          </div>
-        </div>
-      </section>
-
-      {/* Alertas de stock */}
-      <section>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-[10px] font-semibold text-h-tertiary uppercase tracking-widest">
-            Alertas de stock
-          </h2>
+              {resumen.insumos_bajo_stock > 0 && (
+                <Link
+                  to="/alertas"
+                  className="mt-4 flex items-center justify-between p-2.5 rounded-xl border
+                             transition-colors duration-150"
+                  style={{ background: 'var(--h-sem-danger-bg)', borderColor: 'var(--h-sem-danger-border)' }}
+                >
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle size={13} style={{ color: 'var(--h-sem-danger-text)' }} />
+                    <span className="text-xs font-semibold" style={{ color: 'var(--h-sem-danger-text)' }}>
+                      {resumen.insumos_bajo_stock} alertas activas
+                    </span>
+                  </div>
+                  <ArrowRight size={12} style={{ color: 'var(--h-sem-danger-text)' }} />
+                </Link>
+              )}
+            </>
+          )
+        }
+      </WidgetCard>
+    ),
+    actividad: (
+      <WidgetCard
+        title="Actividad reciente"
+        icon={<Activity size={13} className="text-h-tertiary" />}
+        extra={
+          <Link
+            to="/movimientos"
+            className="text-xs font-semibold flex items-center gap-1 transition-colors duration-150"
+            style={{ color: 'var(--h-teal-hover)' }}
+          >
+            Ver todo <ArrowRight size={11} />
+          </Link>
+        }
+        dragHandle={DRAG_HANDLE}
+      >
+        <FeedActividadContent items={actividad} loading={actividadLoading} />
+      </WidgetCard>
+    ),
+    top_insumos: (
+      <WidgetCard
+        title="Más retirados"
+        icon={<TrendingDown size={13} style={{ color: 'var(--h-sem-warning-text)' }} />}
+        extra={<span className="text-xs text-h-tertiary">últimos 30 días</span>}
+        dragHandle={DRAG_HANDLE}
+      >
+        <TopInsumosContent items={topInsumos} loading={topLoading} />
+      </WidgetCard>
+    ),
+    salas_hoy: (
+      <WidgetCard
+        title="Salas con clase hoy"
+        icon={<CalendarDays size={13} className="text-h-tertiary" />}
+        extra={
+          salasHoy.length > 0
+            ? <span className="text-xs font-bold" style={{ color: 'var(--h-teal-hover)' }}>{salasHoy.length}</span>
+            : null
+        }
+        dragHandle={DRAG_HANDLE}
+      >
+        <SalasHoyContent items={salasHoy} loading={salasLoading} />
+      </WidgetCard>
+    ),
+    alertas: (
+      <WidgetCard
+        title="Alertas de stock"
+        icon={<AlertTriangle size={13} style={{ color: 'var(--h-sem-warning-text)' }} />}
+        extra={
           <Link
             to="/alertas"
             className="text-xs font-semibold flex items-center gap-1 transition-colors duration-150"
             style={{ color: 'var(--h-teal-hover)' }}
           >
-            Ver todas <ArrowRight size={13} />
+            Ver todas <ArrowRight size={11} />
           </Link>
-        </div>
+        }
+        dragHandle={DRAG_HANDLE}
+      >
+        <AlertasContent alertas={alertas} loading={loading} />
+      </WidgetCard>
+    ),
+  }
 
-        {loading ? (
-          <div className="space-y-3">
-            {Array.from({ length: 3 }).map((_, i) => <AlertaCardSkeleton key={i} />)}
-          </div>
-        ) : alertas.length === 0 ? (
-          <div
-            className="rounded-xl p-6 text-center border"
-            style={{
-              background:  'var(--h-sem-success-bg)',
-              borderColor: 'var(--h-sem-success-border)',
-            }}
+  return (
+    <div className="p-6 w-full">
+
+      {/* Encabezado */}
+      <div className="flex items-start justify-between mb-5">
+        <div>
+          <h1 className="text-2xl font-black text-h-primary">Dashboard</h1>
+          <p className="text-h-secondary text-sm mt-0.5">
+            {new Date().toLocaleDateString('es-CL', {
+              weekday: 'long', day: 'numeric', month: 'long',
+            })}
+          </p>
+          <p className="text-xs text-h-tertiary mt-1">{labelTiempo}</p>
+        </div>
+        <div className="flex items-center gap-2 relative">
+          <button
+            onClick={load}
+            title="Actualizar"
+            className="p-2 rounded-lg border border-h-subtle bg-h-elevated
+                       text-h-tertiary transition-colors duration-150"
+            onMouseEnter={e => (e.currentTarget.style.background = 'var(--h-bg-highlight)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'var(--h-bg-elevated)')}
           >
-            <p
-              className="font-semibold text-sm"
-              style={{ color: 'var(--h-sem-success-text)' }}
-            >
-              Sin alertas activas
-            </p>
-            <p
-              className="text-xs mt-1"
-              style={{ color: 'var(--h-sem-success-text)', opacity: 0.75 }}
-            >
-              Todos los insumos están sobre el mínimo.
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {alertas.map(a => (
-              <div
-                key={a.id}
-                className="bg-h-surface rounded-xl border border-h-subtle p-4
-                           flex items-start justify-between gap-3"
-              >
-                <div className="flex items-start gap-3">
-                  <div
-                    className="mt-0.5 w-8 h-8 rounded-lg flex items-center
-                               justify-center flex-shrink-0"
-                    style={{ background: 'var(--h-sem-danger-bg)' }}
-                  >
-                    <AlertTriangle size={15} style={{ color: 'var(--h-sem-danger-text)' }} />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-h-primary">{a.nombre}</p>
-                    <p className="text-xs text-h-tertiary mt-0.5">
-                      {a.sala ?? 'Sin sala'} · {a.categoria ?? 'Sin categoría'}
-                    </p>
-                    <div className="flex items-center gap-3 mt-2">
-                      <span className="text-xs text-h-secondary">
-                        Stock:{' '}
-                        <span
-                          className="font-bold"
-                          style={{ color: 'var(--h-sem-danger-text)' }}
-                        >
-                          {a.stock_actual}
-                        </span>
-                        <span className="text-h-tertiary"> / mín. {a.stock_minimo}</span>
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <Badge variant={a.stock_actual === 0 ? 'danger' : 'warning'}>
-                  {a.stock_actual === 0 ? 'Agotado' : `Déficit ${a.deficit}`}
-                </Badge>
+            <RefreshCw size={15} />
+          </button>
+          <button
+            onClick={() => setShowPersonalizar(v => !v)}
+            title="Personalizar dashboard"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg border
+                       border-h-subtle bg-h-elevated text-h-secondary
+                       text-xs font-semibold transition-colors duration-150"
+            onMouseEnter={e => (e.currentTarget.style.background = 'var(--h-bg-highlight)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'var(--h-bg-elevated)')}
+          >
+            <Eye size={13} /> Personalizar
+          </button>
+          {showPersonalizar && (
+            <PanelPersonalizar
+              hiddenWidgets={hiddenWidgets}
+              onToggle={toggleWidget}
+              onReset={resetLayout}
+              onClose={() => setShowPersonalizar(false)}
+            />
+          )}
+        </div>
+      </div>
+
+      {/* Métricas fijas */}
+      <MetricasFijas resumen={resumen} loading={loading} />
+
+      {/* Footer rápido */}
+      {!loading && resumen && (
+        <p className="text-xs text-h-tertiary flex items-center gap-3 mb-3">
+          <span className="flex items-center gap-1"><DoorOpen size={12} /> {resumen.total_salas} salas</span>
+          <span className="flex items-center gap-1"><Users size={12} /> {resumen.total_usuarios} usuarios activos</span>
+        </p>
+      )}
+
+      {/* Bento grid */}
+      <div id="dashboard-grid-container" className="w-full">
+        {gridWidth > 0 && (
+          <GridLayout
+            layout={visibleLayout}
+            cols={COLS}
+            rowHeight={ROW_H}
+            width={gridWidth}
+            margin={MARGIN}
+            draggableHandle={`.${DRAG_HANDLE}`}
+            onLayoutChange={handleLayoutChange}
+            isResizable
+            isDraggable
+            compactType="vertical"
+            preventCollision={false}
+          >
+            {visibleLayout.map(l => (
+              <div key={l.i}>
+                {widgetContent[l.i as WidgetId]}
               </div>
             ))}
-          </div>
+          </GridLayout>
         )}
-      </section>
-
-      {/* Footer de contexto */}
-      {!loading && resumen && (
-        <div
-          className="mt-6 pt-6 border-t border-h-subtle
-                     flex items-center gap-2 text-xs text-h-tertiary"
-        >
-          <DoorOpen size={13} />
-          <span>{resumen.total_salas} salas</span>
-          <span className="mx-1">·</span>
-          <Users size={13} />
-          <span>{resumen.total_usuarios} usuarios activos</span>
-        </div>
-      )}
+      </div>
     </div>
   )
 }
