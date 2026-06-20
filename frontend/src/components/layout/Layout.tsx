@@ -1,4 +1,4 @@
-import { Outlet, Navigate, useNavigate } from 'react-router-dom'
+import { Outlet, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import { Sidebar } from './Sidebar'
 import { useAuthStore } from '../../store/auth'
 import { useThemeStore } from '../../store/theme'
@@ -10,6 +10,7 @@ import type { UsuarioMe } from '../../types/api'
 export function Layout() {
   const token = useAuthStore((s) => s.token)
   const navigate = useNavigate()
+  const location = useLocation()
   const { isDark } = useThemeStore()
 
   const [show2FAWarning, setShow2FAWarning] = useState(false)
@@ -42,7 +43,9 @@ export function Layout() {
     <div className="flex h-screen overflow-hidden bg-h-base">
       <Sidebar />
       <main className="flex-1 overflow-y-auto">
-        <Outlet />
+        <div key={location.pathname} className="animate-page-fade-in">
+          <Outlet />
+        </div>
       </main>
 
       {show2FAWarning && (

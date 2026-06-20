@@ -127,6 +127,30 @@
 }
 
 
+/* ─── Transición de página (fade-in entre rutas) ─────────── */
+@keyframes page-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.animate-page-fade-in {
+  animation: page-fade-in 220ms ease-out;
+}
+
+
+/* ─── Aurora del header del Sidebar ──────────────────────── */
+@keyframes sidebar-aurora-drift {
+  0%   { transform: translate(-8%, -4%); opacity: 0.55; }
+  50%  { transform: translate(6%, 3%);   opacity: 0.9;  }
+  100% { transform: translate(-8%, -4%); opacity: 0.55; }
+}
+
+.sidebar-aurora {
+  background: radial-gradient(120px 70px at 25% 15%, var(--h-teal-subtle), transparent 70%);
+  animation: sidebar-aurora-drift 10s ease-in-out infinite;
+}
+
+
 /* ─── react-grid-layout overrides ───────────────────────── */
 /* Neutralizar el fondo blanco que inyecta la librería      */
 .react-grid-item.react-grid-placeholder {

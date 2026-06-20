@@ -198,8 +198,9 @@ export function Sidebar() {
                   bg-h-surface border-r border-h-subtle overflow-hidden`}
       style={{ transition: `width ${WIDTH_MS}ms cubic-bezier(0.4,0,0.2,1)` }}
     >
-      <div className="flex items-center border-b border-h-subtle flex-shrink-0 px-3 py-3 gap-2">
-        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+      <div className="relative overflow-hidden flex items-center border-b border-h-subtle flex-shrink-0 px-3 py-3 gap-2">
+        <div className="absolute inset-0 pointer-events-none sidebar-aurora" />
+        <div className="relative z-10 flex items-center gap-2.5 min-w-0 flex-1">
           <Logo className="w-8 h-8 flex-shrink-0" />
           {!collapsed && (
             <div className="min-w-0" style={{
@@ -214,7 +215,7 @@ export function Sidebar() {
         </div>
         <button onClick={handleCollapse}
           title={collapsed ? 'Expandir menu' : 'Colapsar menu'}
-          className="w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0
+          className="relative z-10 w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0
                      text-h-tertiary hover:bg-h-elevated hover:text-h-secondary
                      transition-colors duration-150">
           {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
