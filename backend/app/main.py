@@ -21,6 +21,7 @@ from app.models import orden_mantenimiento  # noqa
 from app.models import programacion_taller  # noqa
 from app.models import revision_sala      # noqa
 from app.models import orden_entrada      # noqa  <- OrdenEntrada, OrdenEntradaItem
+from app.models import incidencia         # noqa
 from app.routes import (
     salas, categorias, usuarios, movimientos, insumos, auth, resumen, importar
 )
@@ -40,6 +41,7 @@ from app.routes import ordenes_mantenimiento
 from app.routes import programacion_taller as programacion_taller_routes
 from app.routes import revision_sala as revision_sala_routes
 from app.routes import ordenes_entrada as ordenes_entrada_routes
+from app.routes import incidencias as incidencias_routes
 
 Base.metadata.create_all(bind=engine)
 aplicar_migraciones_pendientes()
@@ -118,6 +120,7 @@ app.include_router(ordenes_mantenimiento.router)
 app.include_router(programacion_taller_routes.router)
 app.include_router(revision_sala_routes.router)
 app.include_router(ordenes_entrada_routes.router)
+app.include_router(incidencias_routes.router)
 
 
 @app.get("/")

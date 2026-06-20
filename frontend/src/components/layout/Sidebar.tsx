@@ -8,7 +8,7 @@ import {
   Calendar, CalendarDays, BarChart2,
   ChevronLeft, ChevronRight, Sun, Moon,
   Sofa, FlaskConical, ClipboardCheck, Wrench,
-  Building2, MapPin, CalendarRange, ShoppingCart,
+  Building2, MapPin, CalendarRange, ShoppingCart, AlertOctagon,
 } from 'lucide-react'
 import { useAuthStore } from '../../store/auth'
 import { useThemeStore } from '../../store/theme'
@@ -42,6 +42,7 @@ const NAV_SECTIONS: NavSection[] = [
       { to: '/alertas',      icon: AlertTriangle,   label: 'Alertas',               roles: TODOS },
       { to: '/insumos',      icon: Package,         label: 'Insumos e Implementos', roles: TODOS },
       { to: '/activos-fijos', icon: Sofa,           label: 'Activos Fijos',         roles: TODOS },
+      { to: '/incidencias',   icon: AlertOctagon,   label: 'Incidencias',           roles: TODOS },
       { to: '/mantenimiento', icon: Wrench,         label: 'Mantenimiento',         roles: NO_VISOR },
       { to: '/movimientos',  icon: ArrowLeftRight,  label: 'Movimientos',           roles: TODOS },
       { to: '/categorias',   icon: Tag,             label: 'Categorias',            roles: TODOS },

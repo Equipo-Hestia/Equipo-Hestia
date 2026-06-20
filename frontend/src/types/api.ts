@@ -756,3 +756,56 @@ export interface InsumoVencimiento {
   categoria: string | null
   tipo: string
 }
+
+// ---------------------------------------------------------------------------
+// Incidencia - sincronizado con modelo Incidencia (backend)
+// ---------------------------------------------------------------------------
+export type TipoIncidencia =
+  | 'dano_fisico'
+  | 'pieza_perdida'
+  | 'mal_funcionamiento'
+  | 'otro'
+
+export type SeveridadIncidencia = 'leve' | 'moderada' | 'critica'
+
+export type EstadoIncidencia = 'abierta' | 'en_revision' | 'resuelta'
+
+export interface IncidenciaResponse {
+  id: number
+  activo_fijo_id: number
+  activo_fijo_nombre: string | null
+  activo_fijo_codigo: string | null
+  tipo: TipoIncidencia
+  descripcion: string
+  sala_id: number | null
+  sala_nombre: string | null
+  fecha_hora: string
+  responsable_nombre: string | null
+  severidad: SeveridadIncidencia
+  estado: EstadoIncidencia
+  foto_b64: string | null
+  activo: boolean
+}
+
+export interface IncidenciaCreate {
+  activo_fijo_id: number
+  tipo: TipoIncidencia
+  descripcion: string
+  sala_id: number
+  responsable_nombre?: string | null
+  fecha_hora?: string | null
+  severidad: SeveridadIncidencia
+  estado?: EstadoIncidencia
+  foto_b64?: string | null
+}
+
+export interface IncidenciaUpdate {
+  tipo?: TipoIncidencia
+  descripcion?: string
+  sala_id?: number | null
+  fecha_hora?: string | null
+  responsable_nombre?: string | null
+  severidad?: SeveridadIncidencia
+  estado?: EstadoIncidencia
+  foto_b64?: string | null
+}

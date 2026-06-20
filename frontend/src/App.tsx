@@ -27,6 +27,7 @@ import { OrdenesMantenimiento }   from './pages/OrdenesMantenimiento'
 import { OrdenesEntrada }         from './pages/OrdenesEntrada'
 import { Proveedores }            from './pages/Proveedores'
 import { VistaSalas }             from './pages/VistaSalas'
+import { Incidencias }            from './pages/Incidencias'
 import { Layout }                 from './components/layout/Layout'
 import { useAuthStore }           from './store/auth'
 
@@ -67,6 +68,8 @@ export function App() {
             element={<ProtectedRoute roles={TODOS}><UnidadesImplemento /></ProtectedRoute>} />
           <Route path="activos-fijos"
             element={<ProtectedRoute roles={TODOS}><ActivosFijos /></ProtectedRoute>} />
+          <Route path="incidencias"
+            element={<ProtectedRoute roles={TODOS}><Incidencias /></ProtectedRoute>} />
           <Route path="movimientos"
             element={<ProtectedRoute roles={TODOS}><Movimientos /></ProtectedRoute>} />
           <Route path="categorias"

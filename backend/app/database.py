@@ -216,6 +216,26 @@ MIGRACIONES_COLUMNAS = [
         "('insumo', 'activo_fijo'); "
         "EXCEPTION WHEN duplicate_object THEN NULL; END $$"
     ),
+    # Enums para Incidencia
+    (
+        "DO $$ BEGIN "
+        "CREATE TYPE tipoincidencia AS ENUM ("
+        "'dano_fisico', 'pieza_perdida', 'mal_funcionamiento', 'otro'"
+        "); "
+        "EXCEPTION WHEN duplicate_object THEN NULL; END $$"
+    ),
+    (
+        "DO $$ BEGIN "
+        "CREATE TYPE severidadincidencia AS ENUM "
+        "('leve', 'moderada', 'critica'); "
+        "EXCEPTION WHEN duplicate_object THEN NULL; END $$"
+    ),
+    (
+        "DO $$ BEGIN "
+        "CREATE TYPE estadoincidencia AS ENUM "
+        "('abierta', 'en_revision', 'resuelta'); "
+        "EXCEPTION WHEN duplicate_object THEN NULL; END $$"
+    ),
 ]
 
 MIGRACIONES_ENUM = [
