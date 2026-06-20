@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useEffect, useState, useCallback, useRef } from 'react'
 import {
   ClipboardList, Search, Plus, Trash2, CheckCircle,

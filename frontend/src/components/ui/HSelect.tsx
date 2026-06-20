@@ -40,6 +40,7 @@ interface HSelectProps {
   placeholder?: string
   size?: 'sm' | 'md'
   disabled?: boolean
+  required?: boolean
   className?: string
 }
 

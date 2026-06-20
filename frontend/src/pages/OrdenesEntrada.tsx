@@ -349,7 +349,7 @@ export function OrdenesEntrada() {
         tipo === 'pdf' ? 'application/pdf'
           : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
       )
-      const url = URL.createObjectURL(new Blob([data], { type: mime }))
+      const url = URL.createObjectURL(new Blob([data], { type: mime as string }))
       const a = document.createElement('a')
       a.href = url
       a.download = `orden_entrada_${id}.${tipo === 'pdf' ? 'pdf' : 'xlsx'}`

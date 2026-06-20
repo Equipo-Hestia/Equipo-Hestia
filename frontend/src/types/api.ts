@@ -209,11 +209,13 @@ export interface GenerarLoteResponse {
 
 export interface LoginResponse {
   requires_2fa: boolean
+  requires_2fa_setup?: boolean
   access_token: string | null
   token_type: string
   usuario: string | null
   rol: string | null
   pre_token: string | null
+  recovery_codes?: string[] | null
 }
 
 export interface UsuarioMe {
