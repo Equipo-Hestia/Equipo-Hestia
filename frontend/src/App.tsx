@@ -12,6 +12,7 @@ import { Configuracion2FA }       from './pages/Configuracion2FA'
 import { ImportarInsumos }        from './pages/ImportarInsumos'
 import { ImportarHorario }        from './pages/ImportarHorario'
 import { ImportarProgramacion }   from './pages/ImportarProgramacion'
+import { Importaciones }          from './pages/Importaciones'
 import { VerHorario }             from './pages/VerHorario'
 import { Perfil }                 from './pages/Perfil'
 import { Usuarios }               from './pages/Usuarios'
@@ -96,6 +97,8 @@ export function App() {
             element={<ProtectedRoute roles={COORD_ADMIN}><Asignaturas /></ProtectedRoute>} />
           <Route path="horario"
             element={<ProtectedRoute roles={COORD_ADMIN}><VerHorario /></ProtectedRoute>} />
+          <Route path="importaciones"
+            element={<ProtectedRoute roles={COORD_ADMIN}><Importaciones /></ProtectedRoute>} />
           <Route path="importar-programacion"
             element={<ProtectedRoute roles={COORD_ADMIN}><ImportarProgramacion /></ProtectedRoute>} />
           <Route path="ordenes-entrada"

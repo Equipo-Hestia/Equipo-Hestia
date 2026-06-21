@@ -1,14 +1,14 @@
-import { NavLink, useNavigate } from 'react-router-dom'
+import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, AlertTriangle, Package,
   ArrowLeftRight, Tag,
   LogOut, ShieldCheck, Upload,
   UserCircle, Users, ScrollText,
   BookOpen, GraduationCap,
-  Calendar, CalendarDays, BarChart2,
-  ChevronLeft, ChevronRight, Sun, Moon,
+  CalendarDays, BarChart2,
+  ChevronLeft, ChevronRight, ChevronDown, Sun, Moon,
   Sofa, FlaskConical, ClipboardCheck, Wrench,
-  Building2, MapPin, CalendarRange, ShoppingCart, AlertOctagon,
+  Building2, MapPin, ShoppingCart, AlertOctagon,
 } from 'lucide-react'
 import { useAuthStore } from '../../store/auth'
 import { useThemeStore } from '../../store/theme'
@@ -16,16 +16,18 @@ import { Logo } from '../ui/Logo'
 import { useState, useEffect, useCallback } from 'react'
 
 type NavSection = {
-  label: string
-  roles: string[]
-  items: NavItem[]
+  label:       string
+  roles:       string[]
+  defaultOpen: boolean
+  items:       NavItem[]
 }
 
 type NavItem = {
-  to:    string
-  icon:  React.ElementType
-  label: string
-  roles: string[]
+  to:      string
+  icon:    React.ElementType
+  label:   string
+  roles:   string[]
+  matches?: string[]
 }
 
 const TODOS       = ['admin', 'operador_coordinador', 'operador', 'visor']
@@ -37,6 +39,7 @@ const NAV_SECTIONS: NavSection[] = [
   {
     label: 'General',
     roles: TODOS,
+    defaultOpen: true,
     items: [
       { to: '/dashboard',    icon: LayoutDashboard, label: 'Dashboard',             roles: TODOS },
       { to: '/alertas',      icon: AlertTriangle,   label: 'Alertas',               roles: TODOS },
@@ -51,6 +54,7 @@ const NAV_SECTIONS: NavSection[] = [
   {
     label: 'Planificacion',
     roles: TODOS,
+    defaultOpen: true,
     items: [
       { to: '/vista-salas',     icon: MapPin,         label: 'Vista de Salas',      roles: TODOS },
       { to: '/preparar-taller', icon: ClipboardCheck, label: 'Preparar taller',     roles: NO_VISOR },
@@ -62,17 +66,17 @@ const NAV_SECTIONS: NavSection[] = [
   {
     label: 'Administracion',
     roles: COORD_ADMIN,
+    defaultOpen: false,
     items: [
-      { to: '/ordenes-entrada',       icon: ShoppingCart,  label: 'Ordenes de Entrada',    roles: COORD_ADMIN },
-      { to: '/proveedores',           icon: Building2,     label: 'Proveedores',            roles: COORD_ADMIN },
-      { to: '/clases-docente',        icon: GraduationCap, label: 'Docentes y Clases',      roles: COORD_ADMIN },
-      { to: '/asignaturas',           icon: BookOpen,      label: 'Asignaturas',            roles: COORD_ADMIN },
-      { to: '/horario',               icon: CalendarDays,  label: 'Ver Horario',            roles: COORD_ADMIN },
-      { to: '/importar-programacion', icon: CalendarRange, label: 'Importar Programacion',  roles: COORD_ADMIN },
-      { to: '/importar-horario',      icon: Calendar,      label: 'Importar Horario',       roles: SOLO_ADMIN },
-      { to: '/importar',              icon: Upload,        label: 'Importar Insumos',       roles: SOLO_ADMIN },
-      { to: '/usuarios',              icon: Users,         label: 'Usuarios',               roles: SOLO_ADMIN },
-      { to: '/audit-log',             icon: ScrollText,    label: 'Audit Log',              roles: SOLO_ADMIN },
+      { to: '/ordenes-entrada', icon: ShoppingCart,  label: 'Ordenes de Entrada', roles: COORD_ADMIN },
+      { to: '/proveedores',     icon: Building2,     label: 'Proveedores',       roles: COORD_ADMIN },
+      { to: '/clases-docente',  icon: GraduationCap, label: 'Docentes y Clases', roles: COORD_ADMIN },
+      { to: '/asignaturas',     icon: BookOpen,       label: 'Asignaturas',      roles: COORD_ADMIN },
+      { to: '/horario',         icon: CalendarDays,   label: 'Ver Horario',      roles: COORD_ADMIN },
+      { to: '/importaciones',   icon: Upload,         label: 'Importaciones',    roles: COORD_ADMIN,
+        matches: ['/importar-programacion', '/importar-horario', '/importar'] },
+      { to: '/usuarios',        icon: Users,          label: 'Usuarios',         roles: SOLO_ADMIN },
+      { to: '/audit-log',       icon: ScrollText,     label: 'Audit Log',        roles: SOLO_ADMIN },
     ],
   },
 ]
@@ -84,10 +88,32 @@ const ROL_LABELS: Record<string, string> = {
   visor:                'Visor',
 }
 
-const SIDEBAR_KEY  = 'hestia-sidebar-collapsed'
-const LABEL_OUT_MS = 110
-const WIDTH_MS     = 260
-const LABEL_IN_MS  = 140
+const SIDEBAR_KEY   = 'hestia-sidebar-collapsed'
+const SECTIONS_KEY  = 'hestia-sidebar-sections'
+const LABEL_OUT_MS  = 110
+const WIDTH_MS      = 260
+const LABEL_IN_MS   = 140
+const SECTION_MS    = 220
+const ROW_H         = 34
+
+function leerSeccionesGuardadas(): Record<string, boolean> {
+  const base: Record<string, boolean> = {}
+  NAV_SECTIONS.forEach(s => { base[s.label] = s.defaultOpen })
+  const guardado = localStorage.getItem(SECTIONS_KEY)
+  if (!guardado) return base
+  try {
+    return { ...base, ...JSON.parse(guardado) }
+  } catch {
+    return base
+  }
+}
+
+function itemEsActivo(item: NavItem, pathname: string): boolean {
+  const coincide = (ruta: string) =>
+    pathname === ruta || pathname.startsWith(`${ruta}/`)
+  if (coincide(item.to)) return true
+  return (item.matches ?? []).some(coincide)
+}
 
 function Tooltip({ label }: { label: string }) {
   return (
@@ -109,9 +135,10 @@ interface NavItemRowProps {
   item:          NavItem
   collapsed:     boolean
   labelsVisible: boolean
+  forceActive:   boolean
 }
 
-function NavItemRow({ item, collapsed, labelsVisible }: NavItemRowProps) {
+function NavItemRow({ item, collapsed, labelsVisible, forceActive }: NavItemRowProps) {
   const { icon: Icon, to, label } = item
   const baseCls = `
     relative group flex items-center gap-2.5
@@ -124,22 +151,24 @@ function NavItemRow({ item, collapsed, labelsVisible }: NavItemRowProps) {
   return (
     <NavLink to={to}
       className={({ isActive }) =>
-        `${baseCls} ${isActive ? activeCls : inactiveCls}`}
+        `${baseCls} ${ (isActive || forceActive) ? activeCls : inactiveCls}`}
     >
-      {({ isActive }) => (
+      {({ isActive: navLinkActivo }) => {
+        const activo = navLinkActivo || forceActive
+        return (
         <>
           {!collapsed && (
             <span
               className="absolute left-0 top-1/2 -translate-y-1/2
                          w-[2.5px] rounded-r-full transition-all duration-200"
               style={{
-                height:     isActive ? '16px' : '0px',
-                background: isActive ? 'var(--h-teal-hover)' : 'transparent',
+                height:     activo ? '16px' : '0px',
+                background: activo ? 'var(--h-teal-hover)' : 'transparent',
               }}
             />
           )}
           <Icon size={16} className="flex-shrink-0 transition-colors duration-150"
-            style={{ color: isActive ? 'var(--h-teal-hover)' : 'inherit' }} />
+            style={{ color: activo ? 'var(--h-teal-hover)' : 'inherit' }} />
           {!collapsed && (
             <span
               className="text-[13px] font-medium truncate min-w-0 flex-1"
@@ -154,7 +183,8 @@ function NavItemRow({ item, collapsed, labelsVisible }: NavItemRowProps) {
           )}
           {collapsed && <Tooltip label={label} />}
         </>
-      )}
+        )
+      }}
     </NavLink>
   )
 }
@@ -163,14 +193,36 @@ export function Sidebar() {
   const { logout, user } = useAuthStore()
   const { isDark, toggleTheme } = useThemeStore()
   const navigate = useNavigate()
+  const location = useLocation()
 
   const [collapsed,     setCollapsed]     =
     useState<boolean>(() => localStorage.getItem(SIDEBAR_KEY) === 'true')
   const [labelsVisible, setLabelsVisible] = useState<boolean>(!collapsed)
+  const [openSections,  setOpenSections]  =
+    useState<Record<string, boolean>>(leerSeccionesGuardadas)
 
   useEffect(() => {
     localStorage.setItem(SIDEBAR_KEY, String(collapsed))
   }, [collapsed])
+
+  useEffect(() => {
+    localStorage.setItem(SECTIONS_KEY, JSON.stringify(openSections))
+  }, [openSections])
+
+  // Si el usuario navega a una ruta dentro de una categoria colapsada,
+  // esa categoria se abre automaticamente para no perder el contexto.
+  useEffect(() => {
+    const seccionActiva = NAV_SECTIONS.find(s =>
+      s.items.some(item => itemEsActivo(item, location.pathname))
+    )
+    if (seccionActiva && !openSections[seccionActiva.label]) {
+      setOpenSections(prev => ({ ...prev, [seccionActiva.label]: true }))
+    }
+  }, [location.pathname])
+
+  function toggleSection(label: string) {
+    setOpenSections(prev => ({ ...prev, [label]: !prev[label] }))
+  }
 
   const handleCollapse = useCallback(() => {
     if (!collapsed) {
@@ -231,22 +283,45 @@ export function Sidebar() {
           )
           if (visibleItems.length === 0) return null
           if (!section.roles.includes(user.rol as string)) return null
+          const isOpen = collapsed ? true : (openSections[section.label] ?? section.defaultOpen)
           return (
             <div key={section.label}>
               {!collapsed && (
-                <p className="px-2.5 mb-1 text-[10px] font-semibold uppercase
-                               tracking-widest text-h-tertiary select-none"
+                <button
+                  type="button"
+                  onClick={() => toggleSection(section.label)}
+                  aria-expanded={isOpen}
+                  className="w-full flex items-center gap-1.5 px-2.5 py-1 -mx-0.5 mb-1
+                             rounded-md hover:bg-h-elevated transition-colors duration-150"
                   style={{
                     opacity:    labelsVisible ? 1 : 0,
                     transition: `opacity ${LABEL_IN_MS}ms ease`,
                   }}>
-                  {section.label}
-                </p>
+                  <span className="flex-1 text-left text-[10px] font-semibold uppercase
+                                   tracking-widest text-h-tertiary select-none">
+                    {section.label}
+                  </span>
+                  {!isOpen && (
+                    <span className="text-[10px] text-h-tertiary bg-h-elevated
+                                     rounded-full px-1.5 leading-4">
+                      {visibleItems.length}
+                    </span>
+                  )}
+                  <ChevronDown size={13} className="text-h-tertiary flex-shrink-0
+                    transition-transform duration-200"
+                    style={{ transform: isOpen ? 'rotate(0deg)' : 'rotate(-90deg)' }} />
+                </button>
               )}
-              <div className="space-y-0.5">
+              <div
+                className="overflow-hidden space-y-0.5"
+                style={{
+                  maxHeight:  isOpen ? `${visibleItems.length * ROW_H + 4}px` : '0px',
+                  transition: `max-height ${SECTION_MS}ms ease`,
+                }}>
                 {visibleItems.map(item => (
                   <NavItemRow key={item.to} item={item}
-                    collapsed={collapsed} labelsVisible={labelsVisible} />
+                    collapsed={collapsed} labelsVisible={labelsVisible}
+                    forceActive={itemEsActivo(item, location.pathname)} />
                 ))}
               </div>
             </div>
