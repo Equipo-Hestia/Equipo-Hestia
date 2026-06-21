@@ -258,11 +258,13 @@ function IncidenciaModal({ incidencia, salas, onClose, onSaved }: ModalProps) {
       ? new Date(incidencia.fecha_hora).toISOString().slice(0, 16)
       : ahoraLocal
   )
-  // docenteNombre es solo lectura: se obtiene de ProgramacionTaller al seleccionar sala.
-  const [docenteNombre, setDocenteNombre] = useState<string | null>(
-    incidencia?.responsable_nombre ?? null
-  )
+  // docenteNombre: auto-relleno desde ProgramacionTaller (solo lectura).
+  const [docenteNombre, setDocenteNombre] = useState<string | null>(null)
   const [cargandoDocente, setCargandoDocente] = useState(false)
+  // agregarResponsableManual: activo cuando no hay docente en el horario
+  // y el usuario elige agregar un responsable manualmente.
+  const [agregarResponsableManual, setAgregarResponsableManual] = useState(false)
+  const [responsableManual, setResponsableManual] = useState('')
   const [severidad, setSeveridad] = useState<string>(incidencia?.severidad ?? 'leve')
   const [estado, setEstado] = useState<string>(incidencia?.estado ?? 'abierta')
   const [fotoB64, setFotoB64] = useState<string | null>(incidencia?.foto_b64 ?? null)
@@ -271,18 +273,39 @@ function IncidenciaModal({ incidencia, salas, onClose, onSaved }: ModalProps) {
 
   const salaOpts = salas.map(s => ({ value: String(s.id), label: s.nombre }))
 
-  async function buscarDocente(nuevoSalaId: string, nuevaFecha: string) {
+  async function buscarDocente(
+    nuevoSalaId: string,
+    nuevaFecha: string,
+    fallback?: string | null,
+  ) {
     if (!nuevoSalaId || !nuevaFecha) return
     setCargandoDocente(true)
     setDocenteNombre(null)
+    setAgregarResponsableManual(false)
+    setResponsableManual('')
     try {
       const { data } = await api.get<{ docente_nombre: string | null }>(
         '/incidencias/docente-sugerido',
         { params: { sala_id: nuevoSalaId, fecha: nuevaFecha.slice(0, 10) } }
       )
       setDocenteNombre(data.docente_nombre)
+      // Si no hay docente pero había un responsable guardado (caso edición),
+      // pre-abrir el campo manual con ese valor.
+      if (!data.docente_nombre && fallback) {
+        setAgregarResponsableManual(true)
+        setResponsableManual(fallback)
+      }
     } catch { /* silencioso */ } finally { setCargandoDocente(false) }
   }
+
+  // Al editar, busca el docente de inmediato con el sala+fecha ya cargados.
+  useEffect(() => {
+    if (!esNueva && salaId && fechaHora) {
+      buscarDocente(salaId, fechaHora, incidencia?.responsable_nombre ?? null)
+    }
+    // Solo al montar
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   function handleSalaChange(val: string) {
     setSalaId(val)
@@ -306,6 +329,10 @@ function IncidenciaModal({ incidencia, salas, onClose, onSaved }: ModalProps) {
     if (!activoId) { setError('Selecciona el equipo afectado'); return }
     if (!descripcion.trim()) { setError('La descripción es obligatoria'); return }
     if (!salaId) { setError('La sala es obligatoria'); return }
+    const responsableFinal =
+      docenteNombre
+      ?? (agregarResponsableManual ? responsableManual.trim() || null : null)
+
     setGuardando(true); setError('')
     try {
       if (esNueva) {
@@ -314,7 +341,7 @@ function IncidenciaModal({ incidencia, salas, onClose, onSaved }: ModalProps) {
           tipo: tipo as TipoIncidencia,
           descripcion: descripcion.trim(),
           sala_id: parseInt(salaId),
-          responsable_nombre: docenteNombre ?? null,
+          responsable_nombre: responsableFinal,
           fecha_hora: fechaHora ? new Date(fechaHora).toISOString() : null,
           severidad: severidad as SeveridadIncidencia,
           estado: estado as EstadoIncidencia,
@@ -326,7 +353,7 @@ function IncidenciaModal({ incidencia, salas, onClose, onSaved }: ModalProps) {
           tipo: tipo as TipoIncidencia,
           descripcion: descripcion.trim(),
           sala_id: salaId ? parseInt(salaId) : null,
-          responsable_nombre: docenteNombre ?? null,
+          responsable_nombre: responsableFinal,
           fecha_hora: fechaHora ? new Date(fechaHora).toISOString() : null,
           severidad: severidad as SeveridadIncidencia,
           estado: estado as EstadoIncidencia,
@@ -420,28 +447,115 @@ function IncidenciaModal({ incidencia, salas, onClose, onSaved }: ModalProps) {
             />
           </div>
 
-          {/* Responsable — solo lectura, obtenido de ProgramacionTaller */}
-          <div>
-            <label className={labelCls}>Docente asignado a la sala</label>
-            <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg border
-                            text-sm border-h-subtle"
-              style={{ background: 'var(--h-bg-elevated)' }}>
-              {cargandoDocente ? (
-                <span className="text-h-tertiary flex items-center gap-2">
-                  <RefreshCw size={12} className="animate-spin" /> Buscando docente...
-                </span>
-              ) : docenteNombre ? (
-                <span className="text-h-primary font-medium">{docenteNombre}</span>
-              ) : salaId ? (
-                <span className="text-h-tertiary italic">
-                  Sin docente asignado en el horario para esta sala y fecha
-                </span>
-              ) : (
+          {/* Responsable */}
+          <div className="space-y-2">
+            <label className={labelCls}>Responsable de uso</label>
+
+            {/* Estado: sin sala aún */}
+            {!salaId && !cargandoDocente && (
+              <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg border
+                              text-sm border-h-subtle"
+                style={{ background: 'var(--h-bg-elevated)' }}>
                 <span className="text-h-tertiary italic">
                   Se completará al seleccionar la sala
                 </span>
-              )}
-            </div>
+              </div>
+            )}
+
+            {/* Estado: buscando */}
+            {cargandoDocente && (
+              <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg border
+                              text-sm border-h-subtle"
+                style={{ background: 'var(--h-bg-elevated)' }}>
+                <RefreshCw size={12} className="animate-spin text-h-tertiary" />
+                <span className="text-h-tertiary">Buscando docente asignado...</span>
+              </div>
+            )}
+
+            {/* Estado: docente encontrado en el horario */}
+            {!cargandoDocente && docenteNombre && (
+              <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg border
+                              text-sm border-h-subtle"
+                style={{ background: 'var(--h-bg-elevated)' }}>
+                <span className="text-h-primary font-medium">{docenteNombre}</span>
+                <span className="ml-auto text-[10px] font-semibold uppercase
+                                 tracking-widest px-1.5 py-0.5 rounded"
+                  style={{
+                    background: 'var(--h-teal-subtle)',
+                    color: 'var(--h-teal-hover)',
+                  }}>
+                  Del horario
+                </span>
+              </div>
+            )}
+
+            {/* Estado: sin docente en el horario → pregunta */}
+            {!cargandoDocente && salaId && !docenteNombre && (
+              <div className="rounded-xl border border-h-subtle overflow-hidden"
+                style={{ background: 'var(--h-bg-elevated)' }}>
+                <div className="flex items-start gap-2 px-3 py-2.5 border-b
+                                border-h-subtle"
+                  style={{ background: 'var(--h-sem-warning-bg, #fef9c3)' }}>
+                  <span className="text-xs font-medium"
+                    style={{ color: 'var(--h-sem-warning-text, #854d0e)' }}>
+                    Sin docente asignado en el horario para esta sala y fecha.
+                  </span>
+                </div>
+                {!agregarResponsableManual ? (
+                  <div className="flex items-center justify-between px-3 py-2.5">
+                    <span className="text-sm text-h-secondary">
+                      ¿Deseas agregar un responsable?
+                    </span>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setAgregarResponsableManual(true)}
+                        className="px-3 py-1 rounded-lg text-xs font-semibold
+                                   text-white transition-colors"
+                        style={{ background: 'var(--h-teal-rest)' }}
+                        onMouseEnter={e =>
+                          (e.currentTarget.style.background = 'var(--h-teal-hover)')}
+                        onMouseLeave={e =>
+                          (e.currentTarget.style.background = 'var(--h-teal-rest)')}
+                      >
+                        Sí
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setAgregarResponsableManual(false); setResponsableManual('') }}
+                        className="px-3 py-1 rounded-lg text-xs font-semibold
+                                   text-h-secondary border border-h-subtle
+                                   hover:bg-h-surface transition-colors"
+                        style={{ background: 'var(--h-bg-surface)' }}
+                      >
+                        No
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="px-3 py-2.5">
+                    <input
+                      className="w-full px-3 py-2 rounded-lg text-h-primary text-sm
+                                 focus:outline-none transition-all bg-h-surface border
+                                 border-h-visible focus:border-h-strong
+                                 placeholder:text-h-tertiary"
+                      value={responsableManual}
+                      onChange={e => setResponsableManual(e.target.value)}
+                      placeholder="Nombre del responsable..."
+                      autoFocus
+                    />
+                    <button
+                      type="button"
+                      onClick={() => { setAgregarResponsableManual(false); setResponsableManual('') }}
+                      className="mt-1.5 text-xs text-h-tertiary hover:text-h-secondary
+                                 transition-colors"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Severidad y Estado en fila */}
