@@ -4,6 +4,7 @@ import { api } from '../api/client'
 import { useAuthStore } from '../store/auth'
 import type { CategoriaResponse, CategoriaCreate, PaginatedResponse } from '../types/api'
 import { Modal } from '../components/ui/Modal'
+import { TableRowSkeleton } from '../components/ui/Skeleton'
 
 const PAGE_SIZE = 20
 
@@ -16,6 +17,7 @@ export function Categorias() {
   const [total, setTotal]           = useState(0)
   const [page, setPage]             = useState(0)
   const [loading, setLoading]       = useState(true)
+  const [hoveredId, setHoveredId]   = useState<number | null>(null)
   const [editTarget, setEditTarget] = useState<CategoriaResponse | null>(null)
   const [showCrear, setShowCrear]   = useState(false)
   const [delTarget, setDelTarget]   = useState<CategoriaResponse | null>(null)
@@ -82,120 +84,205 @@ export function Categorias() {
     } finally { setDeleting(false) }
   }
 
-  const inputCls = `w-full px-3 py-2.5 rounded-lg border border-slate-200 text-slate-900 text-sm
-    focus:outline-none focus:ring-2 focus:ring-teal-500 bg-slate-50 focus:bg-white
-    placeholder:text-slate-400 transition-all`
+  const inputCls = `w-full px-3 py-2.5 rounded-lg text-h-primary text-sm
+    focus:outline-none transition-all bg-h-elevated border border-h-visible
+    focus:border-h-strong placeholder:text-h-tertiary`
+  const labelCls = `block text-[10px] font-semibold text-h-tertiary
+    uppercase tracking-widest mb-1.5`
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  const colCount = puedeEscribir ? 2 : 1
 
   return (
-    <div className="p-8 max-w-2xl mx-auto">
+    <div className="p-8 w-full">
       {toast && (
-        <div className="fixed top-6 right-6 z-50 flex items-center gap-2 bg-teal-600
-                        text-white px-4 py-3 rounded-xl shadow-lg text-sm font-semibold">
+        <div className="fixed top-6 right-6 z-50 flex items-center gap-2 px-4 py-3
+                        rounded-xl shadow-lg text-sm font-semibold text-white"
+          style={{ background: 'var(--h-teal-rest)' }}>
           <CheckCircle size={16} />{toast}
         </div>
       )}
 
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-black text-slate-900">Categorias</h1>
-          <p className="text-slate-500 text-sm mt-0.5">{total} categorias registradas</p>
+          <h1 className="text-2xl font-bold text-h-primary flex items-center gap-2">
+            <Tag size={22} className="text-h-accent" />
+            Categorias
+          </h1>
+          <p className="text-h-secondary text-sm mt-0.5">
+            {loading ? '...' : `${total} categorias registradas`}
+          </p>
         </div>
         {puedeEscribir && (
           <button onClick={abrirCrear}
-            className="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white
-                       font-bold px-4 py-2.5 rounded-xl text-sm transition-colors">
+            className="flex items-center gap-2 text-white font-semibold
+                       px-4 py-2.5 rounded-xl text-sm transition-colors duration-150"
+            style={{ background: 'var(--h-teal-rest)' }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'var(--h-teal-hover)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'var(--h-teal-rest)')}>
             <Plus size={16} /> Nueva categoria
           </button>
         )}
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-slate-200 bg-slate-50">
-              <th className="text-left px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Nombre</th>
-              {puedeEscribir && (
-                <th className="text-center px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Acciones</th>
-              )}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {loading ? (
-              Array.from({ length: 6 }).map((_, i) => (
-                <tr key={i}><td className="px-4 py-3" colSpan={puedeEscribir ? 2 : 1}>
-                  <div className="skeleton h-4 w-48 rounded" />
-                </td></tr>
-              ))
-            ) : categorias.length === 0 ? (
-              <tr><td colSpan={puedeEscribir ? 2 : 1} className="text-center py-16 text-slate-400">
-                <Tag size={32} className="mx-auto mb-2 opacity-30" />
-                <p className="font-semibold">Sin categorias registradas</p>
-              </td></tr>
-            ) : categorias.map(c => (
-              <tr key={c.id} className="hover:bg-slate-50 transition-colors">
-                <td className="px-4 py-3 font-semibold text-slate-900">{c.nombre}</td>
+      <div className="bg-h-surface rounded-xl border border-h-subtle overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[480px] text-sm">
+            <thead>
+              <tr className="border-b border-h-subtle bg-h-elevated">
+                <th className="text-left px-4 py-3 text-[10px] font-semibold
+                               text-h-tertiary uppercase tracking-widest">
+                  Nombre
+                </th>
                 {puedeEscribir && (
-                  <td className="px-4 py-3">
-                    <div className="flex items-center justify-center gap-2">
-                      <button onClick={() => abrirEditar(c)}
-                        className="p-1.5 rounded-lg text-slate-400 hover:bg-teal-50
-                                   hover:text-teal-600 transition-colors">
-                        <Pencil size={14} />
-                      </button>
-                      {puedeEliminar && (
-                        <button onClick={() => { setDelTarget(c); setFormError(null) }}
-                          className="p-1.5 rounded-lg text-slate-400 hover:bg-rose-50
-                                     hover:text-rose-600 transition-colors">
-                          <Trash2 size={14} />
-                        </button>
-                      )}
-                    </div>
-                  </td>
+                  <th className="text-center px-4 py-3 text-[10px] font-semibold
+                                 text-h-tertiary uppercase tracking-widest w-28">
+                    Acciones
+                  </th>
                 )}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {loading ? (
+                Array.from({ length: 6 }).map((_, i) => (
+                  <TableRowSkeleton key={i} cols={colCount} />
+                ))
+              ) : categorias.length === 0 ? (
+                <tr>
+                  <td colSpan={colCount} className="text-center py-16 text-h-tertiary">
+                    <Tag size={32} className="mx-auto mb-2 opacity-30" />
+                    <p className="font-semibold text-h-secondary">Sin categorias registradas</p>
+                  </td>
+                </tr>
+              ) : categorias.map(c => {
+                const isHovered = hoveredId === c.id
+                return (
+                  <tr key={c.id}
+                    onMouseEnter={() => setHoveredId(c.id)}
+                    onMouseLeave={() => setHoveredId(null)}
+                    className={`
+                      border-b border-h-subtle last:border-0 transition-colors duration-150
+                      ${isHovered ? 'bg-h-elevated' : ''}
+                    `}
+                  >
+                    <td className="px-4 py-3 font-medium text-h-primary">{c.nombre}</td>
+                    {puedeEscribir && (
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-center gap-1">
+                          <button onClick={() => abrirEditar(c)}
+                            className="p-1.5 rounded-lg text-h-tertiary transition-colors"
+                            onMouseEnter={e => {
+                              e.currentTarget.style.background = 'var(--h-bg-highlight)'
+                              e.currentTarget.style.color = 'var(--h-teal-hover)'
+                            }}
+                            onMouseLeave={e => {
+                              e.currentTarget.style.background = ''
+                              e.currentTarget.style.color = ''
+                            }}>
+                            <Pencil size={14} />
+                          </button>
+                          {puedeEliminar && (
+                            <button onClick={() => { setDelTarget(c); setFormError(null) }}
+                              className="p-1.5 rounded-lg text-h-tertiary transition-colors"
+                              onMouseEnter={e => {
+                                e.currentTarget.style.background = 'var(--h-sem-danger-bg)'
+                                e.currentTarget.style.color = 'var(--h-sem-danger-text)'
+                              }}
+                              onMouseLeave={e => {
+                                e.currentTarget.style.background = ''
+                                e.currentTarget.style.color = ''
+                              }}>
+                              <Trash2 size={14} />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
         {!loading && totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200">
-            <p className="text-xs text-slate-500">Página {page + 1} de {totalPages}</p>
+          <div className="flex items-center justify-between px-4 py-3 border-t border-h-subtle">
+            <p className="text-xs text-h-tertiary">
+              Pagina {page + 1} de {totalPages}
+            </p>
             <div className="flex gap-1">
               <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}
-                className="px-3 py-1 text-xs rounded-lg border border-slate-200
-                           disabled:opacity-40 hover:bg-slate-50">←</button>
+                className="px-3 py-1 text-xs rounded-lg border border-h-subtle
+                           text-h-secondary disabled:opacity-40 transition-colors"
+                style={{ background: 'var(--h-bg-elevated)' }}
+                onMouseEnter={e => {
+                  if (page !== 0) e.currentTarget.style.background = 'var(--h-bg-highlight)'
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background = 'var(--h-bg-elevated)'
+                }}>
+                ←
+              </button>
               <button onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
                 disabled={page >= totalPages - 1}
-                className="px-3 py-1 text-xs rounded-lg border border-slate-200
-                           disabled:opacity-40 hover:bg-slate-50">→</button>
+                className="px-3 py-1 text-xs rounded-lg border border-h-subtle
+                           text-h-secondary disabled:opacity-40 transition-colors"
+                style={{ background: 'var(--h-bg-elevated)' }}
+                onMouseEnter={e => {
+                  if (page < totalPages - 1) {
+                    e.currentTarget.style.background = 'var(--h-bg-highlight)'
+                  }
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background = 'var(--h-bg-elevated)'
+                }}>
+                →
+              </button>
             </div>
           </div>
         )}
       </div>
 
-      {/* Modal crear/editar */}
       {(showCrear || editTarget) && (
         <Modal title={editTarget ? 'Editar categoria' : 'Nueva categoria'} onClose={cerrar} size="sm">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">
-                Nombre *
-              </label>
+              <label className={labelCls}>Nombre *</label>
               <input type="text" required value={nombre}
                 onChange={e => { setNombre(e.target.value); setFormError(null) }}
-                className={inputCls} placeholder="Ej: Protección personal" autoFocus />
+                className={inputCls} placeholder="Ej: Proteccion personal" autoFocus />
             </div>
             {formError && (
-              <p className="text-rose-600 text-sm bg-rose-50 border border-rose-200
-                            px-3 py-2 rounded-lg font-semibold">{formError}</p>
+              <p className="text-sm px-3 py-2 rounded-lg font-semibold"
+                style={{
+                  color: 'var(--h-sem-danger-text)',
+                  background: 'var(--h-sem-danger-bg)',
+                  border: '1px solid var(--h-sem-danger-border)',
+                }}>
+                {formError}
+              </p>
             )}
             <div className="flex gap-3 pt-2">
               <button type="button" onClick={cerrar}
-                className="flex-1 py-2.5 rounded-xl border border-slate-200
-                           text-slate-600 font-bold hover:bg-slate-50">Cancelar</button>
+                className="flex-1 py-2.5 rounded-xl border border-h-subtle
+                           text-h-secondary font-semibold transition-colors"
+                style={{ background: 'var(--h-bg-elevated)' }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.background = 'var(--h-bg-highlight)'
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background = 'var(--h-bg-elevated)'
+                }}>
+                Cancelar
+              </button>
               <button type="submit" disabled={saving}
-                className="flex-1 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700
-                           text-white font-bold disabled:opacity-50">
+                className="flex-1 py-2.5 rounded-xl text-white font-semibold
+                           disabled:opacity-50 transition-colors"
+                style={{ background: 'var(--h-teal-rest)' }}
+                onMouseEnter={e => {
+                  if (!saving) e.currentTarget.style.background = 'var(--h-teal-hover)'
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background = 'var(--h-teal-rest)'
+                }}>
                 {saving ? 'Guardando...' : editTarget ? 'Guardar' : 'Crear'}
               </button>
             </div>
@@ -203,29 +290,51 @@ export function Categorias() {
         </Modal>
       )}
 
-      {/* Modal eliminar */}
       {delTarget && (
         <Modal title="Eliminar categoria" onClose={cerrar} size="sm">
           <div className="text-center">
-            <div className="w-14 h-14 bg-rose-100 rounded-full flex items-center
-                            justify-center mx-auto mb-4">
-              <Trash2 size={24} className="text-rose-600" />
+            <div className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4"
+              style={{ background: 'var(--h-sem-danger-bg)' }}>
+              <Trash2 size={24} style={{ color: 'var(--h-sem-danger-text)' }} />
             </div>
-            <p className="font-bold text-slate-900 mb-1">¿Eliminar esta categoria?</p>
-            <p className="text-slate-500 text-sm mb-6">
-              <strong>{delTarget.nombre}</strong> será eliminada permanentemente.
+            <p className="font-bold text-h-primary mb-1">Eliminar esta categoria?</p>
+            <p className="text-h-secondary text-sm mb-6">
+              <strong className="text-h-primary">{delTarget.nombre}</strong>{' '}
+              sera eliminada permanentemente.
             </p>
             {formError && (
-              <p className="text-rose-600 text-xs bg-rose-50 border border-rose-200
-                            px-3 py-2 rounded-lg font-semibold mb-4">{formError}</p>
+              <p className="text-xs px-3 py-2 rounded-lg font-semibold mb-4"
+                style={{
+                  color: 'var(--h-sem-danger-text)',
+                  background: 'var(--h-sem-danger-bg)',
+                  border: '1px solid var(--h-sem-danger-border)',
+                }}>
+                {formError}
+              </p>
             )}
             <div className="flex gap-3">
               <button onClick={cerrar}
-                className="flex-1 py-2.5 rounded-xl border border-slate-200
-                           text-slate-600 font-bold hover:bg-slate-50">Cancelar</button>
+                className="flex-1 py-2.5 rounded-xl border border-h-subtle
+                           text-h-secondary font-semibold transition-colors"
+                style={{ background: 'var(--h-bg-elevated)' }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.background = 'var(--h-bg-highlight)'
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background = 'var(--h-bg-elevated)'
+                }}>
+                Cancelar
+              </button>
               <button onClick={handleDelete} disabled={deleting}
-                className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700
-                           text-white font-bold disabled:opacity-50">
+                className="flex-1 py-2.5 rounded-xl text-white font-semibold
+                           disabled:opacity-50 transition-colors"
+                style={{ background: 'var(--h-sem-danger-border)' }}
+                onMouseEnter={e => {
+                  if (!deleting) e.currentTarget.style.opacity = '0.9'
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.opacity = ''
+                }}>
                 {deleting ? 'Eliminando...' : 'Eliminar'}
               </button>
             </div>

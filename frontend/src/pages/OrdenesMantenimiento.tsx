@@ -481,7 +481,7 @@ export function OrdenesMantenimiento() {
   })
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-5">
+    <div className="p-8 w-full space-y-5">
 
       {/* Encabezado */}
       <div className="flex flex-col sm:flex-row sm:items-start

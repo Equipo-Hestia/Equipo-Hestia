@@ -762,7 +762,7 @@ export function Incidencias() {
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-5">
+    <div className="p-8 w-full space-y-5">
       {toast && (
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2
                         text-white text-sm font-medium px-4 py-3 rounded-xl shadow-lg"

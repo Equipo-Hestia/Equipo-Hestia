@@ -673,7 +673,7 @@ export function Reportes() {
   ]
 
   return (
-    <div className="p-8 max-w-6xl mx-auto">
+    <div className="p-8 w-full">
       <div className="flex items-start justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-h-primary flex items-center gap-2">

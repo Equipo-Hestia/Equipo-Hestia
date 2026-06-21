@@ -51,7 +51,7 @@ export function Alertas() {
   const items = tab === 'activas' ? activas : resueltas
 
   return (
-    <div className="p-8 max-w-4xl mx-auto">
+    <div className="p-8 w-full">
 
       {/* Header */}
       <div className="flex items-start justify-between mb-6">

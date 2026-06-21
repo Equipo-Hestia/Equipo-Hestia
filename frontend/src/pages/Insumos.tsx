@@ -377,7 +377,7 @@ export function Insumos() {
     uppercase tracking-widest mb-1.5`
 
   return (
-    <div ref={mainRef} className="p-8 max-w-6xl mx-auto">
+    <div ref={mainRef} className="p-8 w-full">
 
       {/* Toast */}
       {toast && (

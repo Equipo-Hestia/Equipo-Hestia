@@ -192,7 +192,7 @@ export function Movimientos() {
     focus:outline-none focus:border-h-visible transition-colors`
 
   return (
-    <div className="p-8 max-w-6xl mx-auto">
+    <div className="p-8 w-full">
       {toast && (
         <div className="fixed top-6 right-6 z-50 flex items-center gap-2
                         text-white px-4 py-3 rounded-xl shadow-lg text-sm font-semibold"
