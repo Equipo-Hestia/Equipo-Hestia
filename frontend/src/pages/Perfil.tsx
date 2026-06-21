@@ -1,12 +1,19 @@
 import { useEffect, useRef, useState } from 'react'
-import { User, Lock, Shield, Mail, CheckCircle2, XCircle, Camera } from 'lucide-react'
+import { User, Lock, Shield, Mail, CheckCircle2, XCircle, Camera, Sun, Moon, Laptop } from 'lucide-react'
 import { api } from '../api/client'
 import type { UsuarioMe } from '../types/api'
 import { Badge } from '../components/ui/Badge'
+import { useThemeStore } from '../store/theme' // Importamos tu store de tema
+import { useAuthStore } from '../store/auth'
 
 export function Perfil() {
   const [usuario, setUsuario] = useState<UsuarioMe | null>(null)
   const [loading, setLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState<'general' | 'seguridad' | 'apariencia'>('general')
+
+  const { isDark, toggleTheme } = useThemeStore()
+  
+  const { updateUser } = useAuthStore()
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [avatarPreview, setPreview] = useState<string | null>(null)
@@ -78,6 +85,8 @@ export function Perfil() {
         avatar_b64: avatarPreview,
       })
       setUsuario(data); setPreview(null)
+
+      updateUser({ avatar_b64: data.avatar_b64 })
       setAvatarExito(true); setTimeout(() => setAvatarExito(false), 3000)
     } catch {
       alert('Error al guardar la foto. Intenta de nuevo.')
@@ -122,170 +131,218 @@ export function Perfil() {
   }
 
   return (
-    <div className="p-8 max-w-2xl mx-auto">
-      <h1 className="text-2xl font-black text-slate-900 mb-8">Mi perfil</h1>
+    <div className="p-8 max-w-4xl mx-auto min-h-full">
+      <h1 className="text-2xl font-semibold text-h-primary mb-8">Configuración de la cuenta</h1>
 
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 mb-6">
-        <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-5">
-          Información de la cuenta
-        </h2>
-
-        {/* Avatar */}
-        <div className="flex flex-col items-center mb-6">
-          <div
-            className="relative w-24 h-24 rounded-full overflow-hidden cursor-pointer group
-                       ring-2 ring-slate-200 hover:ring-teal-400 transition-all duration-200"
-            onClick={() => fileInputRef.current?.click()}
-            title="Cambiar foto de perfil"
-          >
-            {avatarSrc ? (
-              <img src={avatarSrc} alt="Foto de perfil" className="w-full h-full object-cover" />
-            ) : (
-              <div className="w-full h-full bg-slate-100 flex items-center justify-center">
-                <User size={38} className="text-slate-400" />
-              </div>
-            )}
-            <div className="absolute inset-0 bg-black/40 flex items-center justify-center
-                           opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-              <Camera size={22} className="text-white" />
-            </div>
-          </div>
-
-          <input
-            type="file" ref={fileInputRef} accept="image/*"
-            className="hidden" onChange={handleFileChange}
+      <div className="flex flex-col md:flex-row gap-8">
+        
+        {/* Menú Lateral de Configuración */}
+        <aside className="w-full md:w-56 flex flex-col gap-1 flex-shrink-0">
+          <TabButton 
+            active={activeTab === 'general'} 
+            onClick={() => setActiveTab('general')} 
+            icon={<User size={16} />} 
+            label="General" 
           />
+          <TabButton 
+            active={activeTab === 'seguridad'} 
+            onClick={() => setActiveTab('seguridad')} 
+            icon={<Shield size={16} />} 
+            label="Seguridad" 
+          />
+          <TabButton 
+            active={activeTab === 'apariencia'} 
+            onClick={() => setActiveTab('apariencia')} 
+            icon={<Sun size={16} />} 
+            label="Apariencia" 
+          />
+        </aside>
 
-          {avatarPreview ? (
-            <div className="flex items-center gap-2 mt-3">
-              <button
-                onClick={handleGuardarAvatar} disabled={subiendoAvatar}
-                className="px-4 py-1.5 bg-teal-600 hover:bg-teal-700 text-white text-xs
-                           font-bold rounded-lg transition-colors disabled:opacity-50"
-              >
-                {subiendoAvatar ? 'Guardando...' : 'Guardar foto'}
-              </button>
-              <button
-                onClick={() => setPreview(null)}
-                className="px-3 py-1.5 text-slate-400 hover:text-slate-600 text-xs
-                           font-semibold transition-colors"
-              >
-                Cancelar
-              </button>
+        {/* Contenido Principal */}
+        <div className="flex-1 min-w-0">
+          
+          {/* TABS: GENERAL */}
+          {activeTab === 'general' && (
+            <div className="bg-h-surface rounded-xl border border-h-subtle p-6 shadow-sm">
+              <h2 className="text-sm font-semibold text-h-primary mb-6">Información personal</h2>
+              
+              {/* Avatar Section */}
+              <div className="flex items-center gap-6 mb-8">
+                <div
+                  className="relative w-20 h-20 rounded-full overflow-hidden cursor-pointer group
+                             ring-1 ring-h-subtle hover:ring-teal-500 transition-all duration-200"
+                  onClick={() => fileInputRef.current?.click()}
+                  title="Cambiar foto de perfil"
+                >
+                  {avatarSrc ? (
+                    <img src={avatarSrc} alt="Foto de perfil" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full bg-h-elevated flex items-center justify-center">
+                      <User size={30} className="text-h-tertiary" />
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center
+                                 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                    <Camera size={20} className="text-white" />
+                  </div>
+                </div>
+
+                <input type="file" ref={fileInputRef} accept="image/*" className="hidden" onChange={handleFileChange} />
+
+                <div className="flex-1">
+                  {avatarPreview ? (
+                    <div className="flex items-center gap-2">
+                      <button onClick={handleGuardarAvatar} disabled={subiendoAvatar}
+                        className="px-4 py-2 bg-teal-600/90 hover:bg-teal-500 text-white text-xs font-semibold rounded-lg transition-colors disabled:opacity-50">
+                        {subiendoAvatar ? 'Guardando...' : 'Guardar foto'}
+                      </button>
+                      <button onClick={() => setPreview(null)}
+                        className="px-4 py-2 text-h-secondary hover:text-h-primary bg-h-elevated rounded-lg text-xs font-semibold transition-colors">
+                        Cancelar
+                      </button>
+                    </div>
+                  ) : (
+                    <div>
+                      <button onClick={() => fileInputRef.current?.click()} className="text-sm text-h-primary font-medium hover:text-teal-400 transition-colors">
+                        {usuario?.avatar_b64 ? 'Cambiar foto de perfil' : 'Subir foto de perfil'}
+                      </button>
+                      <p className="text-xs text-h-tertiary mt-1">Recomendado: JPG o PNG, max 8MB.</p>
+                    </div>
+                  )}
+                  {avatarExito && (
+                    <p className="mt-2 text-xs text-teal-400 font-medium flex items-center gap-1">
+                      <CheckCircle2 size={14} /> Foto actualizada correctamente.
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="h-px bg-h-subtle mb-6" />
+
+              {/* User Info */}
+              {loading ? (
+                <div className="space-y-4">
+                  {[...Array(3)].map((_, i) => <div key={i} className="h-6 bg-h-elevated rounded animate-pulse w-2/3" />)}
+                </div>
+              ) : usuario ? (
+                <dl className="space-y-4">
+                  <InfoRow label="Nombre" value={usuario.nombre} />
+                  <InfoRow label="Email" value={usuario.email} />
+                  <InfoRow label="Rol" value={rolLabel[usuario.rol] ?? usuario.rol} isBadge />
+                </dl>
+              ) : null}
             </div>
-          ) : (
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="mt-2 text-xs text-slate-400 hover:text-teal-600
-                         font-semibold transition-colors"
-            >
-              {usuario?.avatar_b64 ? 'Cambiar foto' : 'Subir foto de perfil'}
-            </button>
           )}
 
-          {avatarExito && (
-            <p className="mt-2 text-xs text-teal-600 font-semibold flex items-center gap-1">
-              <CheckCircle2 size={13} /> Foto actualizada
-            </p>
+          {/* TABS: SEGURIDAD */}
+          {activeTab === 'seguridad' && (
+            <div className="space-y-6">
+              {/* Autenticación 2FA Status */}
+              <div className="bg-h-surface rounded-xl border border-h-subtle p-6 shadow-sm">
+                <div className="flex items-center justify-between mb-2">
+                  <div>
+                    <h2 className="text-sm font-semibold text-h-primary">Autenticación de dos factores (2FA)</h2>
+                    <p className="text-xs text-h-tertiary mt-1">Añade una capa extra de seguridad a tu cuenta.</p>
+                  </div>
+                  {usuario?.totp_habilitado ? (
+                    <Badge variant="success">Activa</Badge>
+                  ) : (
+                    <Badge variant="warning">Inactiva</Badge>
+                  )}
+                </div>
+              </div>
+
+              {/* Cambio de Contraseña */}
+              <div className="bg-h-surface rounded-xl border border-h-subtle p-6 shadow-sm">
+                <h2 className="text-sm font-semibold text-h-primary mb-6">Cambiar contraseña</h2>
+                <form onSubmit={handleSubmit} className="space-y-5">
+                  <PasswordField label="Contraseña actual" name="password_actual" value={form.password_actual} onChange={handleChange} />
+                  <PasswordField label="Nueva contraseña" name="password_nueva" value={form.password_nueva} onChange={handleChange} hint="Debe contener al menos 8 caracteres." />
+                  <PasswordField label="Confirmar nueva contraseña" name="confirmar" value={form.confirmar} onChange={handleChange} />
+
+                  {error && (
+                    <div className="flex items-center gap-2 text-red-400 text-sm bg-red-400/10 border border-red-400/20 rounded-lg px-4 py-3">
+                      <XCircle size={16} className="flex-shrink-0" />
+                      {error}
+                    </div>
+                  )}
+
+                  {exito && (
+                    <div className="flex items-center gap-2 text-teal-400 text-sm bg-teal-400/10 border border-teal-400/20 rounded-lg px-4 py-3">
+                      <CheckCircle2 size={16} className="flex-shrink-0" />
+                      Contraseña actualizada correctamente.
+                    </div>
+                  )}
+
+                  <div className="pt-2">
+                    <button type="submit" disabled={guardando || !form.password_actual || !form.password_nueva || !form.confirmar}
+                      className="px-5 py-2.5 bg-h-primary text-h-surface hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium rounded-lg transition-all">
+                      {guardando ? 'Guardando...' : 'Actualizar contraseña'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
           )}
+
+          {/* TABS: APARIENCIA */}
+          {activeTab === 'apariencia' && (
+            <div className="bg-h-surface rounded-xl border border-h-subtle p-6 shadow-sm">
+              <h2 className="text-sm font-semibold text-h-primary mb-2">Tema de la interfaz</h2>
+              <p className="text-xs text-h-tertiary mb-6">Elige el modo en el que deseas visualizar Hestia.</p>
+
+              <div className="grid grid-cols-2 gap-4 max-w-sm">
+                <button
+                  onClick={() => isDark && toggleTheme()}
+                  className={`flex items-center justify-center gap-3 p-4 rounded-xl border transition-all ${
+                    !isDark ? 'border-teal-500 bg-teal-500/10 text-teal-400' : 'border-h-subtle bg-h-elevated text-h-secondary hover:text-h-primary'
+                  }`}
+                >
+                  <Sun size={20} />
+                  <span className="text-sm font-medium">Claro</span>
+                </button>
+                <button
+                  onClick={() => !isDark && toggleTheme()}
+                  className={`flex items-center justify-center gap-3 p-4 rounded-xl border transition-all ${
+                    isDark ? 'border-teal-500 bg-teal-500/10 text-teal-400' : 'border-h-subtle bg-h-elevated text-h-secondary hover:text-h-primary'
+                  }`}
+                >
+                  <Moon size={20} />
+                  <span className="text-sm font-medium">Oscuro</span>
+                </button>
+              </div>
+            </div>
+          )}
+
         </div>
-
-        <div className="border-t border-slate-100 mb-1" />
-
-        {loading ? (
-          <div className="space-y-3 mt-4">
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className="h-5 bg-slate-100 rounded animate-pulse" />
-            ))}
-          </div>
-        ) : usuario ? (
-          <dl className="divide-y divide-slate-100">
-            <InfoRow
-              icon={<User size={15} />}
-              label="Nombre"
-              value={<span className="font-semibold text-slate-900">{usuario.nombre}</span>}
-            />
-            <InfoRow
-              icon={<Mail size={15} />}
-              label="Email"
-              value={<span className="font-semibold text-slate-900">{usuario.email}</span>}
-            />
-            <InfoRow
-              icon={<Shield size={15} />}
-              label="Rol"
-              value={<Badge variant="info">{rolLabel[usuario.rol] ?? usuario.rol}</Badge>}
-            />
-            <InfoRow
-              icon={<CheckCircle2 size={15} />}
-              label="Autenticación 2FA"
-              value={
-                usuario.totp_habilitado
-                  ? <Badge variant="success">Activa</Badge>
-                  : <Badge variant="warning">Inactiva</Badge>
-              }
-            />
-          </dl>
-        ) : null}
-      </div>
-
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-        <div className="flex items-center gap-2 mb-5">
-          <Lock size={15} className="text-slate-400" />
-          <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-            Cambiar contraseña
-          </h2>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <PasswordField label="Contraseña actual" name="password_actual"
-            value={form.password_actual} onChange={handleChange} />
-          <PasswordField label="Contraseña nueva" name="password_nueva"
-            value={form.password_nueva} onChange={handleChange}
-            hint="Mínimo 8 caracteres" />
-          <PasswordField label="Confirmar contraseña nueva" name="confirmar"
-            value={form.confirmar} onChange={handleChange} />
-
-          {error && (
-            <div className="flex items-center gap-2 text-rose-600 text-sm
-                            bg-rose-50 border border-rose-200 rounded-lg px-4 py-2.5">
-              <XCircle size={15} className="flex-shrink-0" />
-              {error}
-            </div>
-          )}
-
-          {exito && (
-            <div className="flex items-center gap-2 text-teal-700 text-sm
-                            bg-teal-50 border border-teal-200 rounded-lg px-4 py-2.5">
-              <CheckCircle2 size={15} className="flex-shrink-0" />
-              Contraseña actualizada correctamente.
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={guardando || !form.password_actual || !form.password_nueva || !form.confirmar}
-            className="w-full mt-2 py-2.5 px-4 bg-teal-600 hover:bg-teal-700
-                       disabled:opacity-50 disabled:cursor-not-allowed
-                       text-white text-sm font-bold rounded-xl transition-colors"
-          >
-            {guardando ? 'Guardando...' : 'Cambiar contraseña'}
-          </button>
-        </form>
       </div>
     </div>
   )
 }
 
-function InfoRow({ icon, label, value }: {
-  icon: React.ReactNode; label: string; value: React.ReactNode
-}) {
+function TabButton({ active, icon, label, onClick }: { active: boolean, icon: React.ReactNode, label: string, onClick: () => void }) {
   return (
-    <div className="flex items-center justify-between gap-4 py-3">
-      <dt className="flex items-center gap-2 text-sm text-slate-500 min-w-0">
-        <span className="text-slate-400">{icon}</span>
-        {label}
-      </dt>
-      <dd className="text-sm text-right">{value}</dd>
+    <button
+      onClick={onClick}
+      className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+        active 
+          ? 'bg-h-elevated text-h-primary' 
+          : 'text-h-secondary hover:bg-h-elevated hover:text-h-primary'
+      }`}
+    >
+      <span className={active ? 'text-h-primary' : 'text-h-tertiary'}>{icon}</span>
+      {label}
+    </button>
+  )
+}
+
+function InfoRow({ label, value, isBadge }: { label: string; value: React.ReactNode, isBadge?: boolean }) {
+  return (
+    <div className="grid grid-cols-3 gap-4 py-1">
+      <dt className="text-sm font-medium text-h-secondary">{label}</dt>
+      <dd className="col-span-2 text-sm text-h-primary">
+        {isBadge ? <Badge variant="info">{value}</Badge> : value}
+      </dd>
     </div>
   )
 }
@@ -297,15 +354,14 @@ function PasswordField({ label, name, value, onChange, hint }: {
 }) {
   return (
     <div>
-      <label className="block text-xs font-semibold text-slate-600 mb-1.5">{label}</label>
+      <label className="block text-xs font-medium text-h-secondary mb-1.5">{label}</label>
       <input
-        type="password" name={name} value={value} onChange={onChange}
-        autoComplete="new-password"
-        className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm
-                   focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent
-                   transition"
+        type="password" name={name} value={value} onChange={onChange} autoComplete="new-password"
+        className="w-full px-4 py-2.5 rounded-lg border border-h-subtle bg-h-elevated text-h-primary text-sm
+                   focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-teal-500 transition-all
+                   placeholder-h-tertiary"
       />
-      {hint && <p className="text-xs text-slate-400 mt-1">{hint}</p>}
+      {hint && <p className="text-xs text-h-tertiary mt-1.5">{hint}</p>}
     </div>
   )
 }

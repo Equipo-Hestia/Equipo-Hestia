@@ -2,16 +2,15 @@ import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, AlertTriangle, Package,
   ArrowLeftRight, Tag,
-  LogOut, ShieldCheck, Upload,
+  LogOut, Upload,
   UserCircle, Users, ScrollText,
   BookOpen, GraduationCap,
   CalendarDays, BarChart2,
-  ChevronLeft, ChevronRight, ChevronDown, Sun, Moon,
+  ChevronLeft, ChevronRight, ChevronDown,
   Sofa, FlaskConical, ClipboardCheck, Wrench,
   Building2, MapPin, ShoppingCart, AlertOctagon,
 } from 'lucide-react'
 import { useAuthStore } from '../../store/auth'
-import { useThemeStore } from '../../store/theme'
 import { Logo } from '../ui/Logo'
 import { useState, useEffect, useCallback } from 'react'
 
@@ -93,8 +92,6 @@ const SECTIONS_KEY  = 'hestia-sidebar-sections'
 const LABEL_OUT_MS  = 110
 const WIDTH_MS      = 260
 const LABEL_IN_MS   = 140
-const SECTION_MS    = 220
-const ROW_H         = 34
 
 function leerSeccionesGuardadas(): Record<string, boolean> {
   const base: Record<string, boolean> = {}
@@ -191,7 +188,6 @@ function NavItemRow({ item, collapsed, labelsVisible, forceActive }: NavItemRowP
 
 export function Sidebar() {
   const { logout, user } = useAuthStore()
-  const { isDark, toggleTheme } = useThemeStore()
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -209,8 +205,6 @@ export function Sidebar() {
     localStorage.setItem(SECTIONS_KEY, JSON.stringify(openSections))
   }, [openSections])
 
-  // Si el usuario navega a una ruta dentro de una categoria colapsada,
-  // esa categoria se abre automaticamente para no perder el contexto.
   useEffect(() => {
     const seccionActiva = NAV_SECTIONS.find(s =>
       s.items.some(item => itemEsActivo(item, location.pathname))
@@ -313,16 +307,17 @@ export function Sidebar() {
                 </button>
               )}
               <div
-                className="overflow-hidden space-y-0.5"
+                className="grid transition-[grid-template-rows] duration-200 ease-in-out"
                 style={{
-                  maxHeight:  isOpen ? `${visibleItems.length * ROW_H + 4}px` : '0px',
-                  transition: `max-height ${SECTION_MS}ms ease`,
+                  gridTemplateRows: isOpen ? '1fr' : '0fr'
                 }}>
-                {visibleItems.map(item => (
-                  <NavItemRow key={item.to} item={item}
-                    collapsed={collapsed} labelsVisible={labelsVisible}
-                    forceActive={itemEsActivo(item, location.pathname)} />
-                ))}
+                <div className="overflow-hidden space-y-0.5 min-h-0">
+                  {visibleItems.map(item => (
+                    <NavItemRow key={item.to} item={item}
+                      collapsed={collapsed} labelsVisible={labelsVisible}
+                      forceActive={itemEsActivo(item, location.pathname)} />
+                  ))}
+                </div>
               </div>
             </div>
           )
@@ -332,11 +327,22 @@ export function Sidebar() {
       <div className="border-t border-h-subtle flex-shrink-0 px-2 py-3 space-y-0.5">
         <div className={`flex items-center gap-2.5 rounded-md px-2 py-2 mb-1
                          ${ collapsed ? 'justify-center' : '' }`}>
-          <div className="w-7 h-7 rounded-full flex-shrink-0 flex items-center
-                          justify-center text-[11px] font-semibold
-                          bg-h-elevated border border-h-visible text-h-secondary">
-            {initials}
-          </div>
+          
+          {/* Aquí inyectamos el Avatar si existe, o las iniciales si no hay foto */}
+          {user?.avatar_b64 ? (
+            <img 
+              src={user.avatar_b64} 
+              alt="Avatar" 
+              className="w-7 h-7 rounded-full flex-shrink-0 object-cover border border-h-subtle" 
+            />
+          ) : (
+            <div className="w-7 h-7 rounded-full flex-shrink-0 flex items-center
+                            justify-center text-[11px] font-semibold
+                            bg-h-elevated border border-h-visible text-h-secondary">
+              {initials}
+            </div>
+          )}
+
           {!collapsed && (
             <div className="min-w-0 flex-1" style={{
               opacity:    labelsVisible ? 1 : 0,
@@ -348,48 +354,29 @@ export function Sidebar() {
             </div>
           )}
         </div>
+        
         <div className="h-px bg-h-subtle mx-1 mb-1" />
-        {[
-          { to: '/perfil',    icon: UserCircle,  label: 'Mi perfil' },
-          { to: '/seguridad', icon: ShieldCheck, label: 'Seguridad' },
-        ].map(({ to, icon: Icon, label }) => (
-          <div key={to} className="relative group">
-            <NavLink to={to} className={({ isActive }) => `
-              flex items-center gap-2.5 rounded-md transition-colors duration-150
-              text-h-secondary hover:bg-h-elevated hover:text-h-primary
-              ${ isActive ? 'bg-h-elevated text-h-primary' : '' }
-              ${ collapsed ? 'justify-center px-0 py-2.5 w-full' : 'px-2.5 py-2 w-full' }
-            `}>
-              <Icon size={16} className="flex-shrink-0" />
-              {!collapsed && (
-                <span className="text-[13px] font-medium truncate" style={{
-                  opacity:    labelsVisible ? 1 : 0,
-                  transform:  labelsVisible ? 'translateX(0)' : 'translateX(-6px)',
-                  transition: `opacity ${LABEL_IN_MS}ms ease, transform ${LABEL_IN_MS}ms ease`,
-                }}>{label}</span>
-              )}
-            </NavLink>
-            {collapsed && <Tooltip label={label} />}
-          </div>
-        ))}
+        
+        {/* Solo dejamos 'Mi perfil' ya que ahí se gestionará Tema y Seguridad */}
         <div className="relative group">
-          <button onClick={toggleTheme}
-            title={isDark ? 'Modo claro' : 'Modo oscuro'}
-            className={`flex items-center gap-2.5 rounded-md w-full transition-colors duration-150
-              text-h-secondary hover:bg-h-elevated hover:text-h-primary
-              ${ collapsed ? 'justify-center px-0 py-2.5' : 'px-2.5 py-2' }`}>
-            {isDark ? <Sun size={16} className="flex-shrink-0" />
-                    : <Moon size={16} className="flex-shrink-0" />}
+          <NavLink to="/perfil" className={({ isActive }) => `
+            flex items-center gap-2.5 rounded-md transition-colors duration-150
+            text-h-secondary hover:bg-h-elevated hover:text-h-primary
+            ${ isActive ? 'bg-h-elevated text-h-primary' : '' }
+            ${ collapsed ? 'justify-center px-0 py-2.5 w-full' : 'px-2.5 py-2 w-full' }
+          `}>
+            <UserCircle size={16} className="flex-shrink-0" />
             {!collapsed && (
               <span className="text-[13px] font-medium truncate" style={{
                 opacity:    labelsVisible ? 1 : 0,
                 transform:  labelsVisible ? 'translateX(0)' : 'translateX(-6px)',
                 transition: `opacity ${LABEL_IN_MS}ms ease, transform ${LABEL_IN_MS}ms ease`,
-              }}>{isDark ? 'Modo claro' : 'Modo oscuro'}</span>
+              }}>Mi perfil</span>
             )}
-          </button>
-          {collapsed && <Tooltip label={isDark ? 'Modo claro' : 'Modo oscuro'} />}
+          </NavLink>
+          {collapsed && <Tooltip label="Mi perfil" />}
         </div>
+        
         <div className="relative group">
           <button onClick={handleLogout}
             className={`flex items-center gap-2.5 rounded-md w-full transition-colors duration-150
