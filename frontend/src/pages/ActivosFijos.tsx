@@ -433,7 +433,9 @@ export function ActivosFijos() {
       {/* Encabezado */}
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-h-primary">Activos Fijos</h1>
+          <h1 className="text-2xl font-bold text-h-primary flex items-center gap-2">
+            <Sofa size={22} className="text-h-accent" />
+            Activos Fijos</h1>
           <p className="text-sm text-h-secondary mt-0.5">
             Muebles clinicos y phantomas de simulacion
           </p>

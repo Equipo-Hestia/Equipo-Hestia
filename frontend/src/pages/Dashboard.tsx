@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import GridLayout, { Layout } from 'react-grid-layout'
 import {
-  Package, AlertTriangle, ArrowUpCircle,
+  LayoutDashboard, Package, AlertTriangle, ArrowUpCircle,
   ArrowDownCircle, DoorOpen, Users, ArrowRight,
   XCircle, Activity, TrendingDown, GripVertical,
   RefreshCw, CalendarDays, Eye, EyeOff, RotateCcw,
@@ -795,7 +795,10 @@ export function Dashboard() {
       {/* Encabezado */}
       <div className="flex items-start justify-between mb-5">
         <div>
-          <h1 className="text-2xl font-black text-h-primary">Dashboard</h1>
+          <h1 className="text-2xl font-bold text-h-primary flex items-center gap-2">
+            <LayoutDashboard size={22} className="text-h-accent" />
+            Dashboard
+          </h1>
           <p className="text-h-secondary text-sm mt-0.5">
             {new Date().toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long' })}
           </p>

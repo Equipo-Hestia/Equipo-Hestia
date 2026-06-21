@@ -1053,7 +1053,9 @@ export function VistaSalas() {
       <div className="flex flex-col sm:flex-row sm:items-start
                       justify-between gap-4">
         <div className="space-y-2">
-          <h1 className="text-2xl font-bold text-h-primary">Vista de Salas</h1>
+          <h1 className="text-2xl font-bold text-h-primary flex items-center gap-2">
+            <MapPin size={22} className="text-h-accent" />
+            Vista de Salas</h1>
           <SelectorFecha
             semestres={semestres}
             semestre={semestre}

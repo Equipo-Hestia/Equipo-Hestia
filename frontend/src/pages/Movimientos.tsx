@@ -204,7 +204,9 @@ export function Movimientos() {
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-h-primary">Movimientos</h1>
+          <h1 className="text-2xl font-bold text-h-primary flex items-center gap-2">
+            <ArrowRightLeft size={22} className="text-h-accent" />
+            Movimientos</h1>
           <p className="text-h-secondary text-sm mt-0.5">
             {loading ? '...' : `${total} movimientos`}{hasFilters && ' (filtrado)'}
           </p>

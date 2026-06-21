@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { User, Lock, Shield, Mail, CheckCircle2, XCircle, Camera, Sun, Moon, Laptop } from 'lucide-react'
+import { UserCircle, User, Lock, Shield, Mail, CheckCircle2, XCircle, Camera, Sun, Moon, Laptop } from 'lucide-react'
 import { api } from '../api/client'
 import type { UsuarioMe } from '../types/api'
 import { Badge } from '../components/ui/Badge'
@@ -132,7 +132,9 @@ export function Perfil() {
 
   return (
     <div className="p-8 max-w-4xl mx-auto min-h-full">
-      <h1 className="text-2xl font-semibold text-h-primary mb-8">Configuración de la cuenta</h1>
+      <h1 className="text-2xl font-semibold text-h-primary mb-8 flex items-center gap-2">
+        <UserCircle size={22} className="text-h-accent" />
+        Configuración de la cuenta</h1>
 
       <div className="flex flex-col md:flex-row gap-8">
         

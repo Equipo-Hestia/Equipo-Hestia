@@ -56,7 +56,10 @@ export function Alertas() {
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-h-primary">Alertas de stock</h1>
+          <h1 className="text-2xl font-bold text-h-primary flex items-center gap-2">
+            <AlertTriangle size={22} className="text-h-accent" />
+            Alertas de stock
+          </h1>
           <p className="text-h-secondary text-sm mt-0.5">
             {tab === 'activas'
               ? 'Insumos con stock igual o por debajo del minimo establecido.'

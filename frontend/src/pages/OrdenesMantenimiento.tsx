@@ -487,7 +487,8 @@ export function OrdenesMantenimiento() {
       <div className="flex flex-col sm:flex-row sm:items-start
                       justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-h-primary">
+          <h1 className="text-2xl font-bold text-h-primary flex items-center gap-2">
+            <Wrench size={22} className="text-h-accent" />
             Ordenes de Mantenimiento
           </h1>
           <p className="text-sm text-h-secondary mt-0.5">

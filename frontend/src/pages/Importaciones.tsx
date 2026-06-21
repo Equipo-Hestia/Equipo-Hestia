@@ -49,7 +49,9 @@ export function Importaciones() {
   return (
     <div className="p-6 max-w-2xl mx-auto space-y-5">
       <div>
-        <h1 className="text-2xl font-bold text-h-primary">Importaciones</h1>
+        <h1 className="text-2xl font-bold text-h-primary flex items-center gap-2">
+          <Upload size={22} className="text-h-accent" />
+          Importaciones</h1>
         <p className="text-sm text-h-secondary mt-0.5">
           Elige que vas a importar.
         </p>

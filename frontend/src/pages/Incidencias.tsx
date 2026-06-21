@@ -775,7 +775,9 @@ export function Incidencias() {
       {/* Encabezado */}
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-h-primary">Incidencias</h1>
+          <h1 className="text-2xl font-bold text-h-primary flex items-center gap-2">
+            <AlertOctagon size={22} className="text-h-accent" />
+            Incidencias</h1>
           <p className="text-sm text-h-secondary mt-0.5">
             Registro de daños, piezas perdidas y mal funcionamiento en activos fijos
           </p>

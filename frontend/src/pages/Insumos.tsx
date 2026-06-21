@@ -398,7 +398,9 @@ export function Insumos() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-h-primary">Insumos e Implementos</h1>
+          <h1 className="text-2xl font-bold text-h-primary flex items-center gap-2">
+            <Package size={22} className="text-h-accent" />
+            Insumos e Implementos</h1>
           <p className="text-h-secondary text-sm mt-0.5">
             {loading ? '...' : `${total} items`}{hasFilters && ' (filtrado)'}
           </p>
