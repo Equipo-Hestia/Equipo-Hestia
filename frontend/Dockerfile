@@ -5,7 +5,7 @@ WORKDIR /app
 # Copiar manifiestos primero para aprovechar la cache de Docker.
 # Si package.json no cambia, npm install no vuelve a correr en cada build.
 COPY package.json package-lock.json* ./
-RUN npm install
+RUN npm install --legacy-peer-deps
 
 # Copiar el resto del codigo fuente
 COPY . .

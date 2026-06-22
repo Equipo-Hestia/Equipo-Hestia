@@ -1,6 +1,15 @@
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
-import GridLayout, { Layout } from 'react-grid-layout'
+import {
+  DndContext, closestCenter, KeyboardSensor, PointerSensor,
+  useSensor, useSensors, DragEndEvent, DragStartEvent, DragOverlay, defaultDropAnimationSideEffects
+} from '@dnd-kit/core'
+import {
+  arrayMove, SortableContext, sortableKeyboardCoordinates,
+  rectSortingStrategy, useSortable
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+
 import {
   LayoutDashboard, Package, AlertTriangle, ArrowUpCircle,
   ArrowDownCircle, DoorOpen, Users, ArrowRight,
@@ -19,15 +28,8 @@ import { useAuthStore } from '../store/auth'
 import { useLastUpdated } from '../hooks/useLastUpdated'
 
 // ---------------------------------------------------------------------------
-// Constantes de layout
+// Configuración de los Widgets (Bento Box Grid)
 // ---------------------------------------------------------------------------
-
-const COLS = 12
-const ROW_H = 60
-const MARGIN: [number, number] = [12, 12]
-// Clase literal — debe existir tal cual en el JSX para que Tailwind no la purgue
-// y para que react-grid-layout encuentre el handle con el selector CSS correcto.
-const DRAG_CLS = 'wdg-drag-handle'
 
 type WidgetId =
   | 'grafico_semana'
@@ -37,46 +39,24 @@ type WidgetId =
   | 'salas_hoy'
   | 'alertas'
 
-const DEFAULT_LAYOUT: Layout[] = [
-  { i: 'grafico_semana',    x: 0,  y: 0,  w: 8,  h: 5, minW: 4, minH: 4 },
-  { i: 'estado_inventario', x: 8,  y: 0,  w: 4,  h: 5, minW: 3, minH: 4 },
-  { i: 'actividad',         x: 0,  y: 5,  w: 5,  h: 6, minW: 3, minH: 4 },
-  { i: 'top_insumos',       x: 5,  y: 5,  w: 4,  h: 6, minW: 3, minH: 4 },
-  { i: 'salas_hoy',         x: 9,  y: 5,  w: 3,  h: 6, minW: 2, minH: 4 },
-  { i: 'alertas',           x: 0,  y: 11, w: 12, h: 4, minW: 6, minH: 3 },
+// Definimos el tamaño responsivo usando CSS Grid modular (True Bento)
+const WIDGET_CONFIG: Record<WidgetId, { label: string, classes: string }> = {
+  grafico_semana:    { label: 'Actividad semanal',     classes: 'col-span-12 xl:col-span-8 row-span-2' }, // 8x2 bloques
+  estado_inventario: { label: 'Estado del inventario', classes: 'col-span-12 xl:col-span-4 row-span-2' }, // 4x2 bloques
+  actividad:         { label: 'Actividad reciente',    classes: 'col-span-12 xl:col-span-5 row-span-2' }, // 5x2 bloques
+  top_insumos:       { label: 'Más retirados',         classes: 'col-span-12 xl:col-span-4 row-span-2' }, // 4x2 bloques
+  salas_hoy:         { label: 'Salas con clase hoy',   classes: 'col-span-12 xl:col-span-3 row-span-2' }, // 3x2 bloques
+  alertas:           { label: 'Alertas de stock',      classes: 'col-span-12 xl:col-span-12 row-span-1' }, // 12x1 bloques (Ocupa todo el ancho, poca altura)
+}
+
+const DEFAULT_ORDER: WidgetId[] = [
+  'grafico_semana', 'estado_inventario', 'actividad', 'top_insumos', 'salas_hoy', 'alertas'
 ]
 
-const WIDGET_LABELS: Record<WidgetId, string> = {
-  grafico_semana:    'Actividad semanal',
-  estado_inventario: 'Estado del inventario',
-  actividad:         'Actividad reciente',
-  top_insumos:       'Más retirados',
-  salas_hoy:         'Salas con clase hoy',
-  alertas:           'Alertas de stock',
-}
+const ALL_WIDGET_IDS = Object.keys(WIDGET_CONFIG) as WidgetId[]
 
-const ALL_WIDGET_IDS = Object.keys(WIDGET_LABELS) as WidgetId[]
-
-const STORAGE_LAYOUT_KEY = (uid: number) => `hestia_dash_layout_${uid}`
+const STORAGE_ORDER_KEY = (uid: number) => `hestia_dash_order_${uid}`
 const STORAGE_HIDDEN_KEY = (uid: number) => `hestia_dash_hidden_${uid}`
-
-// Fusiona un layout guardado con el default para que ningún item se pierda.
-// Items del guardado conservan su posición/tamaño; items nuevos del default
-// se añaden al final si faltan.
-function mergeLayouts(saved: Layout[], base: Layout[]): Layout[] {
-  const byId = new Map(saved.map(l => [l.i, l]))
-  return base.map(def => {
-    const s = byId.get(def.i)
-    if (!s) return def
-    // Preservar posición y tamaño pero respetar minW/minH del default
-    return {
-      ...def,
-      x: s.x, y: s.y,
-      w: Math.max(s.w, def.minW ?? 1),
-      h: Math.max(s.h, def.minH ?? 1),
-    }
-  })
-}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -92,12 +72,10 @@ function tiempoRelativo(isoFecha: string): string {
 }
 
 // ---------------------------------------------------------------------------
-// Métricas fijas (siempre arriba, no forman parte del bento)
+// Métricas fijas
 // ---------------------------------------------------------------------------
 
-function MetricasFijas({
-  resumen, loading,
-}: { resumen: ResumenResponse | null; loading: boolean }) {
+function MetricasFijas({ resumen, loading }: { resumen: ResumenResponse | null; loading: boolean }) {
   const items = [
     { label: 'Total insumos',   value: resumen?.total_insumos ?? 0,      color: 'var(--h-teal-hover)',        bg: 'var(--h-teal-subtle)',     icon: <Package size={16} />,       accent: false },
     { label: 'Bajo stock',      value: resumen?.insumos_bajo_stock ?? 0, color: 'var(--h-sem-warning-text)', bg: 'var(--h-sem-warning-bg)',  icon: <AlertTriangle size={16} />, accent: (resumen?.insumos_bajo_stock ?? 0) > 0 },
@@ -118,26 +96,9 @@ function MetricasFijas({
   return (
     <div className="grid grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
       {items.map(it => (
-        <div
-          key={it.label}
-          className="bg-h-surface border border-h-subtle rounded-xl px-4 py-3 flex flex-col gap-1.5"
-          style={{
-            borderLeftWidth: it.accent ? '3px' : undefined,
-            borderLeftColor: it.accent ? it.color : undefined,
-          }}
-        >
-          <div
-            className="w-7 h-7 rounded-lg flex items-center justify-center"
-            style={{ background: it.bg, color: it.color }}
-          >
-            {it.icon}
-          </div>
-          <p
-            className="text-2xl font-black tabular-nums"
-            style={{ color: it.accent ? it.color : 'var(--h-text-primary)' }}
-          >
-            {it.value}
-          </p>
+        <div key={it.label} className="bg-h-surface border border-h-subtle rounded-xl px-4 py-3 flex flex-col gap-1.5" style={{ borderLeftWidth: it.accent ? '3px' : undefined, borderLeftColor: it.accent ? it.color : undefined }}>
+          <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: it.bg, color: it.color }}>{it.icon}</div>
+          <p className="text-2xl font-black tabular-nums" style={{ color: it.accent ? it.color : 'var(--h-text-primary)' }}>{it.value}</p>
           <p className="text-[11px] text-h-tertiary font-medium leading-tight">{it.label}</p>
         </div>
       ))}
@@ -146,39 +107,33 @@ function MetricasFijas({
 }
 
 // ---------------------------------------------------------------------------
-// Widget wrapper
-// IMPORTANTE: la clase "wdg-drag-handle" debe aparecer literalmente aquí para
-// que Tailwind no la purgue y react-grid-layout encuentre el elemento por
-// el selector CSS ".wdg-drag-handle".
+// Contenedor Base de los Widgets (Con Drag & Drop de dnd-kit)
 // ---------------------------------------------------------------------------
 
 function WidgetCard({
-  title, icon, extra, children,
+  title, icon, extra, children, dragListeners, dragAttributes
 }: {
-  title: string
-  icon?: React.ReactNode
-  extra?: React.ReactNode
-  children: React.ReactNode
+  title: string; icon?: React.ReactNode; extra?: React.ReactNode; children: React.ReactNode;
+  dragListeners?: any; dragAttributes?: any;
 }) {
   return (
-    <div className="bg-h-surface border border-h-subtle rounded-2xl flex flex-col h-full overflow-hidden">
-      {/* cabecera: clase literal wdg-drag-handle para el draggableHandle */}
-      <div
-        className="wdg-drag-handle flex items-center justify-between
-                   px-4 py-3 border-b border-h-subtle
-                   cursor-grab active:cursor-grabbing select-none shrink-0"
-        style={{ background: 'var(--h-bg-elevated)' }}
-      >
-        <div className="flex items-center gap-2">
+    <div className="bg-h-surface border border-h-subtle rounded-2xl flex flex-col h-full overflow-hidden shadow-sm">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-h-subtle shrink-0" style={{ background: 'var(--h-bg-elevated)' }}>
+        {/* ZONA DE ARRASTRE EXCLUSIVA */}
+        <div
+          {...dragListeners}
+          {...dragAttributes}
+          className="flex items-center gap-2 cursor-grab active:cursor-grabbing select-none flex-1 touch-none focus:outline-none"
+        >
           <GripVertical size={13} className="text-h-tertiary opacity-50" />
           {icon}
           <span className="text-sm font-semibold text-h-primary">{title}</span>
         </div>
-        {extra}
+        
+        {/* ZONA DE BOTONES (No arrastrable) */}
+        {extra && <div className="flex-shrink-0 ml-2">{extra}</div>}
       </div>
-      <div className="flex-1 overflow-y-auto p-4">
-        {children}
-      </div>
+      <div className="flex-1 overflow-y-auto p-4">{children}</div>
     </div>
   )
 }
@@ -480,63 +435,55 @@ function AlertasContent({ alertas, loading }: { alertas: InsumoAlerta[]; loading
 }
 
 // ---------------------------------------------------------------------------
+// Sortable Wrapper
+// ---------------------------------------------------------------------------
+
+function SortableWidget({ id, renderContent }: { id: WidgetId, renderContent: (props: any) => React.ReactNode }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 0 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className={`${WIDGET_CONFIG[id].classes} relative`}>
+      <div className={`h-full w-full rounded-2xl transition-opacity duration-200 ${
+        // Este es el diseño del "hueco" que queda en la grilla
+        isDragging ? 'opacity-30 border-2 border-dashed border-h-teal-hover bg-h-bg-elevated' : 'opacity-100'
+      }`}>
+        {/* Ocultamos el contenido real del hueco para que no distraiga */}
+        <div className={`h-full w-full ${isDragging ? 'invisible' : 'visible'}`}>
+          {renderContent({ dragListeners: listeners, dragAttributes: attributes })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Panel de personalización
 // ---------------------------------------------------------------------------
 
-function PanelPersonalizar({
-  hiddenWidgets, onToggle, onReset, onClose,
-}: {
-  hiddenWidgets: Set<WidgetId>
-  onToggle: (id: WidgetId) => void
-  onReset: () => void
-  onClose: () => void
-}) {
+function PanelPersonalizar({ hiddenWidgets, onToggle, onReset, onClose }: any) {
   return (
-    <div
-      className="absolute right-0 top-12 z-40 w-64 rounded-2xl border border-h-subtle shadow-2xl p-4"
-      style={{ background: 'var(--h-bg-surface)' }}
-    >
+    <div className="absolute right-0 top-12 z-40 w-64 rounded-2xl border border-h-subtle shadow-2xl p-4" style={{ background: 'var(--h-bg-surface)' }}>
       <div className="flex items-center justify-between mb-3">
         <p className="text-sm font-bold text-h-primary">Personalizar</p>
-        <button
-          onClick={onReset}
-          className="flex items-center gap-1 text-xs text-h-tertiary transition-colors duration-150"
-          onMouseEnter={e => (e.currentTarget.style.color = 'var(--h-teal-hover)')}
-          onMouseLeave={e => (e.currentTarget.style.color = 'var(--h-text-tertiary)')}
-        >
-          <RotateCcw size={11} /> Restablecer
-        </button>
+        <button onClick={onReset} className="flex items-center gap-1 text-xs text-h-tertiary hover:text-h-teal-hover transition-colors"><RotateCcw size={11} /> Restablecer</button>
       </div>
       <ul className="space-y-1">
-        {ALL_WIDGET_IDS.map(id => {
-          const visible = !hiddenWidgets.has(id)
-          return (
-            <li key={id}>
-              <button
-                onClick={() => onToggle(id)}
-                className="w-full flex items-center justify-between px-2 py-1.5
-                           rounded-lg text-left transition-colors duration-150"
-                onMouseEnter={e => (e.currentTarget.style.background = 'var(--h-bg-elevated)')}
-                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-              >
-                <span className="text-xs text-h-secondary">{WIDGET_LABELS[id]}</span>
-                {visible
-                  ? <Eye size={13} style={{ color: 'var(--h-teal-hover)' }} />
-                  : <EyeOff size={13} className="text-h-tertiary" />
-                }
-              </button>
-            </li>
-          )
-        })}
+        {ALL_WIDGET_IDS.map(id => (
+          <li key={id}>
+            <button onClick={() => onToggle(id)} className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-left hover:bg-h-elevated transition-colors">
+              <span className="text-xs text-h-secondary">{WIDGET_CONFIG[id].label}</span>
+              {!hiddenWidgets.has(id) ? <Eye size={13} style={{ color: 'var(--h-teal-hover)' }} /> : <EyeOff size={13} className="text-h-tertiary" />}
+            </button>
+          </li>
+        ))}
       </ul>
-      <button
-        onClick={onClose}
-        className="mt-3 w-full text-center text-xs text-h-tertiary transition-colors duration-150"
-        onMouseEnter={e => (e.currentTarget.style.color = 'var(--h-text-secondary)')}
-        onMouseLeave={e => (e.currentTarget.style.color = 'var(--h-text-tertiary)')}
-      >
-        Cerrar
-      </button>
+      <button onClick={onClose} className="mt-3 w-full text-center text-xs text-h-tertiary hover:text-h-secondary transition-colors">Cerrar</button>
     </div>
   )
 }
@@ -550,29 +497,35 @@ export function Dashboard() {
   const uid = user?.id ?? 0
 
   const [resumen,    setResumen]    = useState<ResumenResponse | null>(null)
+  const [activeWidget, setActiveWidget] = useState<WidgetId | null>(null)
   const [alertas,    setAlertas]    = useState<InsumoAlerta[]>([])
   const [semana,     setSemana]     = useState<DiaMovimiento[]>([])
   const [actividad,  setActividad]  = useState<ActividadReciente[]>([])
   const [topInsumos, setTopInsumos] = useState<TopInsumo[]>([])
   const [salasHoy,   setSalasHoy]   = useState<SalaHoy[]>([])
+  
 
   const [loading,          setLoading]      = useState(true)
   const [chartLoading,     setChartLoading] = useState(true)
   const [actividadLoading, setActLoading]   = useState(true)
   const [topLoading,       setTopLoading]   = useState(true)
   const [salasLoading,     setSalasLoading] = useState(true)
+  
 
-  // ── Layout bento ─────────────────────────────────────────────────────────
-  // Guardamos SIEMPRE el layout completo (todos los widgets, visibles o no).
-  // Esto evita que al volver a mostrar un widget oculto su posición se pierda.
-  const [layout, setLayout] = useState<Layout[]>(() => {
+  // ── Nuevo Estado de Orden (Dnd-Kit) ──────────────────────────────────────
+  const [widgetOrder, setWidgetOrder] = useState<WidgetId[]>(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_LAYOUT_KEY(uid))
-      return saved ? mergeLayouts(JSON.parse(saved), DEFAULT_LAYOUT) : DEFAULT_LAYOUT
-    } catch { return DEFAULT_LAYOUT }
+      const saved = localStorage.getItem(STORAGE_ORDER_KEY(uid))
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        // Asegurar que no falte ningún widget nuevo si se actualizaron
+        const missing = DEFAULT_ORDER.filter(id => !parsed.includes(id))
+        return [...parsed, ...missing]
+      }
+      return DEFAULT_ORDER
+    } catch { return DEFAULT_ORDER }
   })
 
-  // ── Widgets ocultos ───────────────────────────────────────────────────────
   const [hiddenWidgets, setHiddenWidgets] = useState<Set<WidgetId>>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_HIDDEN_KEY(uid))
@@ -581,27 +534,14 @@ export function Dashboard() {
   })
 
   const [showPersonalizar, setShowPersonalizar] = useState(false)
-
-  // ── Ancho del contenedor — ResizeObserver en vez de window resize ────────
-  // El sidebar de Hestia cambia el ancho del contenido sin disparar window
-  // resize. ResizeObserver detecta el cambio directamente en el elemento.
-  const [gridWidth, setGridWidth] = useState(0)
-  const containerRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const el = containerRef.current
-    if (!el) return
-    const ro = new ResizeObserver(entries => {
-      const w = entries[0]?.contentRect.width
-      if (w && w > 0) setGridWidth(w)
-    })
-    ro.observe(el)
-    // Medición inicial (el callback del observer puede tardar un frame)
-    setGridWidth(el.offsetWidth)
-    return () => ro.disconnect()
-  }, [])
-
   const { labelTiempo, marcarActualizado } = useLastUpdated()
+
+  // ── Sensores para Dnd-Kit ────────────────────────────────────────────────
+  // El constraint de distancia evita clics accidentales como arrastres
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  )
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -647,18 +587,35 @@ export function Dashboard() {
         setSalasHoy(data)
       } finally { setSalasLoading(false) }
     }
-    loadChart(); loadActividad(); loadTop(); loadSalas()
+    
+    loadChart(); 
+    loadActividad(); 
+    loadTop(); 
+    loadSalas()
   }, [])
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
-  function handleLayoutChange(newLayout: Layout[]) {
-    // Fusionar con el layout completo para no perder los widgets ocultos
-    setLayout(prev => {
-      const updated = mergeLayouts(newLayout, prev)
-      localStorage.setItem(STORAGE_LAYOUT_KEY(uid), JSON.stringify(updated))
-      return updated
-    })
+  function handleDragStart(event: DragStartEvent) {
+    setActiveWidget(event.active.id as WidgetId)
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    setActiveWidget(null) // Soltamos la caja
+    const { active, over } = event
+    if (over && active.id !== over.id) {
+      setWidgetOrder((items) => {
+        const oldIndex = items.indexOf(active.id as WidgetId)
+        const newIndex = items.indexOf(over.id as WidgetId)
+        const newOrder = arrayMove(items, oldIndex, newIndex)
+        localStorage.setItem(STORAGE_ORDER_KEY(uid), JSON.stringify(newOrder))
+        return newOrder
+      })
+    }
+  }
+
+  function handleDragCancel() {
+    setActiveWidget(null)
   }
 
   function toggleWidget(id: WidgetId) {
@@ -672,204 +629,90 @@ export function Dashboard() {
   }
 
   function resetLayout() {
-    setLayout(DEFAULT_LAYOUT)
+    setWidgetOrder(DEFAULT_ORDER)
     setHiddenWidgets(new Set())
-    localStorage.removeItem(STORAGE_LAYOUT_KEY(uid))
+    localStorage.removeItem(STORAGE_ORDER_KEY(uid))
     localStorage.removeItem(STORAGE_HIDDEN_KEY(uid))
     setShowPersonalizar(false)
   }
 
-  // Solo los items visibles pasan al GridLayout
-  const visibleLayout = layout.filter(l => !hiddenWidgets.has(l.i as WidgetId))
+  const visibleWidgets = widgetOrder.filter(id => !hiddenWidgets.has(id))
 
-  // ── Contenido de widgets ──────────────────────────────────────────────────
-
-  const widgetContent: Record<WidgetId, React.ReactNode> = {
-    grafico_semana: (
-      <WidgetCard
-        title="Actividad semanal"
-        icon={<ArrowUpCircle size={13} style={{ color: 'var(--h-teal-hover)' }} />}
-        extra={<span className="text-xs text-h-tertiary">últimos 7 días</span>}
-      >
-        {chartLoading
-          ? <div className="h-full flex items-end gap-1.5">{Array.from({ length: 7 }).map((_, i) => (<div key={i} className="flex-1"><div className="w-full bg-h-elevated rounded-t skeleton" style={{ height: `${30 + (i * 11) % 60}%` }} /></div>))}</div>
-          : <GraficoBarras datos={semana} />
-        }
+  // ── Renderizadores de contenido por Widget ────────────────────────────────
+  const widgetRenderers: Record<WidgetId, (props: any) => React.ReactNode> = {
+    grafico_semana: (props) => (
+      <WidgetCard title="Actividad semanal" icon={<ArrowUpCircle size={13} style={{ color: 'var(--h-teal-hover)' }} />} extra={<span className="text-xs text-h-tertiary">últimos 7 días</span>} {...props}>
+        {semana.length > 0 && <GraficoBarras datos={semana} />}
       </WidgetCard>
     ),
-    estado_inventario: (
-      <WidgetCard
-        title="Estado del inventario"
-        icon={<Package size={13} className="text-h-tertiary" />}
-      >
-        {loading || !resumen
-          ? <div className="space-y-4">{Array.from({ length: 3 }).map((_, i) => (<div key={i}><div className="skeleton h-3 w-24 rounded mb-1.5" /><div className="skeleton h-2 w-full rounded-full" /></div>))}</div>
-          : (
-            <>
-              <GraficoEstado
-                total={resumen.total_insumos}
-                bajo={resumen.insumos_bajo_stock}
-                agotados={resumen.insumos_agotados}
-              />
-              {resumen.insumos_bajo_stock > 0 && (
-                <Link
-                  to="/alertas"
-                  className="mt-4 flex items-center justify-between p-2.5 rounded-xl border transition-colors duration-150"
-                  style={{ background: 'var(--h-sem-danger-bg)', borderColor: 'var(--h-sem-danger-border)' }}
-                >
-                  <div className="flex items-center gap-2">
-                    <AlertTriangle size={13} style={{ color: 'var(--h-sem-danger-text)' }} />
-                    <span className="text-xs font-semibold" style={{ color: 'var(--h-sem-danger-text)' }}>
-                      {resumen.insumos_bajo_stock} alertas activas
-                    </span>
-                  </div>
-                  <ArrowRight size={12} style={{ color: 'var(--h-sem-danger-text)' }} />
-                </Link>
-              )}
-            </>
-          )
-        }
+    estado_inventario: (props) => (
+      <WidgetCard title="Estado del inventario" icon={<Package size={13} className="text-h-tertiary" />} {...props}>
+        {resumen && <GraficoEstado total={resumen.total_insumos} bajo={resumen.insumos_bajo_stock} agotados={resumen.insumos_agotados} />}
       </WidgetCard>
     ),
-    actividad: (
-      <WidgetCard
-        title="Actividad reciente"
-        icon={<Activity size={13} className="text-h-tertiary" />}
-        extra={
-          <Link
-            to="/movimientos"
-            className="text-xs font-semibold flex items-center gap-1 transition-colors duration-150"
-            style={{ color: 'var(--h-teal-hover)' }}
-          >
-            Ver todo <ArrowRight size={11} />
-          </Link>
-        }
-      >
-        <FeedActividadContent items={actividad} loading={actividadLoading} />
+    actividad: (props) => (
+      <WidgetCard title="Actividad reciente" icon={<Activity size={13} className="text-h-tertiary" />} {...props}>
+         {actividad.length > 0 && <FeedActividadContent items={actividad} loading={actividadLoading} />}
       </WidgetCard>
     ),
-    top_insumos: (
-      <WidgetCard
-        title="Más retirados"
-        icon={<TrendingDown size={13} style={{ color: 'var(--h-sem-warning-text)' }} />}
-        extra={<span className="text-xs text-h-tertiary">últimos 30 días</span>}
-      >
-        <TopInsumosContent items={topInsumos} loading={topLoading} />
+    top_insumos: (props) => (
+      <WidgetCard title="Más retirados" icon={<TrendingDown size={13} style={{ color: 'var(--h-sem-warning-text)' }} />} {...props}>
+        {topInsumos.length > 0 && <TopInsumosContent items={topInsumos} loading={topLoading} />}
       </WidgetCard>
     ),
-    salas_hoy: (
-      <WidgetCard
-        title="Salas con clase hoy"
-        icon={<CalendarDays size={13} className="text-h-tertiary" />}
-        extra={
-          salasHoy.length > 0
-            ? <span className="text-xs font-bold" style={{ color: 'var(--h-teal-hover)' }}>{salasHoy.length}</span>
-            : null
-        }
-      >
-        <SalasHoyContent items={salasHoy} loading={salasLoading} />
+    salas_hoy: (props) => (
+      <WidgetCard title="Salas con clase hoy" icon={<CalendarDays size={13} className="text-h-tertiary" />} {...props}>
+        {salasHoy.length > 0 && <SalasHoyContent items={salasHoy} loading={salasLoading} />}
       </WidgetCard>
     ),
-    alertas: (
-      <WidgetCard
-        title="Alertas de stock"
-        icon={<AlertTriangle size={13} style={{ color: 'var(--h-sem-warning-text)' }} />}
-        extra={
-          <Link
-            to="/alertas"
-            className="text-xs font-semibold flex items-center gap-1 transition-colors duration-150"
-            style={{ color: 'var(--h-teal-hover)' }}
-          >
-            Ver todas <ArrowRight size={11} />
-          </Link>
-        }
-      >
-        <AlertasContent alertas={alertas} loading={loading} />
+    alertas: (props) => (
+      <WidgetCard title="Alertas de stock" icon={<AlertTriangle size={13} style={{ color: 'var(--h-sem-warning-text)' }} />} {...props}>
+        {alertas.length > 0 && <AlertasContent alertas={alertas} loading={loading} />}
       </WidgetCard>
     ),
   }
 
   return (
-    <div className="p-6 w-full">
-
+    <div className="p-6 w-full max-w-[1600px] mx-auto">
       {/* Encabezado */}
       <div className="flex items-start justify-between mb-5">
         <div>
-          <h1 className="text-2xl font-bold text-h-primary flex items-center gap-2">
-            <LayoutDashboard size={22} className="text-h-accent" />
-            Dashboard
-          </h1>
-          <p className="text-h-secondary text-sm mt-0.5">
-            {new Date().toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long' })}
-          </p>
+          <h1 className="text-2xl font-bold text-h-primary flex items-center gap-2"><LayoutDashboard size={22} className="text-h-accent" /> Dashboard</h1>
           <p className="text-xs text-h-tertiary mt-1">{labelTiempo}</p>
         </div>
         <div className="flex items-center gap-2 relative">
-          <button
-            onClick={load}
-            title="Actualizar"
-            className="p-2 rounded-lg border border-h-subtle bg-h-elevated text-h-tertiary transition-colors duration-150"
-            onMouseEnter={e => (e.currentTarget.style.background = 'var(--h-bg-highlight)')}
-            onMouseLeave={e => (e.currentTarget.style.background = 'var(--h-bg-elevated)')}
-          >
-            <RefreshCw size={15} />
-          </button>
-          <button
-            onClick={() => setShowPersonalizar(v => !v)}
-            title="Personalizar dashboard"
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-h-subtle
-                       bg-h-elevated text-h-secondary text-xs font-semibold transition-colors duration-150"
-            onMouseEnter={e => (e.currentTarget.style.background = 'var(--h-bg-highlight)')}
-            onMouseLeave={e => (e.currentTarget.style.background = 'var(--h-bg-elevated)')}
-          >
-            <Eye size={13} /> Personalizar
-          </button>
-          {showPersonalizar && (
-            <PanelPersonalizar
-              hiddenWidgets={hiddenWidgets}
-              onToggle={toggleWidget}
-              onReset={resetLayout}
-              onClose={() => setShowPersonalizar(false)}
-            />
-          )}
+          <button onClick={load} className="p-2 rounded-lg border border-h-subtle bg-h-elevated text-h-tertiary hover:bg-h-highlight transition-colors"><RefreshCw size={15} /></button>
+          <button onClick={() => setShowPersonalizar(v => !v)} className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-h-subtle bg-h-elevated text-h-secondary text-xs font-semibold hover:bg-h-highlight transition-colors"><Eye size={13} /> Personalizar</button>
+          {showPersonalizar && <PanelPersonalizar hiddenWidgets={hiddenWidgets} onToggle={toggleWidget} onReset={resetLayout} onClose={() => setShowPersonalizar(false)} />}
         </div>
       </div>
 
-      {/* Métricas fijas */}
       <MetricasFijas resumen={resumen} loading={loading} />
 
-      {/* Info rápida */}
-      {!loading && resumen && (
-        <p className="text-xs text-h-tertiary flex items-center gap-3 mb-3">
-          <span className="flex items-center gap-1"><DoorOpen size={12} /> {resumen.total_salas} salas</span>
-          <span className="flex items-center gap-1"><Users size={12} /> {resumen.total_usuarios} usuarios activos</span>
-        </p>
-      )}
-
-      {/* Bento grid — ref para ResizeObserver */}
-      <div ref={containerRef} className="w-full">
-        {gridWidth > 0 && (
-          <GridLayout
-            layout={visibleLayout}
-            cols={COLS}
-            rowHeight={ROW_H}
-            width={gridWidth}
-            margin={MARGIN}
-            draggableHandle={`.${DRAG_CLS}`}
-            onLayoutChange={handleLayoutChange}
-            isResizable
-            isDraggable
-            compactType="vertical"
-            preventCollision={false}
-          >
-            {visibleLayout.map(l => (
-              <div key={l.i}>
-                {widgetContent[l.i as WidgetId]}
-              </div>
+      {/* ── BENTO BOX NATIVO CON CSS GRID & DND-KIT ── */}
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={handleDragCancel}> 
+        <SortableContext items={visibleWidgets} strategy={rectSortingStrategy}>
+          {/* Añadimos grid-flow-row-dense y auto-rows-[160px] */}
+          <div className="grid grid-cols-1 md:grid-cols-6 xl:grid-cols-12 gap-4 auto-rows-[160px] grid-flow-row-dense w-full relative">
+            {visibleWidgets.map(id => (
+              <SortableWidget key={id} id={id} renderContent={widgetRenderers[id]} />
             ))}
-          </GridLayout>
-        )}
-      </div>
+          </div>
+        </SortableContext>
+
+        {/* ── LA MAGIA VISUAL: EL OVERLAY DE ARRASTRE ── */}
+        <DragOverlay dropAnimation={{
+          duration: 300,
+          easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)', // Efecto de rebote (Spring)
+          sideEffects: defaultDropAnimationSideEffects({ styles: { active: { opacity: '0.4' } } }),
+        }}>
+          {activeWidget ? (
+            <div className={`scale-105 shadow-2xl opacity-95 ${WIDGET_CONFIG[activeWidget].classes} cursor-grabbing`}>
+              {widgetRenderers[activeWidget]({ dragListeners: {}, dragAttributes: {} })}
+            </div>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
     </div>
   )
 }
