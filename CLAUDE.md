@@ -84,6 +84,17 @@ taller en sala+fecha. Importador xlsx en POST /programacion/importar-xlsx.
 checklist operativo post-taller. Items generados automaticamente desde
 PaqueteInsumo + ActivosFijo de la sala al momento de crear la revision.
 
+**`Incidencia`** (incidencias) — incidencia sobre un activo fijo.
+`tipo` (dano_fisico|pieza_perdida|mal_funcionamiento|otro),
+`severidad` (leve|moderada|critica), `estado` (abierta|en_revision|resuelta).
+Entidad independiente de `OrdenMantenimiento`; incluye foto opcional en base64.
+
+**`OrdenEntrada`** (ordenes_entrada) + `OrdenEntradaItem` (orden_entrada_items):
+orden de compra/entrada de mercaderia al inventario.
+`tipo` (semanal|semestral|emergencia), estados: borrador|confirmada|en_recepcion|cerrada|cancelada.
+El stock solo se actualiza cuando op_coord/admin cierra la orden.
+Items referencian insumos o activos_fijos existentes, o crean nuevos al cierre.
+
 ### 3.2 Endpoints relevantes
 
 **`/unidades-implemento`**
@@ -123,14 +134,18 @@ Nunca Alembic. Enum migrations con `psycopg2` + `autocommit=True`.
 
 ```
 frontend/src/pages/
-  Dashboard, Alertas, Insumos, Movimientos, Salas, Categorias
-  ActivosFijos, UnidadesImplemento, OrdenesMantenimiento
-  Paquetes, PrepararTaller
-  Asignaturas, ClasesDocente, VerHorario, ImportarHorario
-  Reportes, ImportarInsumos
+  Dashboard, Alertas, Insumos, Movimientos, Salas, VistaSalas, Categorias
+  ActivosFijos, UnidadesImplemento, OrdenesMantenimiento, Incidencias
+  Paquetes, PrepararTaller, OrdenesEntrada
+  Asignaturas, ClasesDocente, VerHorario, ImportarHorario, ImportarProgramacion
+  Reportes, Importaciones (hub), ImportarInsumos
+  Proveedores
   Perfil, Configuracion2FA, Usuarios, AuditLog
   Login, ResetPassword
 ```
+
+Nota: `SolicitudDocente.tsx`, `SolicitudOperador.tsx`, `RetornosOperador.tsx` existen como
+archivos pero NO estan en el router (paginas huerfanas, no navegar a ellas).
 
 ### 4.2 Componentes UI reutilizables
 
@@ -138,8 +153,10 @@ frontend/src/pages/
 frontend/src/components/ui/
   HSelect.tsx         — dropdown custom con tokens h-*
   Badge.tsx           — badges semanticos
+  Card.tsx            — tarjeta base con tokens h-*
   Modal.tsx           — modal base
   Skeleton.tsx        — skeletons de carga
+  TotpInput.tsx       — input de 6 digitos para TOTP
   SearchSuggestions.tsx
   BarcodeScanner.tsx
   Logo.tsx
@@ -166,9 +183,11 @@ boton solo icono `<RefreshCw size={15} />`.
 ### 4.4 Proxy Vite
 
 Prefijos registrados: `/auth`, `/insumos`, `/importar`, `/resumen`, `/salas`,
-`/categorias`, `/usuarios`, `/movimientos`, `/audit-log`, `/asignaturas`,
-`/clases-docente`, `/reportes`, `/activos-fijos`, `/unidades-implemento`,
-`/talleres`, `/paquetes`, `/ordenes-mantenimiento`, `/proveedores`.
+`/categorias`, `/usuarios`, `/movimientos`, `/audit-log`, `/solicitudes`,
+`/retornos`, `/asignaturas`, `/clases-docente`, `/docentes`, `/reportes`,
+`/activos-fijos`, `/unidades-implemento`, `/talleres`, `/paquetes`,
+`/ordenes-mantenimiento`, `/ordenes-entrada`, `/proveedores`,
+`/programacion`, `/revisiones`, `/incidencias`.
 
 ---
 
@@ -219,6 +238,10 @@ Prefijos registrados: `/auth`, `/insumos`, `/importar`, `/resumen`, `/salas`,
 | UI            | useLastUpdated en Alertas, ActivosFijos, Movimientos, AuditLog, OrdenesMantenimiento, Reportes | OK junio 2026 |
 | UI            | Dark mode completo en paginas internas (mayoría)   | OK junio 2026  |
 | Mantenimiento | Ordenes CRUD con tipo, estado, proveedor, fechas   | OK             |
+| Incidencias   | Registro de daños/mal funcionamiento en activos    | OK junio 2026  |
+| Ordenes entrada | Flujo borrador→cerrada, actualiza stock al cierre | OK junio 2026  |
+| Proveedores   | CRUD de proveedores (coord/admin)                  | OK junio 2026  |
+| Vista Salas   | Mapa SVG interactivo con estados en tiempo real    | OK junio 2026  |
 | Reportes      | Valorizacion PDF/XLSX, consumo carreras            | OK             |
 
 ### Pendiente

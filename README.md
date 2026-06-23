@@ -41,8 +41,12 @@ Hestia es una aplicación web para el control de stock de insumos e implementos 
 - **Sidebar colapsable** — menú lateral con colapso a banda de íconos y tooltips; estado persistente entre sesiones (localStorage)
 - **Modo oscuro / claro** — alternancia con botón en el sidebar; preferencia recordada entre sesiones (localStorage); Light Mode por defecto para usuarios nuevos
 - **Seguridad** — rate limiting en login, security headers HTTP, BD no expuesta a la LAN
-- **Vista de Salas** - mapa SVG interactivo del piso -1 y odontologia con estados en tiempo real (en clase, pendiente revision, revisada). Checklist operativo integrado.
-- **Importar Programacion** - carga masiva de los Excel de planificacion semestral al modelo ProgramacionTaller.
+- **Vista de Salas** — mapa SVG interactivo del piso -1 y odontología con estados en tiempo real (en clase, pendiente revisión, revisada). Checklist operativo integrado
+- **Incidencias** — registro de daños físicos, piezas perdidas o mal funcionamiento en activos fijos; con severidad (leve/moderada/crítica), estado (abierta/en revisión/resuelta) y foto adjunta opcional
+- **Órdenes de Entrada** — flujo de compra de insumos y activos fijos (borrador → confirmada → en recepción → cerrada); el stock se actualiza solo al cerrar la orden; integrado con proveedores y actividades DuocUC
+- **Proveedores** — CRUD de proveedores vinculados a activos fijos y órdenes de entrada (acceso coord/admin)
+- **Importaciones** — hub unificado para importar insumos (CSV/XLSX), horario académico (CSV DuocUC) y programación semestral (xlsx)
+- **Importar Programacion** — carga masiva de los Excel de planificación semestral al modelo ProgramacionTaller
 
 ---
 
@@ -191,10 +195,13 @@ hestia/
 ├── backend/
 │   ├── app/
 │   │   ├── models/        → SQLAlchemy (usuario, insumo, sala, categoria,
-│   │   │                               movimiento, solicitud, audit_log,
+│   │   │                               movimiento, audit_log,
 │   │   │                               asignatura, clase_docente,
-│   │   │                               retorno_implemento, activo_fijo,
-│   │   │                               taller, paquete_insumo)
+│   │   │                               activo_fijo, unidad_implemento,
+│   │   │                               taller, paquete_insumo,
+│   │   │                               programacion_taller, revision_sala,
+│   │   │                               orden_mantenimiento, incidencia,
+│   │   │                               orden_entrada, proveedor)
 │   │   ├── schemas/       → Pydantic v2
 │   │   ├── routes/        → FastAPI routers
 │   │   └── utils/         → security, deps (RBAC), rate_limit, auditoria
@@ -242,7 +249,7 @@ Ver [`.github/CONTRIBUTING.md`](.github/CONTRIBUTING.md) para más detalles.
 ## Equipo
 
 Desarrollado por estudiantes de Informática Biomédica — DuocUC San Bernardo
-Proyecto Ruta IE · Escuela de Salud · 2024–2025
+Proyecto Ruta IE · Escuela de Salud · 2024–2026
 
 ---
 
