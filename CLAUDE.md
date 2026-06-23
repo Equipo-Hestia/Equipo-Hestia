@@ -22,7 +22,8 @@ de Ruta IE. El sistema corre en red LAN interna; no tiene IP publica ni dominio.
   lucide-react ^0.396 · @zxing/browser ^0.1.4
 - Tipografia: Nunito (Google Fonts)
 - Infra: Docker Compose (5 servicios: `db`, `api`, `frontend`, `nginx`, `backup`)
-- Auth: JWT (python-jose) · bcrypt · TOTP 2FA (pyotp + QR)
+- Auth: JWT (python-jose) · bcrypt · TOTP 2FA **obligatorio** (pyotp + QR) · recuperacion
+  de contrasena por email (TokenRecuperacion)
 - CI: GitHub Actions con flake8 en push/PR a `main` y `develop`
 
 ---
@@ -73,6 +74,10 @@ obligatorio en todos los endpoints para poblar `sala_nombre` y `proveedor_nombre
 jerarquia academica. `Asignatura` tiene lazy relationships a `Taller` y `PaqueteInsumo`;
 importar ambos modelos antes de la primera query ORM en cualquier script.
 
+**`TokenRecuperacion`** — token de recuperacion de contrasena de un solo uso.
+Email + hash SHA256 del token + fecha de expiracion (1 hora). Usado por
+`/auth/recuperar-password` y `/auth/confirmar-reset`.
+
 **`OrdenMantenimiento`** — orden de mantenimiento de un activo fijo.
 Campos: `tipo_mantenimiento` (preventivo|correctivo|validacion_tecnica),
 `fecha_retorno_estimada`, estados: enviado|en_proceso|completado|cancelado.
@@ -95,7 +100,30 @@ orden de compra/entrada de mercaderia al inventario.
 El stock solo se actualiza cuando op_coord/admin cierra la orden.
 Items referencian insumos o activos_fijos existentes, o crean nuevos al cierre.
 
-### 3.2 Endpoints relevantes
+### 3.2 Flujo de autenticacion
+
+**2FA es obligatorio para todos los usuarios.** No puede desactivarse.
+
+**Flujo A — usuario con 2FA ya configurado:**
+1. `POST /auth/login` → credenciales validas → `{requires_2fa: true, pre_token}` (5 min)
+2. `POST /auth/2fa/completar-login` con `{pre_token, codigo}` → JWT completo
+
+**Flujo B — usuario sin 2FA (primer login o tras usar recovery code):**
+1. `POST /auth/login` → `{requires_2fa_setup: true, pre_token: setup_token}` (15 min)
+2. `POST /auth/2fa/setup-inicial` con `{setup_token}` → QR base64 + secret manual
+3. `POST /auth/2fa/activar-inicial` con `{setup_token, codigo}` → JWT + 10 recovery codes
+
+**Flujo C — recuperacion con recovery code (en lugar de TOTP en paso 2A):**
+1. `POST /auth/2fa/recuperar-acceso` con `{pre_token, recovery_code}` → consume el codigo,
+   deshabilita 2FA, devuelve `{requires_2fa_setup: true, setup_token}` → continua en Flujo B.
+
+**Recuperacion de contrasena (sin admin):**
+1. `POST /auth/recuperar-password` con `{email}` → genera TokenRecuperacion, envia link por email
+2. `POST /auth/confirmar-reset` con `{token, nueva_password}` → actualiza password (token 1 uso, 1h)
+
+**Politica de passwords:** minimo 8 chars, mayuscula + minuscula + numero + caracter especial.
+
+### 3.3 Endpoints relevantes
 
 **`/unidades-implemento`**
 - `POST /generar-lote` — crea N unidades en Bodega (require_operador). Tope: 500.
@@ -105,7 +133,7 @@ Items referencian insumos o activos_fijos existentes, o crean nuevos al cierre.
 - `_to_response` incluye `proveedor_id` y `proveedor_nombre` via `joinedload(proveedor)`.
 - Todos los endpoints usan `_cargar(db, id)` que hace `joinedload(sala, proveedor)`.
 
-### 3.3 RBAC
+### 3.4 RBAC
 
 ```python
 get_usuario_actual   # cualquier JWT valido
@@ -114,13 +142,13 @@ require_admin        # solo admin
 require_reportes     # admin, operador_coordinador o visor
 ```
 
-### 3.4 Reglas de migraciones
+### 3.5 Reglas de migraciones
 
 Siempre SQL idempotente en `MIGRACIONES_COLUMNAS` / `MIGRACIONES_ENUM` de `database.py`.
 Nunca Alembic. Enum migrations con `psycopg2` + `autocommit=True`.
 `create_type=False` en `SAEnum` cuando el tipo ya existe en PostgreSQL.
 
-### 3.5 Reglas de estilo Python
+### 3.6 Reglas de estilo Python
 
 - Flake8: `max-line-length=100`. Prohibidos E221, E241, E261 (alineacion vertical).
 - Rutas estaticas ANTES de dinamicas: `/buscar`, `/generar-lote`, `/exportar` antes de `/{id}`.
@@ -232,7 +260,8 @@ Prefijos registrados: `/auth`, `/insumos`, `/importar`, `/resumen`, `/salas`,
 | Activos fijos | Tabs con conteos correctos (lista todos separada)  | OK junio 2026  |
 | Alertas       | Stock activas y resueltas (Vencimientos eliminado) | OK junio 2026  |
 | Academico     | Talleres, Paquetes, ClasesDocente                  | OK             |
-| Auth          | Login + JWT + TOTP 2FA                             | OK             |
+| Auth          | Login + JWT + TOTP 2FA obligatorio + recovery codes | OK junio 2026  |
+| Auth          | Recuperacion de contrasena autoservicio por email  | OK junio 2026  |
 | Usuarios      | RBAC admin/operador_coordinador/operador/visor     | OK             |
 | UI            | HSelect en Insumos, ActivosFijos, UnidadesImplemento | OK junio 2026|
 | UI            | useLastUpdated en Alertas, ActivosFijos, Movimientos, AuditLog, OrdenesMantenimiento, Reportes | OK junio 2026 |

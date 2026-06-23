@@ -35,7 +35,8 @@ Hestia es una aplicación web para el control de stock de insumos e implementos 
 - **Exportación CSV/XLSX** — descarga del inventario con los filtros activos
 - **Gestión de usuarios** — CRUD desde la UI con roles admin / operador coordinador / operador / visor
 - **Foto de perfil** — upload con redimensionado automático a 256×256
-- **2FA** — setup wizard con códigos QR, códigos de recuperación y reset desde admin
+- **2FA obligatorio** — todos los usuarios deben configurar TOTP (Google Authenticator) en su primer login; setup wizard con código QR, 10 códigos de recuperación de un solo uso; solo el administrador puede resetear el 2FA de un usuario desde el panel de usuarios
+- **Recuperación de contraseña** — autoservicio por email sin intervención del admin; enlace válido por 1 hora
 - **Soft-delete** — usuarios e insumos se desactivan sin perder trazabilidad histórica
 - **Audit log** — historial completo de acciones con filtros
 - **Sidebar colapsable** — menú lateral con colapso a banda de íconos y tooltips; estado persistente entre sesiones (localStorage)
