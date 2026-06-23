@@ -224,7 +224,7 @@ Usar solo para el CTA principal de una vista. Ver seccion 7 para jerarquia de bo
 
 ### 5.4 TotpInput
 
-Archivo: `frontend/src/pages/Login.tsx`.
+Archivo: `frontend/src/components/ui/TotpInput.tsx`.
 
 6 slots con letras H·E·S·T·I·A como placeholder. Animacion pop al escribir cada digito.
 Al confirmar, las letras vuelan al centro con animacion staggered.
@@ -277,6 +277,12 @@ dark mode automaticamente; las clases Tailwind estandar dependen de los override
 | Usuarios             | Completo  | Migrado a h-* junio 2026                 |
 | Paquetes             | Completo  | Migrado a h-* junio 2026                 |
 | ClasesDocente        | Completo  | Sesion anterior                          |
+| Incidencias          | Completo  | Construida con h-* desde el inicio       |
+| OrdenesEntrada       | Completo  | Construida con h-* desde el inicio       |
+| Proveedores          | Completo  | Construida con h-* desde el inicio       |
+| VistaSalas           | Completo  | Construida con h-* desde el inicio       |
+| ImportarProgramacion | Completo  | Construida con h-* desde el inicio       |
+| Importaciones        | Completo  | Construida con h-* desde el inicio       |
 
 ---
 
@@ -303,7 +309,6 @@ dark mode automaticamente; las clases Tailwind estandar dependen de los override
 
 | Item                                               | Capa    | Prioridad |
 |---|---|---|
-| Dark mode en Usuarios y Paquetes                   | Layer 1 | Alta      |
 | Extraer ShimmerButton a components/ui/             | Layer 3 | Media     |
 | Fade-in de paginas al navegar entre rutas          | Layer 3 | Media     |
 | Gradiente / aurora leve en header del Sidebar      | Layer 2 | Media     |
