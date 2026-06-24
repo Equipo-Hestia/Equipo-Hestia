@@ -8,15 +8,19 @@ Uso:
 Genera:
     - 18 salas clinicas, 10 categorias
     - 5 usuarios (admin, 2 operadores, 2 visores)
-    - 2 docentes demo
-    - 20 asignaturas de 5 carreras
+    - 15 docentes
+    - 29 asignaturas de 4 carreras activas (TENS, TQF, TLCBS, TONS)
     - 88 insumos/implementos en Bodega
     - Unidades fisicas de implementos
     - ~560 movimientos en los ultimos 60 dias
-    - 6 activos fijos: 3 muebles + 3 phantomas
+    - 16 activos fijos: 8 muebles + 8 phantomas
     - 2 proveedores: Laerdal Chile y MedSupply SpA
-    - 1 orden de mantenimiento demo (SimMan 3G en_curso con Laerdal)
+    - 1 orden de mantenimiento demo (pendiente actualizacion Commit 2)
     - 10 talleres + 10 paquetes de insumos
+    - 10 programaciones de taller (semestre 2026-1)
+    - 10 revisiones de sala (8 completadas, 2 en_revision), 32 items
+    - 3 incidencias en activos fijos
+    - 3 ordenes de entrada (1 cerrada, 1 confirmada, 1 borrador), 9 items
 
 Credenciales:
     admin@hestia.duoc.cl          / Admin2024!
@@ -62,6 +66,19 @@ from app.models.orden_mantenimiento import (
     OrdenMantenimiento, OrdenMantenimientoItem,
     EstadoOrden, ResultadoItem,
 )
+# Modelos incorporados tras la version inicial del seed. Se importan aqui para
+# que el mapper de SQLAlchemy registre sus relaciones y para que el bloque de
+# limpieza pueda borrarlos en el orden FK correcto.
+from app.models.programacion_taller import ProgramacionTaller
+from app.models.revision_sala import RevisionSala, RevisionSalaItem
+from app.models.incidencia import (
+    Incidencia, TipoIncidencia, SeveridadIncidencia, EstadoIncidencia,
+)
+from app.models.orden_entrada import (
+    OrdenEntrada, OrdenEntradaItem,
+    TipoOrden, EstadoOrden as EstadoOrdenEntrada,
+    EstadoItem as EstadoItemOrden, TipoItemOrden,
+)
 from app.utils.security import hashear_password
 
 try:
@@ -73,11 +90,10 @@ random.seed(42)
 
 IN = "insumo"
 IM = "implemento"
-TENS = CarreraAsignatura.TENS
-TQF  = CarreraAsignatura.TQF
+TENS  = CarreraAsignatura.TENS
+TQF   = CarreraAsignatura.TQF
 TLCBS = CarreraAsignatura.TLCBS
-TONS = CarreraAsignatura.TONS
-PF   = CarreraAsignatura.preparador_fisico
+TONS  = CarreraAsignatura.TONS
 
 SALAS = [
     ("Sala 010", "simulacion", "Sala de simulacion clinica - piso -1"),
@@ -117,49 +133,81 @@ USUARIOS = [
 
 # Formato: (nombre, email, rut)
 # Los docentes NO tienen cuenta en Hestia; son entidades externas gestionadas
-# por el operador coordinador. docente_idx 0 y 1 se referencian en CLASES_DOCENTE.
+# por el operador coordinador.
 DOCENTES_DATA = [
-    ("Paz Rodriguez", "paz.rodriguez@duoc.cl", "12.345.678-9"),
-    ("Michael Torres", "michael.torres@duoc.cl", "98.765.432-1"),
+    ("Olga Tapia",             "olga.tapia@duoc.cl",          "13.456.789-0"),
+    ("Damaris Rojas",          "damaris.rojas@duoc.cl",        "14.567.890-1"),
+    ("Diego Perez",            "diego.perez@duoc.cl",          "15.678.901-2"),
+    ("David Contreras",        "david.contreras@duoc.cl",      "16.789.012-3"),
+    ("Felipe Alegria",         "felipe.alegria@duoc.cl",       "17.890.123-4"),
+    ("Claudia Romero",         "claudia.romero@duoc.cl",       "18.901.234-5"),
+    ("Maria Jose Toro",        "mariajose.toro@duoc.cl",       "19.012.345-6"),
+    ("Daniela Soto",           "daniela.soto@duoc.cl",         "20.123.456-7"),
+    ("Constanza Zuniga",       "constanza.zuniga@duoc.cl",     "21.234.567-8"),
+    ("Lissett Ayala",          "lissett.ayala@duoc.cl",        "22.345.678-9"),
+    ("Carolina Quinio",        "carolina.quinio@duoc.cl",      "23.456.789-0"),
+    ("Alicia Diaz",            "alicia.diaz@duoc.cl",          "24.567.890-1"),
+    ("Javiera Fuentes Torres", "javiera.fuentes@duoc.cl",      "25.678.901-2"),
+    ("Daniela Munoz",          "daniela.munoz@duoc.cl",        "26.789.012-3"),
+    ("Francisco Garay",        "francisco.garay@duoc.cl",      "27.890.123-4"),
 ]
 
 ASIGNATURAS = [
-    ("Primeros Auxilios", "CIS1101", TENS),
-    ("Rol del Tecnico en Enfermeria y Cuidados Basicos", "CIS1102", TENS),
-    ("Anatomofisiologia", "CIS1103", TENS),
-    ("Atencion de Personas con Alteraciones de Salud", "CIS1104", TENS),
-    ("Atencion de la Mujer y Recien Nacido", "CIS1103B", TENS),
-    ("Quimica Analitica e Instrumental", "PFS1115", TQF),
-    ("Bioseguridad Farmaceutica", "BIS1102", TQF),
-    ("Legislacion Farmaceutica", "LFS1112", TQF),
-    ("Farmacologia", "AVS2132", TQF),
-    ("Preparacion de Laboratorio Clinico", "LCS1111", TLCBS),
-    ("Administracion de Toma de Muestra", "ATS1111", TLCBS),
-    ("Bioseguridad Clinica", "BIS1111", TLCBS),
-    ("Microbiologia para Laboratorio Clinico", "LCS3111", TLCBS),
-    ("Anatomo Fisiopatologia Estomatognatica", "ACS1101", TONS),
-    ("Tecnicas de Primeros Auxilios y Procedimientos Basicos", "ACS1102", TONS),
-    ("Servicios de Salud Generales y Odontologicos", "GAS1101", TONS),
-    ("Asistencia en Cirugia Maxilofacial e Implantologia", "ACS1105", TONS),
-    ("Anatomia Funcional del Aparato Locomotor", "FES1101", PF),
-    ("Teoria del Entrenamiento", "EAS1101", PF),
-    ("Evaluacion para la Condicion Fisica", "EAS1102", PF),
+    # TENS (12 asignaturas — siglas reales KB)
+    ("Tecnicas de Primeros Auxilios",                  "AXS1102", TENS),
+    ("Tecnicas Basicas de Enfermeria",                 "EBS1111", TENS),
+    ("Bioseguridad en Enfermeria",                     "EBS1121", TENS),
+    ("Cuidados de Enfermeria en Pediatria",            "CES3111", TENS),
+    ("Cuidados de Enfermeria en Urgencias",            "CES3121", TENS),
+    ("Manejo de Equipos e Insumos",                    "MES3111", TENS),
+    ("Anatomia (malla vigente)",                       "AFS1111", TENS),
+    ("Anatomia (malla nueva 2026)",                    "CIS1103", TENS),
+    ("Administracion de Farmacos",                     "EBS2111", TENS),
+    ("Medico Quirurgico",                              "CES2121", TENS),
+    ("Habilidades para el Trabajo",                    "HES4111", TENS),
+    ("Promocion en Salud",                             "PMS4111", TENS),
+    # TQF (1 asignatura con sigla confirmada en KB)
+    ("Quimica Analitica e Instrumental",               "PFS1115", TQF),
+    # TLCBS (9 asignaturas — siglas reales KB; carrera real: TSLB)
+    ("Preparacion de Laboratorio Clinico",             "LCS1111", TLCBS),
+    ("Administracion de Toma de Muestras",             "ATS1111", TLCBS),
+    ("Bioseguridad de Laboratorio Clinico",            "BIS1111", TLCBS),
+    ("Microbiologia para el Laboratorio Clinico",      "LCS3111", TLCBS),
+    ("Toma de Muestra y Flebotomia",                   "TMS1111", TLCBS),
+    ("Preparacion del Paciente para Toma de Muestra",  "APS1121", TLCBS),
+    ("Tecnicas de Banco de Sangre",                    "BSS3111", TLCBS),
+    ("Banco de Sangre - Organizacion y Fraccionamiento", "BSS2111", TLCBS),
+    ("Tecnicas de Laboratorio Clinico",                "LCS2111", TLCBS),
+    # TONS (7 asignaturas con sigla confirmada en KB)
+    ("Tecnicas de Diagnostico en Odontologia",         "EOD3141", TONS),
+    ("Odontologia Restauradora",                       "EOS3111", TONS),
+    ("Asistencia en Endodoncia",                       "EOS3131", TONS),
+    ("Bioseguridad y Ergonomia Clinica",               "BOS2121", TONS),
+    ("Asistencia en Rehabilitacion Oral",              "EOS4111", TONS),
+    ("Asistencia en Periodoncia",                      "EOS4121", TONS),
+    ("Asistencia en Ortodoncia y Ortopedia",           "EOS4141", TONS),
 ]
 
-# Formato: (docente_idx, asig_idx, seccion, semestre, num_estudiantes)
-# docente_idx referencia DOCENTES_DATA (0=Paz, 1=Michael)
+# Formato: (docente_nombre, asig_codigo, seccion, semestre, num_estudiantes)
+# docente_nombre referencia DOCENTES_DATA; asig_codigo referencia ASIGNATURAS.
 CLASES_DOCENTE = [
-    (0, 0, "001D", "2026-1", 28),
-    (0, 1, "001D", "2026-1", 32),
-    (1, 2, "001D", "2026-1", 30),
-    (1, 3, "002D", "2026-1", 35),
-    (0, 5, "001D", "2026-1", 22),
-    (1, 9, "001D", "2026-1", 25),
-    (0, 13, "001D", "2026-1", 20),
-    (1, 17, "001D", "2026-1", 18),
+    # 1° semestre 2026-1
+    ("Maria Jose Toro",        "AXS1102", "005D", "2026-1", 28),
+    ("Daniela Soto",           "AXS1102", "015D", "2026-1", 25),
+    ("David Contreras",        "CIS1103", "014V", "2026-1", 22),
+    ("Constanza Zuniga",       "CES3111", "001V", "2026-1", 30),
+    ("Carolina Quinio",        "BIS1111", "003D", "2026-1", 20),
+    ("Alicia Diaz",            "ATS1111", "002D", "2026-1", 22),
+    ("Javiera Fuentes Torres", "EOD3141", "002D", "2026-1", 18),
+    # 2° semestre 2025-2
+    ("Olga Tapia",             "CES2121", "002D", "2025-2", 30),
+    ("Damaris Rojas",          "CES2121", "003D", "2025-2", 28),
+    ("Felipe Alegria",         "CES2121", "009D", "2025-2", 25),
+    ("Daniela Munoz",          "BOS2121", "002D", "2025-2", 22),
 ]
 
 # Formato: (nombre, unidad_medida, stock, minimo, cat_idx, tipo, costo)
+# cat_idx referencia CATEGORIAS por posicion (restriccion: constante no modificable).
 INSUMOS = [
     # EPP (cat 0)
     ("Guantes de latex talla S", "Caja x100 unidades", 150, 50, 0, IN, 3200),
@@ -259,31 +307,72 @@ INSUMOS = [
     ("Gasas con clorhexidina CHG", "Sobre", 40, 15, 9, IN, 1200),
 ]
 
-# Formato: (nombre, descripcion, tipo, sala_idx, fidelidad, notas, proveedor_key)
+# Formato: (nombre, descripcion, tipo, sala_nombre, fidelidad, notas, proveedor_key)
+# sala_nombre referencia SALAS por nombre unico.
+# Activos derivados de solicitudes de insumos KB (columna "Equipos"); sin proveedor
+# confirmado en documentos.
 ACTIVOS_FIJOS_DEMO = [
-    ("Camilla articulada con barandas",
-     "Camilla electrica 3 secciones, barandas abatibles",
-     TipoActivo.mueble, 0, None,
-     "Revision anual programada marzo 2027", "medsupply"),
-    ("Carro de paro de emergencia",
-     "Carro equipado con desfibrilador y medicamentos de emergencia",
-     TipoActivo.mueble, 3, None,
-     "Revision mensual de contenido obligatoria", "medsupply"),
-    ("Mesa de procedimientos Mayo",
-     "Mesa auxiliar acero inoxidable con ruedas",
-     TipoActivo.mueble, 2, None, None, None),
-    ("SimMan 3G",
-     "Maniqui de alta fidelidad adulto Laerdal",
-     TipoActivo.phantoma, 0, FidelidadPhantoma.alta,
-     "Mantenimiento preventivo semestral por Laerdal Chile", "laerdal"),
-    ("Nursing Anne",
-     "Maniqui para entrenamiento de enfermeria Laerdal",
-     TipoActivo.phantoma, 1, FidelidadPhantoma.media,
-     None, "laerdal"),
-    ("ALS Simulator neonatal",
-     "Maniqui neonatal de soporte vital avanzado",
-     TipoActivo.phantoma, 6, FidelidadPhantoma.alta,
-     "Solo para clase de Obstetricia y Ginecologia", "laerdal"),
+    # Phantomas alta fidelidad (CES2121, CES3111 — alta fidelidad INACSL 2016)
+    ("Fantoma adulto alta fidelidad",
+     "Maniqui adulto alta fidelidad para simulacion clinica avanzada",
+     TipoActivo.phantoma, "Sala 010", FidelidadPhantoma.alta,
+     "Mantenimiento preventivo semestral requerido", None),
+    ("Fantoma recien nacido soporte vital avanzado",
+     "Maniqui neonatal para soporte vital avanzado en pediatria",
+     TipoActivo.phantoma, "Sala 010", FidelidadPhantoma.alta,
+     None, None),
+    # Phantomas baja fidelidad — entrenamiento de habilidades tecnicas
+    ("Fantoma adulto para entrenamiento de enfermeria",
+     "Maniqui adulto basico para tecnicas de enfermeria y venopuncion",
+     TipoActivo.phantoma, "Sala 011", FidelidadPhantoma.baja,
+     None, None),
+    ("Fantoma RCP adulto",
+     "Maniqui adulto para entrenamiento de RCP y uso de DEA",
+     TipoActivo.phantoma, "Sala 012", FidelidadPhantoma.baja,
+     None, None),
+    ("Fantoma RCP pediatrico",
+     "Maniqui pediatrico para entrenamiento de RCP",
+     TipoActivo.phantoma, "Sala 012", FidelidadPhantoma.baja,
+     None, None),
+    ("Fantoma politrauma",
+     "Maniqui politraumatizado para triage y atencion de urgencias",
+     TipoActivo.phantoma, "Sala 011", FidelidadPhantoma.baja,
+     None, None),
+    ("Brazo de puncion adulto",
+     "Brazo sintetico para practica de venopuncion y flebotomia",
+     TipoActivo.phantoma, "Sala 011", FidelidadPhantoma.baja,
+     None, None),
+    ("Fantoma recien nacido basico",
+     "Maniqui neonatal para control del nino sano y antropometria",
+     TipoActivo.phantoma, "Sala 013", FidelidadPhantoma.baja,
+     None, None),
+    # Mobiliario clinico (mueble)
+    ("Mesa Mayo",
+     "Mesa auxiliar acero inoxidable con ruedas para procedimientos",
+     TipoActivo.mueble, "Sala 010", None, None, None),
+    ("Cama clinica articulada",
+     "Cama clinica articulada para simulacion de paciente hospitalizado",
+     TipoActivo.mueble, "Sala 010", None, None, None),
+    ("Maletin de emergencia clinica",
+     "Maletin equipado con insumos para urgencias simuladas",
+     TipoActivo.mueble, "Sala 010", None,
+     "Revision mensual de contenido obligatoria", None),
+    # Equipos clinicos (tipo mueble — TipoActivo.equipo_medico no confirmado en modelo)
+    ("Electrocardiografo",
+     "Electrocardiografo para taller de ECG y monitorizacion",
+     TipoActivo.mueble, "Sala 010", None, None, None),
+    ("Monitor multiparametro",
+     "Monitor de signos vitales para simulacion clinica",
+     TipoActivo.mueble, "Sala 010", None, None, None),
+    ("Desfibrilador",
+     "Desfibrilador bifasico para urgencias y manejo de equipos",
+     TipoActivo.mueble, "Sala 012", None, None, None),
+    ("DEA Desfibrilador Externo Automatico",
+     "DEA para entrenamiento de RCP y primeros auxilios",
+     TipoActivo.mueble, "Sala 012", None, None, None),
+    ("Centrifuga de laboratorio",
+     "Centrifuga para fraccionamiento de muestras en laboratorio clinico",
+     TipoActivo.mueble, "Sala 016", None, None, None),
 ]
 
 MOTIVOS_SALIDA = [
@@ -307,87 +396,315 @@ MOTIVOS_ENTRADA = [
     "Recepcion pedido proveedor",
 ]
 
+# Formato: (nombre, descripcion, asig_codigo)
+# asig_codigo referencia ASIGNATURAS por codigo unico.
 TALLERES_DATA = [
     ("Taller de venopuncion",
-     "Practica de cateterizacion venosa periferica", 0),
+     "Practica de cateterizacion venosa periferica y toma de muestras", "EBS1111"),
     ("Taller de sutura basica",
-     "Tecnicas de sutura y cierre de heridas en simulador", 0),
+     "Tecnicas de sutura y curacion de heridas en simulador", "MES3111"),
     ("Taller de RCP avanzado",
-     "Reanimacion cardiopulmonar con maniqui de alta fidelidad", 2),
+     "Reanimacion cardiopulmonar con maniqui de alta fidelidad", "CES3121"),
     ("Taller de cuidados al recien nacido",
-     "Atencion y cuidados del recien nacido en simulador neonatal", 4),
+     "Atencion y cuidados del recien nacido en simulador neonatal", "CES3111"),
     ("Taller de bioseguridad y EPP",
-     "Uso correcto de equipos de proteccion personal", 6),
+     "Uso correcto de equipos de proteccion personal en enfermeria", "EBS1121"),
     ("Taller de quimica analitica",
-     "Preparacion de reactivos y tecnicas de laboratorio farmaceutico", 5),
+     "Preparacion de reactivos y tecnicas de laboratorio farmaceutico", "PFS1115"),
     ("Taller de toma de muestra",
-     "Tecnicas de extraccion de muestra y flebotomia", 10),
+     "Tecnicas de extraccion de muestra y flebotomia en laboratorio", "TMS1111"),
     ("Taller de bioseguridad de laboratorio",
-     "Uso correcto de EPP y manejo de residuos en laboratorio clinico", 11),
+     "Uso correcto de EPP y manejo de residuos en laboratorio clinico", "BIS1111"),
     ("Taller de primeros auxilios odontologicos",
-     "Manejo de emergencias y primeros auxilios en clinica dental", 14),
-    ("Taller de evaluacion de condicion fisica",
-     "Medicion de parametros antropometricos y test de capacidad fisica", 19),
+     "Manejo de emergencias y bioseguridad en clinica dental", "BOS2121"),
+    ("Taller de ECG y monitorizacion",
+     "Electrocardiograma y monitoreo de signos vitales en paciente critico", "CES2121"),
 ]
 
+# Formato: (taller_nombre, semestre, notas, items)
+# taller_nombre referencia TALLERES_DATA por nombre unico.
+# items: [(insumo_nombre, cantidad, nota), ...] — insumo_nombre referencia
+#        INSUMOS por nombre unico.
 PAQUETES_DATA = [
-    (0, "2026-1",
+    ("Taller de venopuncion", "2026-1",
      "Para 30 alumnos. Verificar stock de catetes 20G antes del semestre.",
-     [(0, 30, "Talla S/M segun alumno"), (1, 30, None), (4, 30, None),
-      (40, 5, None), (41, 10, None), (49, 15, None),
-      (51, 5, "Torniquete"), (11, 30, None)]),
-    (1, "2026-1",
+     [("Guantes de latex talla S",          30, "Talla S/M segun alumno"),
+      ("Guantes de latex talla M",          30, None),
+      ("Mascarillas quirurgicas",           30, None),
+      ("Cateter venoso periferico 18G",      5, None),
+      ("Cateter venoso periferico 20G",     10, None),
+      ("Jeringa 10ml con aguja 21G",        15, None),
+      ("Torniquete venoso",                  5, "Torniquete"),
+      ("Gasa esteril 10x10 cm",            30, None)]),
+    ("Taller de sutura basica", "2026-1",
      "Incluye set de instrumental de sutura por pareja de alumnos.",
-     [(0, 20, None), (1, 20, None), (22, 15, None), (23, 10, None),
-      (24, 8, None), (27, 4, "Una pinza por pareja"),
-      (28, 4, "Una tijera por pareja"), (29, 4, None), (11, 20, None)]),
-    (2, "2026-1",
-     "Usar SimMan 3G y Nursing Anne. Verificar AMBU antes de la clase.",
-     [(0, 20, None), (1, 20, None), (4, 20, None),
-      (57, 4, None), (59, 4, None), (62, 2, None),
-      (63, 2, None), (64, 2, None)]),
-    (3, "2026-1",
-     "Requiere simulador neonatal. Coordinar con Maritza.",
-     [(0, 25, "Talla S/XS"), (4, 25, None), (11, 20, None),
-      (13, 15, None), (33, 5, None), (32, 5, None)]),
-    (4, "2026-1",
+     [("Guantes de latex talla S",          20, None),
+      ("Guantes de latex talla M",          20, None),
+      ("Seda 2-0 con aguja triangular",     15, None),
+      ("Nylon 3-0 con aguja",               10, None),
+      ("Poliglactina 2-0 Vicryl",            8, None),
+      ("Pinza Adson con dientes",            4, "Una pinza por pareja"),
+      ("Tijera de Mayo recta",               4, "Una tijera por pareja"),
+      ("Porta aguja Hegar",                  4, None),
+      ("Gasa esteril 10x10 cm",            20, None)]),
+    ("Taller de RCP avanzado", "2026-1",
+     "Usar Fantoma adulto alta fidelidad y Fantoma adulto para entrenamiento "
+     "de enfermeria. Verificar AMBU antes de la clase.",
+     [("Guantes de latex talla S",          20, None),
+      ("Guantes de latex talla M",          20, None),
+      ("Mascarillas quirurgicas",           20, None),
+      ("Contenedor cortopunzante 3L",        4, None),
+      ("Mascarilla de oxigeno adulto",       4, None),
+      ("Canula nasal pediatrica",            2, None),
+      ("Bolsa autoinflable AMBU adulto",     2, None),
+      ("Bolsa autoinflable AMBU pediatrico", 2, None)]),
+    ("Taller de cuidados al recien nacido", "2026-1",
+     "Requiere simulador neonatal. Coordinar con docente asignado.",
+     [("Guantes de latex talla S",          25, "Talla S/XS"),
+      ("Mascarillas quirurgicas",           25, None),
+      ("Gasa esteril 10x10 cm",            20, None),
+      ("Aposito adhesivo 10x8 cm",         15, None),
+      ("Oximetro de pulso digital",          5, None),
+      ("Termometro digital axilar",          5, None)]),
+    ("Taller de bioseguridad y EPP", "2026-1",
      "EPP completo por alumno. Verificar stock de mascarillas N95.",
-     [(0, 25, None), (1, 25, None), (4, 25, None), (5, 25, None),
-      (6, 25, None), (7, 25, None), (8, 25, None)]),
-    (5, "2026-1",
+     [("Guantes de latex talla S",          25, None),
+      ("Guantes de latex talla M",          25, None),
+      ("Mascarillas quirurgicas",           25, None),
+      ("Mascarillas N95 FFP2",              25, None),
+      ("Gafas de proteccion",              25, None),
+      ("Pecheras desechables",             25, None),
+      ("Gorro quirurgico",                 25, None)]),
+    ("Taller de quimica analitica", "2026-1",
      "Insumos de higiene y seguridad para laboratorio quimico.",
-     [(0, 20, None), (1, 20, None), (4, 20, None),
-      (78, 5, "Frasco 1L"), (79, 5, None), (84, 4, None),
-      (85, 4, None), (65, 10, None), (66, 10, None)]),
-    (6, "2026-1",
+     [("Guantes de latex talla S",          20, None),
+      ("Guantes de latex talla M",          20, None),
+      ("Mascarillas quirurgicas",           20, None),
+      ("Clorhexidina gluconato 4% 500ml",    5, "Frasco 1L"),
+      ("Povidona yodada 10% 100ml",          5, None),
+      ("Hipoclorito de sodio 5% 1L",         4, None),
+      ("Gasas con clorhexidina CHG",         4, None),
+      ("Resucitador AMBU con mascarilla",   10, None),
+      ("Bolsa roja residuos peligrosos 60L", 10, None)]),
+    ("Taller de toma de muestra", "2026-1",
      "Tecnicas de flebotomia. Cada alumno usa su propio kit de puncion.",
-     [(0, 28, None), (1, 28, None), (4, 28, None),
-      (41, 10, None), (49, 15, None), (51, 8, None),
-      (52, 80, None), (53, 80, None), (55, 10, None)]),
-    (7, "2026-1",
+     [("Guantes de latex talla S",          28, None),
+      ("Guantes de latex talla M",          28, None),
+      ("Mascarillas quirurgicas",           28, None),
+      ("Cateter venoso periferico 20G",     10, None),
+      ("Jeringa 10ml con aguja 21G",        15, None),
+      ("Torniquete venoso",                  8, None),
+      ("Jeringa insulina 1ml",              80, None),
+      ("Aguja hipodermica 21G x 1.5",       80, None),
+      ("Aguja hipodermica 25G x 5/8",       10, None)]),
+    ("Taller de bioseguridad de laboratorio", "2026-1",
      "Manejo correcto de residuos biologicos y EPP de laboratorio.",
-     [(0, 25, None), (4, 25, None), (6, 10, None),
-      (65, 5, None), (66, 5, None), (67, 10, None),
-      (68, 6, None), (83, 8, None)]),
-    (8, "2026-1",
+     [("Guantes de latex talla S",          25, None),
+      ("Mascarillas quirurgicas",           25, None),
+      ("Gafas de proteccion",              10, None),
+      ("Resucitador AMBU con mascarilla",    5, None),
+      ("Bolsa roja residuos peligrosos 60L", 5, None),
+      ("Bolsa amarilla residuos especiales", 10, None),
+      ("Caja carton cortopunzantes grande",  6, None),
+      ("Solucion glutaraldehido 2%",         8, None)]),
+    ("Taller de primeros auxilios odontologicos", "2026-1",
      "Protocolo de emergencias en clinica dental.",
-     [(0, 20, None), (4, 20, None), (11, 10, None),
-      (30, 5, None), (31, 5, None), (33, 5, None),
-      (70, 3, None), (71, 3, None)]),
-    (9, "2026-1",
-     "Test de capacidad fisica y mediciones antropometricas.",
-     [(0, 18, None), (4, 18, None),
-      (31, 8, None), (32, 8, None), (33, 8, None),
-      (39, 8, None)]),
+     [("Guantes de latex talla S",          20, None),
+      ("Mascarillas quirurgicas",           20, None),
+      ("Gasa esteril 10x10 cm",            10, None),
+      ("Esfigmomanometro aneroide",          5, None),
+      ("Estetoscopio adulto",                5, None),
+      ("Oximetro de pulso digital",          5, None),
+      ("Adrenalina 1mg/ml ampolla 1ml",      3, None),
+      ("Glucosa 50% ampolla 20ml",           3, None)]),
+    ("Taller de ECG y monitorizacion", "2026-1",
+     "Monitoreo de signos vitales y trazado ECG en paciente critico.",
+     [("Guantes de latex talla S",          18, None),
+      ("Mascarillas quirurgicas",           18, None),
+      ("Estetoscopio adulto",                8, None),
+      ("Termometro digital axilar",          8, None),
+      ("Oximetro de pulso digital",          8, None),
+      ("Cinta metrica flexible",             8, None)]),
 ]
 
+
+# Formato: (taller_nombre, sala_nombre, fecha, hora_inicio, hora_fin,
+#            docente_nombre, seccion, semestre, notas)
+# taller_nombre referencia TALLERES_DATA por nombre unico.
+# sala_nombre referencia SALAS por nombre unico.
+PROGRAMACIONES_DATA = [
+    ("Taller de venopuncion",
+     "Sala 010", date(2026, 3, 12), "08:00", "10:30",
+     "Maria Jose Toro",  "001D", "2026-1", None),
+    ("Taller de sutura basica",
+     "Sala 011", date(2026, 3, 26), "08:00", "10:30",
+     "Maria Jose Toro",  "001D", "2026-1", None),
+    ("Taller de RCP avanzado",
+     "Sala 010", date(2026, 4,  9), "08:00", "11:00",
+     "David Contreras", "001D", "2026-1",
+     "Requiere Fantoma adulto alta fidelidad operativo"),
+    ("Taller de cuidados al recien nacido",
+     "Sala 016", date(2026, 4, 23), "09:00", "11:30",
+     None, "001D", "2026-1",
+     "Usar Fantoma recien nacido soporte vital avanzado"),
+    ("Taller de bioseguridad y EPP",
+     "Sala 012", date(2026, 5,  7), "08:00", "09:30",
+     None, "001D", "2026-1", None),
+    ("Taller de quimica analitica",
+     "Sala 013", date(2026, 5, 14), "10:00", "12:00",
+     "Olga Tapia",  "001D", "2026-1", None),
+    ("Taller de toma de muestra",
+     "Sala 011", date(2026, 5, 21), "08:00", "10:00",
+     None, "001D", "2026-1", None),
+    ("Taller de bioseguridad de laboratorio",
+     "Sala 012", date(2026, 5, 28), "08:00", "09:30",
+     None, "001D", "2026-1", None),
+    ("Taller de primeros auxilios odontologicos",
+     "Sala 07 - Odontologia", date(2026, 6,  4), "09:00", "11:00",
+     None, "001D", "2026-1", None),
+    ("Taller de ECG y monitorizacion",
+     "Sala 015", date(2026, 6, 11), "08:00", "10:00",
+     None, "001D", "2026-1", None),
+]
+
+# Formato: (taller_nombre, fecha, estado, hora_inicio_rev, hora_fin_rev, notas, items)
+# (taller_nombre, fecha) forma la clave compuesta que referencia PROGRAMACIONES_DATA.
+# items: [(tipo, nombre, cantidad_esperada, cantidad_encontrada, conforme, notas_item)]
+# tipo: 'insumo' | 'implemento' | 'activo_fijo'
+REVISIONES_SALA_DATA = [
+    ("Taller de venopuncion", date(2026, 3, 12), "completada", "10:35", "10:55", None, [
+        ("insumo",     "Guantes de latex talla M",          30, 28, True,  None),
+        ("insumo",     "Cateter venoso periferico 20G",     10,  9, True,  None),
+        ("implemento", "Esfigmomanometro aneroide",          2,  2, True,  None),
+        ("implemento", "Torniquete venoso",                  5,  5, True,  None),
+    ]),
+    ("Taller de sutura basica", date(2026, 3, 26), "completada", "10:35", "11:00", None, [
+        ("insumo",     "Gasa esteril 10x10 cm",            20, 18, True,  None),
+        ("insumo",  "Seda 2-0 con aguja triangular", 15, 13, True, "2 sobres con empaque danado"),
+        ("implemento", "Pinza Adson con dientes",        4,  4, True,  None),
+        ("implemento", "Porta aguja Hegar",              4,  3, False, "Una unidad no devuelta"),
+    ]),
+    ("Taller de RCP avanzado", date(2026, 4, 9), "completada", "11:05", "11:25", None, [
+        ("insumo",      "Mascarillas quirurgicas",              20, 20, True, None),
+        ("implemento",  "Bolsa autoinflable AMBU adulto",        3,  3, True, None),
+        ("activo_fijo", "Fantoma adulto alta fidelidad",
+         None, None, True, "Falla en modulo de sonidos"),
+        ("activo_fijo", "Cama clinica articulada",             None, None, True, None),
+    ]),
+    ("Taller de cuidados al recien nacido", date(2026, 4, 23),
+     "completada", "11:35", "11:55", None, [
+        ("insumo",      "Guantes de latex talla S",            25, 24, True, None),
+        ("insumo",      "Aposito adhesivo 10x8 cm",            15, 15, True, None),
+        ("activo_fijo", "Fantoma recien nacido soporte vital avanzado",
+         None, None, False, "Bateria baja, enviado a mantenimiento"),
+    ]),
+    ("Taller de bioseguridad y EPP", date(2026, 5, 7), "completada", "09:35", "09:50", None, [
+        ("insumo",     "Guantes nitrilo sin polvo talla M", 25, 25, True, None),
+        ("insumo",     "Mascarillas N95 FFP2",              25, 24, True, None),
+        ("implemento", "Gafas de proteccion",        25, 23, True, "2 unidades con vidrio rayado"),
+        ("implemento", "Careta de proteccion facial",       10, 10, True,  None),
+    ]),
+    ("Taller de quimica analitica", date(2026, 5, 14), "completada", "12:05", "12:20", None, [
+        ("insumo",     "Alcohol isopropilico 70% 1000ml",    5,  5, True,  None),
+        ("insumo",     "Clorhexidina gluconato 4% 500ml",    5,  4, True,  "Un frasco incompleto"),
+        ("implemento", "Gafas de proteccion",               20, 20, True,  None),
+    ]),
+    ("Taller de toma de muestra", date(2026, 5, 21), "completada", "10:05", "10:20", None, [
+        ("insumo",     "Aguja hipodermica 21G x 1.5",       80, 80, True,  None),
+        ("insumo",     "Lancetas descartables x100",         10, 10, True,  None),
+        ("implemento", "Torniquete venoso",                   8,  7, True,  "Una unidad en lavado"),
+    ]),
+    ("Taller de bioseguridad de laboratorio", date(2026, 5, 28),
+     "completada", "09:35", "09:50", None, [
+        ("insumo",     "Bolsa roja residuos peligrosos 60L",  5,  5, True, None),
+        ("insumo",     "Contenedor biohazard 30L",             3,  3, True, None),
+        ("implemento", "Gafas de proteccion",                 25, 24, True, None),
+    ]),
+    ("Taller de primeros auxilios odontologicos", date(2026, 6, 4),
+     "en_revision", "11:05", None, None, [
+        ("insumo",     "Gasa esteril 10x10 cm",             10, None, None, None),
+        ("implemento", "Esfigmomanometro aneroide",           5, None, None, None),
+    ]),
+    ("Taller de ECG y monitorizacion", date(2026, 6, 11),
+     "en_revision", "10:05", None, None, [
+        ("insumo",     "Guantes de latex talla M",           18, None, None, None),
+        ("implemento", "Cinta metrica flexible",              8,  None, None, None),
+    ]),
+]
+
+# Formato: (activo_nombre, tipo, descripcion, sala_nombre, fecha_hora,
+#            responsable_nombre, severidad, estado)
+# activo_nombre referencia ACTIVOS_FIJOS_DEMO por nombre unico.
+# sala_nombre referencia SALAS por nombre unico.
+INCIDENCIAS_DATA = [
+    ("Fantoma adulto alta fidelidad",
+     TipoIncidencia.mal_funcionamiento,
+     "Modulo de sonidos respiratorios sin respuesta durante simulacion de "
+     "insuficiencia respiratoria. No reproduce ruidos pulmonares ni cardiacos.",
+     "Sala 010",
+     datetime(2026, 4, 9, 11, 20, tzinfo=timezone.utc),
+     "David Contreras",
+     SeveridadIncidencia.moderada,
+     EstadoIncidencia.en_revision),
+    ("Fantoma recien nacido soporte vital avanzado",
+     TipoIncidencia.mal_funcionamiento,
+     "Bateria principal con descarga completa durante taller. "
+     "Equipo se apago a los 40 minutos de uso.",
+     "Sala 016",
+     datetime(2026, 4, 23, 11, 10, tzinfo=timezone.utc),
+     None,
+     SeveridadIncidencia.critica,
+     EstadoIncidencia.abierta),
+    ("Fantoma adulto para entrenamiento de enfermeria",
+     TipoIncidencia.pieza_perdida,
+     "Brazalete de identificacion y capucha de simulacion no encontrados "
+     "al cierre de sala. Posiblemente extraviados durante limpieza.",
+     "Sala 011",
+     datetime(2026, 3, 26, 11, 5, tzinfo=timezone.utc),
+     "Maria Jose Toro",
+     SeveridadIncidencia.leve,
+     EstadoIncidencia.resuelta),
+]
+
+# Formato: (proveedor_key, tipo, estado, actividad_duoc, notas, items)
+# proveedor_key referencia proveedores_map; None = sin proveedor asignado.
+# items: [(insumo_nombre, cantidad_pedida, cantidad_recibida, costo_unitario, estado_item)]
+# insumo_nombre referencia INSUMOS por nombre unico.
+ORDENES_ENTRADA_DATA = [
+    ("medsupply", TipoOrden.semanal, EstadoOrdenEntrada.cerrada,
+     "1010", "Reposicion semanal de insumos de alta rotacion - sem 15",
+     [
+         ("Guantes de latex talla M",        200, 200, 3500, EstadoItemOrden.recibido),
+         ("Mascarillas quirurgicas",          100, 100, 4000, EstadoItemOrden.recibido),
+         ("Gasa esteril 10x10 cm",           200, 180,  650, EstadoItemOrden.recibido_parcial),
+         ("Jeringa 10ml con aguja 21G",        50,  50,  380, EstadoItemOrden.recibido),
+     ]),
+    ("laerdal", TipoOrden.semestral, EstadoOrdenEntrada.confirmada,
+     "1060", "Repuestos y accesorios anuales para phantomas Laerdal",
+     [
+         ("Resucitador AMBU con mascarilla",   2, None, 110000, EstadoItemOrden.pendiente),
+         ("Bolsa autoinflable AMBU adulto",     2, None,  95000, EstadoItemOrden.pendiente),
+     ]),
+    ("medsupply", TipoOrden.emergencia, EstadoOrdenEntrada.borrador,
+     "1137", "Reposicion urgente de sueros - stock critico",
+     [
+         ("Suero fisiologico NaCl 0.9% 1L",   20, None, 3500, EstadoItemOrden.pendiente),
+         ("Suero fisiologico 0.9% 250ml",      30, None, 1800, EstadoItemOrden.pendiente),
+         ("Solucion Ringer Lactato 1L",        15, None, 3200, EstadoItemOrden.pendiente),
+     ]),
+]
+
+
+# ===========================================================================
+# Utilidades
+# ===========================================================================
 
 def _prefijo_codigo(nombre: str) -> str:
     """Misma logica que el backend para generar prefijo de 3 chars."""
     n = (
         nombre.upper()
-        .replace("\u00c1", "A").replace("\u00c9", "E").replace("\u00cd", "I")
-        .replace("\u00d3", "O").replace("\u00da", "U").replace("\u00d1", "N")
+        .replace("Á", "A").replace("É", "E").replace("Í", "I")
+        .replace("Ó", "O").replace("Ú", "U").replace("Ñ", "N")
     )
     return re.sub(r"[^A-Z0-9]", "", n)[:3].ljust(3, "X")
 
@@ -402,24 +719,514 @@ def fecha_aleatoria(dias_min, dias_max):
 
 
 def _crear_paquete(db, taller_id, semestre, notas, usuario_id,
-                   items, insumos_db):
-    """Crea un PaqueteInsumo con sus items. Ignora items fuera de rango."""
+                   items, insumos_por_nombre):
+    """Crea un PaqueteInsumo con sus items. Ignora insumos no encontrados."""
     p = PaqueteInsumo(
         taller_id=taller_id, semestre=semestre,
         creado_por_id=usuario_id, notas=notas,
     )
     db.add(p)
     db.flush()
-    for insumo_idx, cantidad, nota in items:
-        if insumo_idx < len(insumos_db):
+    for insumo_nombre, cantidad, nota in items:
+        if insumo_nombre in insumos_por_nombre:
             db.add(PaqueteItem(
                 paquete_id=p.id,
-                insumo_id=insumos_db[insumo_idx].id,
+                insumo_id=insumos_por_nombre[insumo_nombre].id,
                 cantidad_requerida=cantidad,
                 notas=nota,
             ))
+        else:
+            print(
+                f"  ADVERTENCIA: paquete taller_id={taller_id} — "
+                f"insumo '{insumo_nombre}' no encontrado, item ignorado"
+            )
     return p
 
+
+# ===========================================================================
+# Helpers de insercion
+# ===========================================================================
+
+def _limpiar(db) -> None:
+    print("\nLimpiando datos existentes...")
+    db.query(RevisionSalaItem).delete()
+    db.query(RevisionSala).delete()
+    db.query(OrdenMantenimientoItem).delete()
+    db.query(PaqueteItem).delete()
+    db.query(PaqueteInsumo).delete()
+    db.query(ProgramacionTaller).delete()
+    db.query(Taller).delete()
+    db.query(UnidadImplemento).delete()
+    db.query(OrdenMantenimiento).delete()
+    db.query(Incidencia).delete()
+    db.query(OrdenEntradaItem).delete()
+    db.query(OrdenEntrada).delete()
+    db.query(ActivoFijo).delete()
+    db.query(Proveedor).delete()
+    db.query(RetornoImplemento).delete()
+    db.query(AuditLog).delete()
+    db.query(SolicitudItem).delete()
+    db.query(SolicitudRetiro).delete()
+    db.query(Movimiento).delete()
+    db.query(ClaseDocente).delete()
+    db.query(ComentarioDocente).delete()
+    db.query(Docente).delete()
+    db.query(Insumo).delete()
+    db.query(Asignatura).delete()
+    db.query(Sala).delete()
+    db.query(Categoria).delete()
+    db.query(Usuario).delete()
+    db.commit()
+    print("  OK")
+
+
+def _insertar_salas(db) -> dict:
+    print("Insertando salas...")
+    salas_por_nombre = {}
+    for nombre, tipo, desc in SALAS:
+        s = Sala(nombre=nombre, tipo=tipo, descripcion=desc)
+        db.add(s)
+        salas_por_nombre[nombre] = s
+    db.flush()
+    print(f"  {len(salas_por_nombre)} salas")
+    return salas_por_nombre
+
+
+def _insertar_categorias(db) -> list:
+    print("Insertando categorias...")
+    cats = []
+    for nombre in CATEGORIAS:
+        c = Categoria(nombre=nombre)
+        db.add(c)
+        cats.append(c)
+    db.flush()
+    print(f"  {len(cats)} categorias")
+    return cats
+
+
+def _insertar_usuarios(db) -> tuple:
+    print("Insertando usuarios...")
+    usuarios = []
+    for nombre, email, pwd, rol in USUARIOS:
+        u = Usuario(
+            nombre=nombre, email=email,
+            password_hash=hashear_password(pwd), rol=rol,
+        )
+        db.add(u)
+        usuarios.append(u)
+    db.flush()
+    operadores = [u for u in usuarios if u.rol == RolUsuario.operador]
+    print(f"  {len(usuarios)} usuarios")
+    return usuarios, operadores
+
+
+def _insertar_proveedores(db) -> dict:
+    print("Insertando proveedores...")
+    prov_laerdal = Proveedor(
+        nombre="Laerdal Medical Chile SpA",
+        rut="76.543.210-K",
+        contacto_nombre="Roberto Salas",
+        contacto_email="rsalas@laerdal.cl",
+        telefono="+56 2 2345 6789",
+        url_seneg="https://www.senegocia.com/proveedor/laerdal-chile",
+        notas=(
+            "Proveedor oficial de phantomas Laerdal. "
+            "Mantenimiento preventivo semestral incluido en contrato."
+        ),
+    )
+    prov_medsupply = Proveedor(
+        nombre="MedSupply SpA",
+        rut="76.111.222-3",
+        contacto_nombre="Patricia Vega",
+        contacto_email="pvega@medsupply.cl",
+        telefono="+56 9 8765 4321",
+        url_seneg=None,
+        notas="Proveedor general de insumos medicos desechables.",
+    )
+    db.add(prov_laerdal)
+    db.add(prov_medsupply)
+    db.flush()
+    print("  2 proveedores (Laerdal Chile, MedSupply SpA)")
+    return {"laerdal": prov_laerdal.id, "medsupply": prov_medsupply.id}
+
+
+def _insertar_docentes(db) -> dict:
+    print("Insertando docentes...")
+    docentes_por_nombre = {}
+    for nombre, email, rut in DOCENTES_DATA:
+        d = Docente(nombre=nombre, email=email, rut=rut, activo=True)
+        db.add(d)
+        docentes_por_nombre[nombre] = d
+    db.flush()
+    print(f"  {len(docentes_por_nombre)} docentes (Olga Tapia, David Contreras, ...)")
+    return docentes_por_nombre
+
+
+def _insertar_asignaturas(db) -> dict:
+    print("Insertando asignaturas...")
+    asignaturas_por_codigo = {}
+    for nombre, codigo, carrera in ASIGNATURAS:
+        a = Asignatura(nombre=nombre, codigo=codigo, carrera=carrera)
+        db.add(a)
+        asignaturas_por_codigo[codigo] = a
+    db.flush()
+    print(f"  {len(asignaturas_por_codigo)} asignaturas (5 carreras)")
+    return asignaturas_por_codigo
+
+
+def _insertar_clases(db, docentes_por_nombre, asignaturas_por_codigo) -> list:
+    print("Insertando clases...")
+    clases = []
+    for doc_nombre, asig_codigo, seccion, semestre, num_est in CLASES_DOCENTE:
+        c = ClaseDocente(
+            docente_id=docentes_por_nombre[doc_nombre].id,
+            asignatura_id=asignaturas_por_codigo[asig_codigo].id,
+            seccion=seccion, semestre=semestre, num_estudiantes=num_est,
+        )
+        db.add(c)
+        clases.append(c)
+    db.flush()
+    print(f"  {len(clases)} clases (semestre 2026-1)")
+    return clases
+
+
+def _insertar_insumos(db, cats) -> list:
+    print("Insertando insumos...")
+    insumos_db = []
+    for nombre, unidad_medida, stock, minimo, cat_idx, tipo, costo in INSUMOS:
+        i = Insumo(
+            nombre=nombre,
+            descripcion=unidad_medida,
+            unidad_medida=unidad_medida,
+            stock_actual=stock,
+            stock_minimo=minimo,
+            sala_id=None,
+            categoria_id=cats[cat_idx].id,
+            tipo=TipoInsumo(tipo),
+            costo_unitario=costo,
+        )
+        db.add(i)
+        insumos_db.append(i)
+    db.flush()
+    for ins in insumos_db:
+        if not ins.sku:
+            ins.sku = f"HST-{ins.id:05d}"
+    db.flush()
+    n_implementos = sum(1 for i in insumos_db if i.tipo == TipoInsumo.implemento)
+    print(f"  {len(insumos_db)} insumos ({n_implementos} implementos)")
+    return insumos_db
+
+
+def _insertar_unidades_implemento(
+    db, implementos_list, salas_por_nombre, cats_por_nombre
+) -> int:
+    print("Insertando unidades fisicas de implementos...")
+    total_unidades = 0
+    salas_clinicas = [
+        salas_por_nombre["Sala 010"],
+        salas_por_nombre["Sala 011"],
+        salas_por_nombre["Sala 012"],
+    ]
+    cat_epp_id = cats_por_nombre["Proteccion Personal (EPP)"].id
+    for impl in implementos_list:
+        prefijo = _prefijo_codigo(impl.nombre)
+        cantidad = random.randint(2, 5)
+        for j in range(cantidad):
+            estado = random.choice([
+                EstadoUnidad.disponible, EstadoUnidad.disponible,
+                EstadoUnidad.disponible, EstadoUnidad.en_uso,
+            ])
+            if j == 0 and impl.categoria_id == cat_epp_id:
+                sala_asignada = salas_clinicas[0].id
+            elif j == 1 and impl.categoria_id == cat_epp_id:
+                sala_asignada = salas_clinicas[1].id
+            else:
+                sala_asignada = None
+            u = UnidadImplemento(
+                implemento_id=impl.id,
+                estado=estado,
+                sala_id=sala_asignada,
+            )
+            db.add(u)
+            db.flush()
+            u.codigo = f"{prefijo}-{u.id:05d}"
+            total_unidades += 1
+    db.commit()
+    print(
+        f"  {total_unidades} unidades "
+        f"({len(implementos_list)} implementos cubiertos)"
+    )
+    return total_unidades
+
+
+def _insertar_activos_fijos(db, salas_por_nombre, proveedores_map) -> tuple:
+    print("Insertando activos fijos...")
+    activos_por_nombre = {}
+    for (nombre, desc, tipo, sala_nombre,
+         fidelidad, notas, prov_key) in ACTIVOS_FIJOS_DEMO:
+        prov_id = proveedores_map.get(prov_key) if prov_key else None
+        af = ActivoFijo(
+            nombre=nombre, descripcion=desc, tipo=tipo,
+            sala_id=salas_por_nombre[sala_nombre].id, fidelidad=fidelidad,
+            estado=EstadoActivo.disponible, notas=notas,
+            proveedor_id=prov_id,
+        )
+        db.add(af)
+        activos_por_nombre[nombre] = af
+        db.flush()
+        prefijo_af = "MUE" if tipo == TipoActivo.mueble else "PHN"
+        af.codigo_interno = f"{prefijo_af}-{af.id:05d}"
+    db.commit()
+    n_muebles = sum(1 for a in ACTIVOS_FIJOS_DEMO if a[2] == TipoActivo.mueble)
+    n_phantomas = len(ACTIVOS_FIJOS_DEMO) - n_muebles
+    print(
+        f"  {len(activos_por_nombre)} activos fijos "
+        f"({n_muebles} muebles, {n_phantomas} phantomas)"
+    )
+    return activos_por_nombre, n_muebles, n_phantomas
+
+
+def _insertar_orden_mantenimiento(
+    db, activos_por_nombre, proveedores_map, operadores
+) -> None:
+    print("Insertando orden de mantenimiento demo...")
+    fantoma_af  = activos_por_nombre["Fantoma adulto alta fidelidad"]
+    fantoma_rn  = activos_por_nombre["Fantoma recien nacido soporte vital avanzado"]
+    fantoma_af.estado = EstadoActivo.en_mantenimiento
+    fantoma_rn.estado = EstadoActivo.en_mantenimiento
+
+    orden_demo = OrdenMantenimiento(
+        proveedor_id=proveedores_map["laerdal"],
+        creado_por_id=operadores[0].id,
+        estado=EstadoOrden.en_curso,
+        fecha_visita=date.today() - timedelta(days=12),
+        notas=(
+            "Visita semestral preventiva Laerdal Chile. "
+            "Fantoma adulto alta fidelidad: falla en modulo de sonidos. "
+            "Fantoma RN soporte vital avanzado: revision de bateria y sensores."
+        ),
+    )
+    db.add(orden_demo)
+    db.flush()
+
+    db.add(OrdenMantenimientoItem(
+        orden_id=orden_demo.id,
+        activo_fijo_id=fantoma_af.id,
+        resultado=ResultadoItem.pendiente,
+        descripcion_problema=(
+            "Falla en modulo de sonidos respiratorios. "
+            "No reproduce ruidos pulmonares durante simulacion "
+            "de insuficiencia respiratoria."
+        ),
+    ))
+    db.add(OrdenMantenimientoItem(
+        orden_id=orden_demo.id,
+        activo_fijo_id=fantoma_rn.id,
+        resultado=ResultadoItem.pendiente,
+        descripcion_problema=(
+            "Revision preventiva de bateria y calibracion de sensores."
+        ),
+    ))
+    db.commit()
+    print("  1 orden (2 items: Fantoma AF + Fantoma RN soporte vital, en_curso)")
+
+
+def _insertar_movimientos(db, insumos_db, usuarios, operadores) -> int:
+    print("Insertando movimientos...")
+    total_movs = 0
+    for insumo in insumos_db:
+        en_alerta = insumo.stock_actual <= insumo.stock_minimo
+        ne = random.randint(1, 2) if en_alerta else random.randint(2, 4)
+        ns = random.randint(5, 9) if en_alerta else random.randint(3, 7)
+        rne = (40, 60) if en_alerta else (3, 50)
+        rns = (0, 25) if en_alerta else (0, 50)
+        subtipo_salida = (
+            SubtipoMovimiento.prestamo_implemento
+            if insumo.tipo == TipoInsumo.implemento
+            else SubtipoMovimiento.consumo_taller
+        )
+        for _ in range(ne):
+            db.add(Movimiento(
+                tipo=TipoMovimiento.entrada,
+                subtipo=SubtipoMovimiento.compra,
+                cantidad=random.randint(30, 150),
+                motivo=random.choice(MOTIVOS_ENTRADA),
+                fecha=fecha_aleatoria(*rne),
+                insumo_id=insumo.id,
+                usuario_id=random.choice(operadores).id,
+            ))
+            total_movs += 1
+        for _ in range(ns):
+            db.add(Movimiento(
+                tipo=TipoMovimiento.salida,
+                subtipo=subtipo_salida,
+                cantidad=random.randint(1, 8),
+                motivo=random.choice(MOTIVOS_SALIDA),
+                fecha=fecha_aleatoria(*rns),
+                insumo_id=insumo.id,
+                usuario_id=random.choice(usuarios).id,
+            ))
+            total_movs += 1
+    db.commit()
+    print(f"  {total_movs} movimientos (tipo + subtipo)")
+    return total_movs
+
+
+def _insertar_talleres(db, asignaturas_por_codigo) -> dict:
+    print("Insertando talleres...")
+    talleres_por_nombre = {}
+    for nombre, desc, asig_codigo in TALLERES_DATA:
+        t = Taller(
+            nombre=nombre, descripcion=desc,
+            asignatura_id=asignaturas_por_codigo[asig_codigo].id,
+        )
+        db.add(t)
+        talleres_por_nombre[nombre] = t
+    db.flush()
+    print(f"  {len(talleres_por_nombre)} talleres (5 carreras)")
+    return talleres_por_nombre
+
+
+def _insertar_paquetes(db, talleres_por_nombre, insumos_db, operadores) -> int:
+    print("Insertando paquetes de insumos...")
+    insumos_por_nombre = {i.nombre: i for i in insumos_db}
+    total_paquetes = 0
+    for taller_nombre, semestre, notas, items in PAQUETES_DATA:
+        _crear_paquete(
+            db,
+            taller_id=talleres_por_nombre[taller_nombre].id,
+            semestre=semestre, notas=notas,
+            usuario_id=operadores[0].id,
+            items=items, insumos_por_nombre=insumos_por_nombre,
+        )
+        total_paquetes += 1
+    db.commit()
+    print(f"  {total_paquetes} paquetes (5 carreras, semestre 2026-1)")
+    return total_paquetes
+
+
+def _insertar_programaciones(db, talleres_por_nombre, salas_por_nombre) -> dict:
+    print("Insertando programaciones de talleres...")
+    programaciones_por_clave = {}
+    for (taller_nombre, sala_nombre, fecha, hora_inicio, hora_fin,
+         docente_nombre, seccion, semestre, notas) in PROGRAMACIONES_DATA:
+        p = ProgramacionTaller(
+            taller_id=talleres_por_nombre[taller_nombre].id,
+            sala_id=salas_por_nombre[sala_nombre].id,
+            fecha=fecha,
+            hora_inicio=hora_inicio,
+            hora_fin=hora_fin,
+            docente_nombre=docente_nombre,
+            seccion=seccion,
+            semestre=semestre,
+            notas=notas,
+        )
+        db.add(p)
+        programaciones_por_clave[f"{taller_nombre}|{fecha}"] = p
+    db.flush()
+    print(f"  {len(programaciones_por_clave)} programaciones (semestre 2026-1)")
+    return programaciones_por_clave
+
+
+def _insertar_revisiones_sala(
+    db, programaciones_por_clave, salas_por_nombre, operadores
+) -> int:
+    print("Insertando revisiones de sala...")
+    total_revisiones = 0
+    total_items = 0
+    for (taller_nombre, fecha, estado, hora_inicio_rev, hora_fin_rev,
+         notas, items) in REVISIONES_SALA_DATA:
+        prog = programaciones_por_clave[f"{taller_nombre}|{fecha}"]
+        rev = RevisionSala(
+            programacion_id=prog.id,
+            sala_id=prog.sala_id,
+            fecha=prog.fecha,
+            operador_id=random.choice(operadores).id,
+            estado=estado,
+            hora_inicio_rev=hora_inicio_rev,
+            hora_fin_rev=hora_fin_rev,
+            notas=notas,
+        )
+        db.add(rev)
+        db.flush()
+        for (tipo, nombre, cant_esp, cant_enc, conforme, notas_item) in items:
+            db.add(RevisionSalaItem(
+                revision_id=rev.id,
+                tipo=tipo,
+                nombre=nombre,
+                cantidad_esperada=cant_esp,
+                cantidad_encontrada=cant_enc,
+                conforme=conforme,
+                notas_item=notas_item,
+            ))
+            total_items += 1
+        total_revisiones += 1
+    db.commit()
+    print(f"  {total_revisiones} revisiones, {total_items} items")
+    return total_revisiones
+
+
+def _insertar_incidencias(db, activos_por_nombre, salas_por_nombre, usuarios) -> int:
+    print("Insertando incidencias...")
+    for (activo_nombre, tipo, descripcion, sala_nombre,
+         fecha_hora, responsable_nombre, severidad, estado) in INCIDENCIAS_DATA:
+        db.add(Incidencia(
+            activo_fijo_id=activos_por_nombre[activo_nombre].id,
+            tipo=tipo,
+            descripcion=descripcion,
+            sala_id=salas_por_nombre[sala_nombre].id,
+            fecha_hora=fecha_hora,
+            responsable_nombre=responsable_nombre,
+            severidad=severidad,
+            estado=estado,
+        ))
+    db.commit()
+    print(f"  {len(INCIDENCIAS_DATA)} incidencias")
+    return len(INCIDENCIAS_DATA)
+
+
+def _insertar_ordenes_entrada(
+    db, proveedores_map, insumos_db, usuarios, operadores
+) -> int:
+    print("Insertando ordenes de entrada...")
+    insumos_por_nombre = {i.nombre: i for i in insumos_db}
+    total_ordenes = 0
+    for (prov_key, tipo, estado, actividad_duoc,
+         notas, items) in ORDENES_ENTRADA_DATA:
+        prov_id = proveedores_map.get(prov_key) if prov_key else None
+        cerrado_por_id = operadores[0].id if estado == EstadoOrdenEntrada.cerrada else None
+        orden = OrdenEntrada(
+            proveedor_id=prov_id,
+            tipo=tipo,
+            estado=estado,
+            actividad_duoc=actividad_duoc,
+            notas=notas,
+            creado_por_id=operadores[0].id,
+            cerrado_por_id=cerrado_por_id,
+        )
+        db.add(orden)
+        db.flush()
+        for (insumo_nombre, cant_pedida, cant_recibida,
+             costo_unitario, estado_item) in items:
+            db.add(OrdenEntradaItem(
+                orden_id=orden.id,
+                tipo_item=TipoItemOrden.insumo,
+                insumo_id=insumos_por_nombre[insumo_nombre].id,
+                cantidad_pedida=cant_pedida,
+                cantidad_recibida=cant_recibida,
+                costo_unitario=costo_unitario,
+                estado=estado_item,
+            ))
+        total_ordenes += 1
+    total_items_entrada = sum(len(its) for *_, its in ORDENES_ENTRADA_DATA)
+    db.commit()
+    print(f"  {total_ordenes} ordenes ({total_items_entrada} items)")
+    return total_ordenes
+
+
+# ===========================================================================
+# Punto de entrada
+# ===========================================================================
 
 def main():
     db = SessionLocal()
@@ -432,343 +1239,49 @@ def main():
             print("Cancelado.")
             return
 
-        # --- Limpiar en orden FK ---
-        print("\nLimpiando datos existentes...")
-        from app.models.orden_mantenimiento import OrdenMantenimientoItem
-        db.query(OrdenMantenimientoItem).delete()
-        db.query(PaqueteItem).delete()
-        db.query(PaqueteInsumo).delete()
-        db.query(Taller).delete()
-        db.query(UnidadImplemento).delete()
-        db.query(OrdenMantenimiento).delete()
-        db.query(ActivoFijo).delete()
-        db.query(Proveedor).delete()
-        db.query(RetornoImplemento).delete()
-        db.query(AuditLog).delete()
-        db.query(SolicitudItem).delete()
-        db.query(SolicitudRetiro).delete()
-        db.query(Movimiento).delete()
-        db.query(ClaseDocente).delete()
-        db.query(ComentarioDocente).delete()
-        db.query(Docente).delete()
-        db.query(Insumo).delete()
-        db.query(Asignatura).delete()
-        db.query(Sala).delete()
-        db.query(Categoria).delete()
-        db.query(Usuario).delete()
-        db.commit()
-        print("  OK")
-
-        # --- Salas ---
-        print("Insertando salas...")
-        salas = []
-        for nombre, tipo, desc in SALAS:
-            s = Sala(nombre=nombre, tipo=tipo, descripcion=desc)
-            db.add(s)
-            salas.append(s)
-        db.flush()
-        print(f"  {len(salas)} salas")
-
-        # --- Categorias ---
-        print("Insertando categorias...")
-        cats = []
-        for nombre in CATEGORIAS:
-            c = Categoria(nombre=nombre)
-            db.add(c)
-            cats.append(c)
-        db.flush()
-        print(f"  {len(cats)} categorias")
-
-        # --- Usuarios ---
-        print("Insertando usuarios...")
-        usuarios = []
-        for nombre, email, pwd, rol in USUARIOS:
-            u = Usuario(
-                nombre=nombre, email=email,
-                password_hash=hashear_password(pwd), rol=rol,
-            )
-            db.add(u)
-            usuarios.append(u)
-        db.flush()
-        operadores = [u for u in usuarios if u.rol == RolUsuario.operador]
-        print(f"  {len(usuarios)} usuarios")
-
-        # --- Proveedores ---
-        print("Insertando proveedores...")
-        prov_laerdal = Proveedor(
-            nombre="Laerdal Medical Chile SpA",
-            rut="76.543.210-K",
-            contacto_nombre="Roberto Salas",
-            contacto_email="rsalas@laerdal.cl",
-            telefono="+56 2 2345 6789",
-            url_seneg="https://www.senegocia.com/proveedor/laerdal-chile",
-            notas=(
-                "Proveedor oficial de phantomas Laerdal. "
-                "Mantenimiento preventivo semestral incluido en contrato."
-            ),
+        _limpiar(db)
+        salas_por_nombre     = _insertar_salas(db)
+        cats                 = _insertar_categorias(db)
+        cats_por_nombre      = {c.nombre: c for c in cats}
+        usuarios, operadores = _insertar_usuarios(db)
+        proveedores_map      = _insertar_proveedores(db)
+        docentes_por_nombre  = _insertar_docentes(db)
+        asignaturas_por_codigo = _insertar_asignaturas(db)
+        clases     = _insertar_clases(db, docentes_por_nombre, asignaturas_por_codigo)
+        insumos_db = _insertar_insumos(db, cats)
+        implementos_list = [i for i in insumos_db if i.tipo == TipoInsumo.implemento]
+        total_unidades = _insertar_unidades_implemento(
+            db, implementos_list, salas_por_nombre, cats_por_nombre,
         )
-        prov_medsupply = Proveedor(
-            nombre="MedSupply SpA",
-            rut="76.111.222-3",
-            contacto_nombre="Patricia Vega",
-            contacto_email="pvega@medsupply.cl",
-            telefono="+56 9 8765 4321",
-            url_seneg=None,
-            notas="Proveedor general de insumos medicos desechables.",
+        activos_por_nombre, n_muebles, n_phantomas = _insertar_activos_fijos(
+            db, salas_por_nombre, proveedores_map,
         )
-        db.add(prov_laerdal)
-        db.add(prov_medsupply)
-        db.flush()
-        proveedores_map = {
-            "laerdal": prov_laerdal.id,
-            "medsupply": prov_medsupply.id,
-        }
-        print("  2 proveedores (Laerdal Chile, MedSupply SpA)")
-
-        # --- Docentes ---
-        print("Insertando docentes...")
-        docentes = []
-        for nombre, email, rut in DOCENTES_DATA:
-            d = Docente(nombre=nombre, email=email, rut=rut, activo=True)
-            db.add(d)
-            docentes.append(d)
-        db.flush()
-        print(f"  {len(docentes)} docentes (Paz Rodriguez, Michael Torres)")
-
-        # --- Asignaturas ---
-        print("Insertando asignaturas...")
-        asignaturas = []
-        for nombre, codigo, carrera in ASIGNATURAS:
-            a = Asignatura(nombre=nombre, codigo=codigo, carrera=carrera)
-            db.add(a)
-            asignaturas.append(a)
-        db.flush()
-        print(f"  {len(asignaturas)} asignaturas (5 carreras)")
-
-        # --- Clases ---
-        print("Insertando clases...")
-        clases = []
-        for doc_idx, asig_idx, seccion, semestre, num_est in CLASES_DOCENTE:
-            c = ClaseDocente(
-                docente_id=docentes[doc_idx].id,
-                asignatura_id=asignaturas[asig_idx].id,
-                seccion=seccion, semestre=semestre, num_estudiantes=num_est,
-            )
-            db.add(c)
-            clases.append(c)
-        db.flush()
-        print(f"  {len(clases)} clases (semestre 2026-1)")
-
-        # --- Insumos ---
-        print("Insertando insumos...")
-        insumos_db = []
-        for nombre, unidad_medida, stock, minimo, cat_idx, tipo, costo in INSUMOS:
-            i = Insumo(
-                nombre=nombre,
-                descripcion=unidad_medida,
-                unidad_medida=unidad_medida,
-                stock_actual=stock,
-                stock_minimo=minimo,
-                sala_id=None,
-                categoria_id=cats[cat_idx].id,
-                tipo=TipoInsumo(tipo),
-                costo_unitario=costo,
-            )
-            db.add(i)
-            insumos_db.append(i)
-        db.flush()
-        for ins in insumos_db:
-            if not ins.sku:
-                ins.sku = f"HST-{ins.id:05d}"
-        db.commit()
-        implementos_list = [
-            i for i in insumos_db if i.tipo == TipoInsumo.implemento
-        ]
-        print(f"  {len(insumos_db)} insumos ({len(implementos_list)} implementos)")
-
-        # --- Unidades fisicas de implementos ---
-        print("Insertando unidades fisicas de implementos...")
-        total_unidades = 0
-        salas_clinicas = salas[:3]
-        for impl in implementos_list:
-            prefijo = _prefijo_codigo(impl.nombre)
-            cantidad = random.randint(2, 5)
-            for j in range(cantidad):
-                estado = random.choice([
-                    EstadoUnidad.disponible, EstadoUnidad.disponible,
-                    EstadoUnidad.disponible, EstadoUnidad.en_uso,
-                ])
-                if j == 0 and impl.categoria_id == cats[0].id:
-                    sala_asignada = salas_clinicas[0].id
-                elif j == 1 and impl.categoria_id == cats[0].id:
-                    sala_asignada = salas_clinicas[1].id
-                else:
-                    sala_asignada = None
-                u = UnidadImplemento(
-                    implemento_id=impl.id,
-                    estado=estado,
-                    sala_id=sala_asignada,
-                )
-                db.add(u)
-                db.flush()
-                u.codigo = f"{prefijo}-{u.id:05d}"
-                total_unidades += 1
-        db.commit()
-        print(
-            f"  {total_unidades} unidades "
-            f"({len(implementos_list)} implementos cubiertos)"
+        _insertar_orden_mantenimiento(db, activos_por_nombre, proveedores_map, operadores)
+        total_movs     = _insertar_movimientos(db, insumos_db, usuarios, operadores)
+        talleres_por_nombre = _insertar_talleres(db, asignaturas_por_codigo)
+        total_paquetes = _insertar_paquetes(db, talleres_por_nombre, insumos_db, operadores)
+        programaciones_por_clave = _insertar_programaciones(
+            db, talleres_por_nombre, salas_por_nombre,
+        )
+        total_revisiones = _insertar_revisiones_sala(
+            db, programaciones_por_clave, salas_por_nombre, operadores,
+        )
+        total_incidencias = _insertar_incidencias(
+            db, activos_por_nombre, salas_por_nombre, usuarios,
+        )
+        total_ordenes_entrada = _insertar_ordenes_entrada(
+            db, proveedores_map, insumos_db, usuarios, operadores,
         )
 
-        # --- Activos Fijos ---
-        print("Insertando activos fijos...")
-        activos_db = []
-        for (nombre, desc, tipo, sala_idx,
-             fidelidad, notas, prov_key) in ACTIVOS_FIJOS_DEMO:
-            prov_id = proveedores_map.get(prov_key) if prov_key else None
-            af = ActivoFijo(
-                nombre=nombre, descripcion=desc, tipo=tipo,
-                sala_id=salas[sala_idx].id, fidelidad=fidelidad,
-                estado=EstadoActivo.disponible, notas=notas,
-                proveedor_id=prov_id,
-            )
-            db.add(af)
-            activos_db.append(af)
-            db.flush()
-            prefijo_af = "MUE" if tipo == TipoActivo.mueble else "PHN"
-            af.codigo_interno = f"{prefijo_af}-{af.id:05d}"
-        db.commit()
-        n_muebles = sum(1 for a in ACTIVOS_FIJOS_DEMO if a[2] == TipoActivo.mueble)
-        n_phantomas = len(ACTIVOS_FIJOS_DEMO) - n_muebles
-        print(
-            f"  {len(activos_db)} activos fijos "
-            f"({n_muebles} muebles, {n_phantomas} phantomas)"
-        )
-
-        # --- Orden de mantenimiento demo ---
-        # Modelo actual: OrdenMantenimiento es la cabecera de una visita.
-        # OrdenMantenimientoItem es un Phantoma dentro de esa visita.
-        # Estado: en_curso | cerrada | cancelada
-        print("Insertando orden de mantenimiento demo...")
-        simman = activos_db[3]   # SimMan 3G
-        als = activos_db[5]      # ALS Simulator neonatal
-        simman.estado = EstadoActivo.en_mantenimiento
-        als.estado = EstadoActivo.en_mantenimiento
-
-        orden_demo = OrdenMantenimiento(
-            proveedor_id=prov_laerdal.id,
-            creado_por_id=usuarios[1].id,
-            estado=EstadoOrden.en_curso,
-            fecha_visita=date.today() - timedelta(days=12),
-            notas=(
-                "Visita semestral preventiva Laerdal Chile. "
-                "SimMan con falla en modulo de sonidos respiratorios. "
-                "ALS Neonatal: revision de bateria y sensores."
-            ),
-        )
-        db.add(orden_demo)
-        db.flush()
-
-        # Items: uno por Phantoma incluido en la visita
-        db.add(OrdenMantenimientoItem(
-            orden_id=orden_demo.id,
-            activo_fijo_id=simman.id,
-            resultado=ResultadoItem.pendiente,
-            descripcion_problema=(
-                "Falla en modulo de sonidos respiratorios. "
-                "No reproduce ruidos pulmonares durante simulacion "
-                "de insuficiencia respiratoria."
-            ),
-        ))
-        db.add(OrdenMantenimientoItem(
-            orden_id=orden_demo.id,
-            activo_fijo_id=als.id,
-            resultado=ResultadoItem.pendiente,
-            descripcion_problema=(
-                "Revision preventiva de bateria y calibracion de sensores."
-            ),
-        ))
-        db.commit()
-        print(
-            f"  1 orden (2 items: SimMan 3G + ALS Neonatal, en_curso)"
-        )
-
-        # --- Movimientos ---
-        print("Insertando movimientos...")
-        total_movs = 0
-        for insumo in insumos_db:
-            en_alerta = insumo.stock_actual <= insumo.stock_minimo
-            ne = random.randint(1, 2) if en_alerta else random.randint(2, 4)
-            ns = random.randint(5, 9) if en_alerta else random.randint(3, 7)
-            rne = (40, 60) if en_alerta else (3, 50)
-            rns = (0, 25) if en_alerta else (0, 50)
-            subtipo_salida = (
-                SubtipoMovimiento.prestamo_implemento
-                if insumo.tipo == TipoInsumo.implemento
-                else SubtipoMovimiento.consumo_taller
-            )
-            for _ in range(ne):
-                db.add(Movimiento(
-                    tipo=TipoMovimiento.entrada,
-                    subtipo=SubtipoMovimiento.compra,
-                    cantidad=random.randint(30, 150),
-                    motivo=random.choice(MOTIVOS_ENTRADA),
-                    fecha=fecha_aleatoria(*rne),
-                    insumo_id=insumo.id,
-                    usuario_id=random.choice(operadores).id,
-                ))
-                total_movs += 1
-            for _ in range(ns):
-                db.add(Movimiento(
-                    tipo=TipoMovimiento.salida,
-                    subtipo=subtipo_salida,
-                    cantidad=random.randint(1, 8),
-                    motivo=random.choice(MOTIVOS_SALIDA),
-                    fecha=fecha_aleatoria(*rns),
-                    insumo_id=insumo.id,
-                    usuario_id=random.choice(usuarios).id,
-                ))
-                total_movs += 1
-        db.commit()
-        print(f"  {total_movs} movimientos (tipo + subtipo)")
-
-        # --- Talleres ---
-        print("Insertando talleres...")
-        talleres_db = []
-        for nombre, desc, asig_idx in TALLERES_DATA:
-            t = Taller(
-                nombre=nombre, descripcion=desc,
-                asignatura_id=asignaturas[asig_idx].id,
-            )
-            db.add(t)
-            talleres_db.append(t)
-        db.flush()
-        print(f"  {len(talleres_db)} talleres (5 carreras)")
-
-        # --- Paquetes de insumos ---
-        print("Insertando paquetes de insumos...")
-        total_paquetes = 0
-        for taller_idx, semestre, notas, items in PAQUETES_DATA:
-            _crear_paquete(
-                db,
-                taller_id=talleres_db[taller_idx].id,
-                semestre=semestre, notas=notas,
-                usuario_id=usuarios[1].id,
-                items=items, insumos_db=insumos_db,
-            )
-            total_paquetes += 1
-        db.commit()
-        print(f"  {total_paquetes} paquetes (5 carreras, semestre 2026-1)")
-
-        # --- Resumen final ---
         alertas = sum(1 for _, _, s, m, *_ in INSUMOS if s <= m)
         print("\n" + "=" * 40)
         print("Demo cargada exitosamente.")
-        print(f"  Salas:             {len(salas)}")
+        print(f"  Salas:             {len(salas_por_nombre)}")
         print(f"  Categorias:        {len(cats)}")
         print(f"  Usuarios:          {len(usuarios)}")
-        print(f"  Proveedores:       2 (Laerdal Chile, MedSupply SpA)")
-        print(f"  Docentes:          {len(docentes)} (Paz Rodriguez, Michael Torres)")
-        print(f"  Asignaturas:       {len(asignaturas)} (5 carreras)")
+        print("  Proveedores:       2 (Laerdal Chile, MedSupply SpA)")
+        print(f"  Docentes:          {len(docentes_por_nombre)} (15 docentes KB)")
+        print(f"  Asignaturas:       {len(asignaturas_por_codigo)} (5 carreras)")
         print(f"  Clases:            {len(clases)}")
         print(
             f"  Insumos:           {len(insumos_db)} "
@@ -779,13 +1292,17 @@ def main():
             f"con {total_unidades} unidades fisicas"
         )
         print(
-            f"  Activos fijos:     {len(activos_db)} "
+            f"  Activos fijos:     {len(activos_por_nombre)} "
             f"({n_muebles} muebles, {n_phantomas} phantomas)"
         )
-        print("  Ordenes mant.:     1 (SimMan 3G + ALS Neonatal, en_curso)")
+        print("  Ordenes mant.:     1 (Fantoma AF + Fantoma RN soporte vital, en_curso)")
         print(f"  Movimientos:       {total_movs} (tipo + subtipo)")
-        print(f"  Talleres:          {len(talleres_db)}")
+        print(f"  Talleres:          {len(talleres_por_nombre)}")
         print(f"  Paquetes:          {total_paquetes}")
+        print(f"  Programaciones:    {len(programaciones_por_clave)}")
+        print(f"  Revisiones sala:   {total_revisiones}")
+        print(f"  Incidencias:       {total_incidencias}")
+        print(f"  Ordenes entrada:   {total_ordenes_entrada}")
         print("\nCredenciales:")
         for _, email, pwd, rol in USUARIOS:
             print(f"  {email:38} | {pwd:12} | {rol.value}")
