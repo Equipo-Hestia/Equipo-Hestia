@@ -66,7 +66,7 @@ function ModalAcercaDe({ onClose }: { onClose: () => void }) {
                      text-xl leading-none transition-colors"
           aria-label="Cerrar">x</button>
         <div className="flex flex-col items-center mb-6">
-          <Logo className="w-16 h-16 mb-3" />
+          <Logo className="w-18 h-18 mb-3" />
           <h2 className="text-xl font-bold text-h-primary tracking-tight">Hestia</h2>
           <p className="text-xs font-medium mt-1" style={{ color: 'var(--h-teal-hover)' }}>
             Sistema de gestión de insumos medicos
@@ -332,7 +332,7 @@ function PanelIzquierdo() {
       }} />
       <div className="relative z-10 flex flex-col justify-between h-full p-10">
         <div className="flex items-center gap-3">
-          <Logo className="w-10 h-10" />
+          <Logo className="w-14 h-14" />
           <div>
             <p className="text-h-primary text-base font-semibold leading-tight">Hestia</p>
             <p className="text-h-tertiary text-xs leading-tight">Escuela de Salud</p>
@@ -656,7 +656,7 @@ export function Login() {
         }} />
 
         <div className="lg:hidden flex flex-col items-center mb-8">
-          <Logo className="w-14 h-14 mb-3" />
+          <Logo className="w-20 h-20 mb-3" />
           <h1 className="text-2xl font-bold text-h-primary">Hestia</h1>
           <p className="text-h-tertiary text-xs mt-1">Escuela de Salud • DuocUC</p>
         </div>

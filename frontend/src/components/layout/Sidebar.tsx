@@ -248,7 +248,7 @@ export function Sidebar() {
       <div className="relative overflow-hidden flex items-center border-b border-h-subtle flex-shrink-0 px-3 py-3 gap-2">
         <div className="absolute inset-0 pointer-events-none sidebar-aurora" />
         <div className="relative z-10 flex items-center gap-2.5 min-w-0 flex-1">
-          <Logo className="w-8 h-8 flex-shrink-0" />
+          <Logo className="w-10 h-10 flex-shrink-0" />
           {!collapsed && (
             <div className="min-w-0" style={{
               opacity:    labelsVisible ? 1 : 0,
