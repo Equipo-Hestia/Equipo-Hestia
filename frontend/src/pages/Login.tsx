@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import { useAuthStore } from '../store/auth'
 import { Logo } from '../components/ui/Logo'
+import { HSelect } from '../components/ui/HSelect'
 import { TotpInput } from '../components/ui/TotpInput'
 import type { LoginResponse, Setup2FAResponse } from '../types/api'
 
@@ -52,56 +53,48 @@ const SYSTEM_STATS = [
 function ModalAcercaDe({ onClose }: { onClose: () => void }) {
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70
-                 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60
+                 backdrop-blur-md animate-in fade-in duration-200"
       onClick={onClose}
     >
       <div
         className="bg-h-surface border border-h-subtle rounded-2xl shadow-2xl
-                   max-w-sm w-full p-7 relative"
+                   max-w-sm w-full p-8 relative flex flex-col items-center text-center"
         onClick={e => e.stopPropagation()}
       >
-        <button onClick={onClose}
-          className="absolute top-4 right-4 text-h-tertiary hover:text-h-secondary
-                     text-xl leading-none transition-colors"
-          aria-label="Cerrar">x</button>
-        <div className="flex flex-col items-center mb-6">
-          <Logo className="w-18 h-18 mb-3" />
-          <h2 className="text-xl font-bold text-h-primary tracking-tight">Hestia</h2>
-          <p className="text-xs font-medium mt-1" style={{ color: 'var(--h-teal-hover)' }}>
-            Sistema de gestión de insumos medicos
-          </p>
-        </div>
-        <div className="space-y-3 text-xs text-h-secondary">
-          <div className="bg-h-elevated rounded-xl border border-h-subtle px-4 py-3 space-y-2">
-            {[
-              ['Institucion', 'DuocUC - Sede San Bernardo'],
-              ['Escuela',     'Escuela de Salud'],
-              ['Carrera',     'Informática Biomédica'],
-              ['Tipo',        'Proyecto de Titulo - Ruta IE'],
-              ['Periodo',     '2026-2027'],
-            ].map(([k, v]) => (
-              <p key={k}><span className="text-h-primary font-medium">{k}</span><br />{v}</p>
-            ))}
-          </div>
-          <div className="bg-h-elevated rounded-xl border border-h-subtle px-4 py-3">
-            <p className="text-h-primary font-medium mb-2">Stack tecnológico</p>
-            <div className="flex flex-wrap gap-1.5">
-              {['FastAPI', 'PostgreSQL', 'React 19', 'TypeScript', 'Tailwind CSS', 'Docker'].map(t => (
-                <span key={t} className="bg-h-highlight text-h-secondary px-2 py-0.5
-                               rounded-md font-mono text-[10px]">{t}</span>
-              ))}
-            </div>
-          </div>
-        </div>
-        <p className="text-center text-h-tertiary text-[10px] mt-5">
-          <strong className="text-h-secondary">H</strong>ospitalidad
-          <strong className="text-h-secondary">E</strong>ficacia
-          <strong className="text-h-secondary">S</strong>ervicio
-          <strong className="text-h-secondary">T</strong>ransparencia
-          <strong className="text-h-secondary">I</strong>nsumos
-          <strong className="text-h-secondary">A</strong>postolado
+        <button 
+          onClick={onClose}
+          className="absolute top-4 right-4 p-2 text-h-tertiary hover:text-h-primary hover:bg-h-elevated rounded-lg transition-colors"
+          aria-label="Cerrar"
+        >
+          ✕
+        </button>
+        
+        <Logo className="w-32 h-32 mb-4" />
+        
+        <h2 className="text-2xl font-bold text-h-primary tracking-tight mb-1">
+          Hestia
+        </h2>
+        <span className="bg-h-elevated border border-h-visible text-h-secondary text-[10px] px-2 py-1 rounded-full font-mono mb-4">
+          v1.0.0-beta
+        </span>
+
+        <p className="text-sm text-h-secondary leading-relaxed mb-6">
+          Sistema integral de gestión de stock e inventario de insumos, implementos y activos fijos clínicos.
         </p>
+
+        <div className="w-full bg-h-elevated rounded-xl border border-h-subtle p-4 mb-6 space-y-3">
+          <div>
+            <p className="text-[10px] uppercase tracking-widest text-h-tertiary font-semibold mb-1">Desarrollado por</p>
+            <p className="text-sm text-h-primary font-medium">Estudiantes de Informática Biomédica</p>
+          </div>
+          <div className="h-px bg-h-subtle w-full" />
+          <div>
+            <p className="text-[10px] uppercase tracking-widest text-h-tertiary font-semibold mb-1">Institución</p>
+            <p className="text-sm text-h-primary font-medium">Escuela de Salud DuocUC</p>
+            <p className="text-xs text-h-secondary mt-0.5">Sede San Bernardo</p>
+          </div>
+        </div>
       </div>
     </div>
   )
@@ -118,104 +111,119 @@ function ModalSoporte({ onClose }: { onClose: () => void }) {
     e.preventDefault()
     const subject = encodeURIComponent(`[Hestia Soporte] ${tema}`)
     const body    = encodeURIComponent(
-      `Nombre: ${nombre || 'No indicado'}\nTema: ${tema}\n\nDescripcion:\n${mensaje}`
+      `Nombre: ${nombre || 'No indicado'}\nTema: ${tema}\n\nDescripción:\n${mensaje}`
     )
     window.open(`mailto:${SOPORTE_EMAIL}?subject=${subject}&body=${body}`, '_blank')
     setEnviado(true)
   }
 
+  // Estilos actualizados al nuevo diseño oscuro
   const inputCls = `
-    w-full px-3 py-2.5 rounded-lg text-h-primary text-sm
-    focus:outline-none placeholder:text-h-tertiary transition-all
-    bg-h-elevated border border-h-visible focus:border-h-strong
+    w-full px-4 py-2.5 rounded-xl text-h-primary text-sm
+    bg-h-elevated border border-h-subtle hover:border-h-visible
+    focus:outline-none focus:border-[var(--h-teal-rest)] focus:ring-1 focus:ring-[var(--h-teal-rest)]
+    placeholder:text-h-tertiary transition-all duration-200
   `
-  const labelCls = `block text-[10px] font-semibold text-h-tertiary mb-1.5
-                    uppercase tracking-widest`
+  const labelCls = `block text-[11px] font-semibold text-h-secondary mb-2
+                    uppercase tracking-wider`
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4
-                    bg-black/70 backdrop-blur-sm" onClick={onClose}>
+                    bg-black/60 backdrop-blur-md animate-in fade-in duration-200" 
+         onClick={onClose}>
       <div className="bg-h-surface border border-h-subtle rounded-2xl shadow-2xl
-                      w-full max-w-md relative flex flex-col max-h-[90vh]"
+                      w-full max-w-md relative flex flex-col max-h-[90vh] overflow-hidden"
         onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-7 pt-6 pb-4
-                        border-b border-h-subtle flex-shrink-0">
+        
+        {/* Cabecera del modal */}
+        <div className="flex items-center justify-between px-8 py-6
+                        border-b border-h-subtle flex-shrink-0 bg-h-surface/50">
           <div>
-            <h2 className="text-base font-semibold text-h-primary">Centro de soporte</h2>
-            <p className="text-xs text-h-tertiary mt-0.5">Hestia - Escuela de Salud DuocUC</p>
+            <h2 className="text-lg font-bold text-h-primary tracking-tight">Centro de soporte</h2>
+            <p className="text-xs text-h-tertiary mt-1">Escuela de Salud • DuocUC</p>
           </div>
           <button onClick={onClose}
-            className="text-h-tertiary hover:text-h-secondary text-xl
-                       leading-none transition-colors" aria-label="Cerrar">x</button>
+            className="p-2 text-h-tertiary hover:text-h-primary hover:bg-h-elevated rounded-lg transition-colors" 
+            aria-label="Cerrar">✕</button>
         </div>
-        <div className="overflow-y-auto flex-1 px-7 py-5 space-y-6">
+
+        {/* Cuerpo del modal (Scrollable) */}
+        <div className="overflow-y-auto flex-1 px-8 py-6 space-y-8 custom-scrollbar">
           {enviado ? (
-            <div className="text-center py-4">
-              <div className="w-12 h-12 rounded-full flex items-center justify-center
-                             mx-auto mb-4 text-xl border"
-                style={{ background: 'var(--h-sem-success-bg)', borderColor: 'var(--h-sem-success-border)' }}>\u2709\ufe0f</div>
-              <h3 className="text-base font-semibold text-h-primary mb-2">Ticket enviado</h3>
-              <p className="text-h-secondary text-xs mb-4">
-                Se abrió tu cliente de correo con el mensaje listo para enviar a{' '}
-                <span className="font-semibold" style={{ color: 'var(--h-teal-hover)' }}>{SOPORTE_EMAIL}</span>.
+            <div className="text-center py-6">
+              <div className="w-16 h-16 rounded-full flex items-center justify-center
+                             mx-auto mb-5 text-2xl border bg-[var(--h-sem-success-bg)] border-[var(--h-sem-success-border)]">
+                ✉️
+              </div>
+              <h3 className="text-lg font-bold text-h-primary mb-2">Ticket en preparación</h3>
+              <p className="text-h-secondary text-sm mb-6 leading-relaxed">
+                Se abrió tu cliente de correo con el formato listo para enviar a{' '}
+                <span className="font-semibold text-[var(--h-teal-hover)]">{SOPORTE_EMAIL}</span>.
               </p>
               <button onClick={() => setEnviado(false)}
-                className="text-xs text-h-tertiary hover:text-h-secondary
-                           font-medium transition-colors underline">
-                Enviar otro ticket
+                className="px-4 py-2 rounded-lg border border-h-visible text-sm text-h-secondary hover:text-h-primary hover:bg-h-elevated font-medium transition-colors">
+                Redactar otro ticket
               </button>
             </div>
           ) : (
             <div>
-              <h3 className="text-sm font-medium text-h-primary mb-3">Contactar soporte</h3>
-              <form onSubmit={handleEnviar} className="space-y-3">
+              <form onSubmit={handleEnviar} className="space-y-5">
                 <div>
                   <label className={labelCls}>Nombre (opcional)</label>
                   <input type="text" value={nombre} onChange={e => setNombre(e.target.value)}
-                    className={inputCls} placeholder="Tu nombre o usuario" />
+                    className={inputCls} placeholder="Ej. Juan Pérez" />
                 </div>
+                
                 <div>
                   <label className={labelCls}>Tipo de problema *</label>
-                  <select required value={tema} onChange={e => setTema(e.target.value)}
-                    className={inputCls + ' cursor-pointer'}>
-                    {TEMAS.map(t => <option key={t} value={t}>{t}</option>)}
-                  </select>
+                  {/* Aquí integramos tu componente moderno HSelect */}
+                  <HSelect 
+                    options={TEMAS.map(t => ({ value: t, label: t }))}
+                    value={tema}
+                    onChange={(val: string) => setTema(val)}
+                    placeholder="Selecciona una categoría"
+                  />
                 </div>
+                
                 <div>
                   <label className={labelCls}>Descripción *</label>
                   <textarea required rows={4} value={mensaje}
                     onChange={e => setMensaje(e.target.value)}
-                    className={inputCls + ' resize-none'}
+                    className={`${inputCls} resize-none`}
                     placeholder="Describe el problema con el mayor detalle posible..." />
                 </div>
+                
                 <button type="submit" disabled={!mensaje.trim()}
-                  className="w-full text-white font-semibold py-2.5 rounded-lg
-                             transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                  className="w-full text-white font-semibold py-3 rounded-xl
+                             transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm hover:brightness-110 active:scale-[0.98]"
                   style={{ background: 'var(--h-teal-rest)' }}>
                   Abrir cliente de correo
                 </button>
               </form>
             </div>
           )}
-          <div>
-            <h3 className="text-sm font-medium text-h-primary mb-3">Preguntas frecuentes</h3>
-            <div className="space-y-1.5">
+
+          {/* Sección FAQ */}
+          <div className="pt-6 border-t border-h-subtle">
+            <h3 className="text-sm font-semibold text-h-primary mb-4 uppercase tracking-wider">Preguntas frecuentes</h3>
+            <div className="space-y-2">
               {FAQ_ITEMS.map((item, i) => (
-                <div key={i} className="rounded-xl border border-h-subtle overflow-hidden">
+                <div key={i} className="rounded-xl border border-h-subtle overflow-hidden bg-h-elevated/50 transition-all">
                   <button type="button"
                     onClick={() => setExpandFaq(expandFaq === i ? null : i)}
                     className="w-full flex items-center justify-between gap-3
-                               px-4 py-3 text-left hover:bg-h-elevated transition-colors">
-                    <span className="text-xs font-medium text-h-secondary">{item.q}</span>
-                    <span className="text-h-tertiary flex-shrink-0 text-sm">
-                      {expandFaq === i ? '-' : '+'}
+                               px-5 py-4 text-left hover:bg-h-elevated transition-colors">
+                    <span className="text-sm font-medium text-h-primary">{item.q}</span>
+                    <span className="text-h-tertiary flex-shrink-0">
+                      {expandFaq === i ? '▲' : '▼'}
                     </span>
                   </button>
-                  {expandFaq === i && (
-                    <div className="px-4 pb-3">
-                      <p className="text-xs text-h-secondary leading-relaxed">{item.a}</p>
-                    </div>
-                  )}
+                  <div 
+                    className={`px-5 overflow-hidden transition-all duration-300 ease-in-out
+                      ${expandFaq === i ? 'max-h-40 pb-4 opacity-100' : 'max-h-0 opacity-0'}`}
+                  >
+                    <p className="text-sm text-h-secondary leading-relaxed border-t border-h-subtle pt-3">{item.a}</p>
+                  </div>
                 </div>
               ))}
             </div>
