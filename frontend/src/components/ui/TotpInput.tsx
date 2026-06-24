@@ -199,9 +199,9 @@ export function TotpInput({
         display:flex;align-items:center;justify-content:center;
       `
       const img = document.createElement('img')
-      img.src   = '/logo_hestia_circular.ico'
+      img.src   = '/logo_hestia_final_fondo.svg'
       img.alt   = 'Hestia'
-      img.style.cssText = 'width:48px;height:48px;border-radius:50%;'
+      img.style.cssText = 'width:80px;height:80px;border-radius:50%;'
       logoWrap.appendChild(img)
       wrapper.appendChild(logoWrap)
 
