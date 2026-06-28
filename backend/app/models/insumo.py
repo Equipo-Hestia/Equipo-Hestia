@@ -13,7 +13,7 @@ class TipoInsumo(str, enum.Enum):
 
 class Insumo(Base):
     __tablename__ = "insumos"
-    
+
     # Le decimos explícitamente a SQLAlchemy cómo se llaman los índices en la BD
     __table_args__ = (
         Index('uix_insumos_sku', 'sku', unique=True),

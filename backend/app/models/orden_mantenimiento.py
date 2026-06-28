@@ -49,10 +49,10 @@ class OrdenMantenimiento(Base):
         default=EstadoOrden.en_curso,
         server_default=EstadoOrden.en_curso.value,
     )
-    
-    tipo_mantenimiento = Column(String(50), nullable=True) 
+
+    tipo_mantenimiento = Column(String(50), nullable=True)
     fecha_retorno_estimada = Column(Date, nullable=True)
-    
+
     tipo_mantenimiento = Column(
         SAEnum(TipoMantenimiento, name="tipomantenimiento", create_type=False),
         nullable=True
