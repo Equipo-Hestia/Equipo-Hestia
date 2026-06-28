@@ -50,6 +50,8 @@ docker compose up --build     # primera vez o tras cambios en Dockerfile
 docker compose up             # levantar sin reconstruir
 docker compose restart api    # recargar backend
 docker compose exec api python seed_demo.py  # datos de demo
+docker compose exec api alembic revision --autogenerate -m "mensaje"  # nueva migracion
+docker compose exec api alembic upgrade head  # aplicar migraciones pendientes a mano
 ```
 
 ---
@@ -142,11 +144,32 @@ require_admin        # solo admin
 require_reportes     # admin, operador_coordinador o visor
 ```
 
-### 3.5 Reglas de migraciones
+### 3.5 Reglas de migraciones (Alembic, desde junio 2026)
 
-Siempre SQL idempotente en `MIGRACIONES_COLUMNAS` / `MIGRACIONES_ENUM` de `database.py`.
-Nunca Alembic. Enum migrations con `psycopg2` + `autocommit=True`.
-`create_type=False` en `SAEnum` cuando el tipo ya existe en PostgreSQL.
+Hestia usa **Alembic** para todo cambio de esquema nuevo. Flujo correcto:
+
+1. Modificar el modelo SQLAlchemy correspondiente en `app/models/`.
+2. Generar la migracion:
+   `docker compose exec api alembic revision --autogenerate -m "descripcion"`.
+3. Revisar a mano el archivo generado en `alembic/versions/` — autogenerate no
+   detecta cambios de nombre de columna ni escribe la logica de copia de datos.
+4. `alembic upgrade head` corre automaticamente al levantar el contenedor `api`
+   (ver `backend/start.sh`), antes de `crear_admin.py` y de `uvicorn`.
+
+**Importante:** cualquier modelo nuevo debe importarse tambien en
+`backend/alembic/env.py` (mismo orden de FK que en `main.py`), o Alembic no lo
+vera al generar migraciones automaticas.
+
+El sistema anterior (`MIGRACIONES_COLUMNAS` / `MIGRACIONES_ENUM` en
+`database.py`, con `psycopg2` + `autocommit=True` para los enums) queda
+**congelado** como referencia historica. No agregar nuevas entradas ahi. Se
+elimina por completo una vez migrados `carreraasignatura` y `rolusuario`
+(enums de catalogo de negocio editable) a tablas relacionales.
+
+`create_type=False` en `SAEnum` cuando el tipo ya existe en PostgreSQL — sigue
+aplicando a los enums de estado interno que se mantienen como ENUM nativo
+(p.ej. `estadoordenentrada`, `severidadincidencia`: son estados cerrados de
+un flujo de software, no catalogos editables por el usuario).
 
 ### 3.6 Reglas de estilo Python
 
@@ -245,6 +268,8 @@ Prefijos registrados: `/auth`, `/insumos`, `/importar`, `/resumen`, `/salas`,
     `joinedload(proveedor)` en las queries para poblar `proveedor_nombre`.
 18. **Conteos de tabs en ActivosFijos:** usar lista `todos` (sin filtro de tipo) para
     los conteos; `activos` (lista filtrada) solo para la tabla.
+19. **Migraciones de esquema.** Siempre Alembic (ver 3.5). Nunca tocar `database.py`
+    a mano para columnas/enums nuevos.
 
 ---
 
@@ -272,11 +297,13 @@ Prefijos registrados: `/auth`, `/insumos`, `/importar`, `/resumen`, `/salas`,
 | Proveedores   | CRUD de proveedores (coord/admin)                  | OK junio 2026  |
 | Vista Salas   | Mapa SVG interactivo con estados en tiempo real    | OK junio 2026  |
 | Reportes      | Valorizacion PDF/XLSX, consumo carreras            | OK             |
+| Migraciones   | Alembic activo (start.sh -> alembic upgrade head)  | OK junio 2026  |
 
 ### Pendiente
 
 | Funcionalidad                                    | Complejidad |
 |---|---|
+| Migrar enums `carreraasignatura`/`rolusuario` a tablas relacionales | Alta |
 | Vista movil de Operadoras — Guia del dia por sala| Media       |
 | Reporte de conflictos de recursos                | Media       |
 | Extraer ShimmerButton a componente reutilizable  | Media       |

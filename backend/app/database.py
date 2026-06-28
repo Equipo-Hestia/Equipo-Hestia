@@ -32,7 +32,14 @@ def get_db():
 
 
 # ---------------------------------------------------------------------------
-# Mini-migraciones idempotentes
+# Mini-migraciones idempotentes (CONGELADO desde junio 2026)
+#
+# No agregar nuevas entradas aqui. Todo cambio de esquema nuevo se hace
+# con Alembic (ver backend/alembic/ y CLAUDE.md seccion 3.5). Este sistema
+# se mantiene activo solo como puente de compatibilidad con entornos que
+# aun no corrieron las migraciones de Alembic, y se elimina por completo
+# una vez migrados los enums de catalogo de negocio (`carreraasignatura`,
+# `rolusuario`) a tablas relacionales.
 # ---------------------------------------------------------------------------
 
 MIGRACIONES_COLUMNAS = [
@@ -253,6 +260,8 @@ MIGRACIONES_ENUM = [
 
 
 def aplicar_migraciones_pendientes() -> None:
+    """Puente de compatibilidad CONGELADO. Ver nota junto a
+    MIGRACIONES_COLUMNAS: las migraciones nuevas van en Alembic."""
     with engine.begin() as conn:
         for sql in MIGRACIONES_COLUMNAS:
             conn.execute(text(sql))

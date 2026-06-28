@@ -126,7 +126,7 @@ Esto levanta los tres servicios en orden:
 | API (FastAPI) | http://localhost:8000 |
 | Docs interactivos | http://localhost:8000/docs |
 
-La base de datos se crea automáticamente al iniciar la API. Las migraciones de esquema (columnas nuevas, valores de enum) se aplican de forma idempotente en cada arranque — no se pierden datos.
+La base de datos se crea automáticamente al iniciar la API. Las migraciones de esquema se aplican con Alembic en cada arranque del contenedor `api`, antes de levantar el servidor — no se pierden datos.
 
 ### 4. Cargar datos de demo (opcional)
 
@@ -163,6 +163,10 @@ docker compose down -v             # apagar y borrar la base de datos
 docker compose restart api         # tras cambios en variables de entorno
 docker compose restart frontend    # tras cambios en vite.config.ts
 docker compose restart nginx       # tras cambios en nginx.conf (sin --build)
+
+# Migraciones de base de datos (Alembic)
+docker compose exec api alembic revision --autogenerate -m "mensaje"  # nueva migracion
+docker compose exec api alembic upgrade head                          # aplicar a mano
 
 # Logs en tiempo real
 docker compose logs -f api
@@ -206,8 +210,10 @@ hestia/
 │   │   ├── schemas/       → Pydantic v2
 │   │   ├── routes/        → FastAPI routers
 │   │   └── utils/         → security, deps (RBAC), rate_limit, auditoria
+│   ├── alembic/            → migraciones de esquema (Alembic)
 │   ├── crear_admin.py     → bootstrap del usuario admin al arrancar
 │   ├── seed_demo.py       → cargador de datos de demo
+│   ├── start.sh            → entrypoint: alembic upgrade head → crear_admin → uvicorn
 │   ├── requirements.txt
 │   └── .env.example
 ├── frontend/

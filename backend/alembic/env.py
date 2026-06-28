@@ -10,9 +10,28 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 load_dotenv()
 
-# Importar Base y todos los modelos para que Alembic los detecte
+# Importar Base y TODOS los modelos para que Alembic los detecte.
+# Mismo orden que backend/app/main.py (resuelve dependencias de FK y
+# relaciones lazy de SQLAlchemy, p.ej. Asignatura -> Taller).
 from app.database import Base
 from app.models import sala, categoria, usuario, movimiento, insumo
+from app.models import audit_log
+from app.models import asignatura
+from app.models import docente            # antes que clase_docente
+from app.models import clase_docente
+from app.models import solicitud
+from app.models import token_recuperacion
+from app.models import retorno_implemento
+from app.models import activo_fijo
+from app.models import unidad_implemento
+from app.models import taller
+from app.models import paquete_insumo
+from app.models import proveedor
+from app.models import orden_mantenimiento
+from app.models import programacion_taller
+from app.models import revision_sala
+from app.models import orden_entrada
+from app.models import incidencia
 
 config = context.config
 
