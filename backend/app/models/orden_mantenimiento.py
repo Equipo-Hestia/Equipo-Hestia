@@ -20,6 +20,10 @@ class ResultadoItem(str, enum.Enum):
     sale_a_taller = "sale_a_taller"  # debe salir a reparacion externa
     dar_de_baja = "dar_de_baja"      # equipo irrecuperable / a reemplazar
 
+class TipoMantenimiento(str, enum.Enum):
+    preventivo = "preventivo"
+    correctivo = "correctivo"
+    validacion_tecnica = "validacion_tecnica"
 
 class OrdenMantenimiento(Base):
     """Cabecera de una visita de mantenimiento del proveedor.
@@ -45,6 +49,15 @@ class OrdenMantenimiento(Base):
         default=EstadoOrden.en_curso,
         server_default=EstadoOrden.en_curso.value,
     )
+    
+    tipo_mantenimiento = Column(String(50), nullable=True) 
+    fecha_retorno_estimada = Column(Date, nullable=True)
+    
+    tipo_mantenimiento = Column(
+        SAEnum(TipoMantenimiento, name="tipomantenimiento", create_type=False),
+        nullable=True
+    )
+    fecha_retorno_estimada = Column(Date, nullable=True)
 
     # Fecha del dia de la visita del proveedor
     fecha_visita = Column(Date, nullable=False)

@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, Date
 from sqlalchemy import Enum as SAEnum, Numeric
 from sqlalchemy.orm import relationship
+from sqlalchemy import Index
 from app.database import Base
 import enum
 
@@ -12,14 +13,20 @@ class TipoInsumo(str, enum.Enum):
 
 class Insumo(Base):
     __tablename__ = "insumos"
+    
+    # Le decimos explícitamente a SQLAlchemy cómo se llaman los índices en la BD
+    __table_args__ = (
+        Index('uix_insumos_sku', 'sku', unique=True),
+        Index('uix_insumos_codigo_barras', 'codigo_barras', unique=True),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     nombre = Column(String, nullable=False)
     descripcion = Column(String)
 
     # Identificadores unicos por item
-    sku = Column(String(20), unique=True, nullable=True, index=True)
-    codigo_barras = Column(String(100), unique=True, nullable=True, index=True)
+    sku = Column(String(20), nullable=True)
+    codigo_barras = Column(String(100), nullable=True)
 
     # Clasificacion: desechable (insumo) vs retornable al stock (implemento)
     tipo = Column(
