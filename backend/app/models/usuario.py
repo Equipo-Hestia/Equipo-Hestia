@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, Text
+from sqlalchemy import Column, Integer, String, Boolean, Text, ForeignKey
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import relationship
 from app.database import Base
@@ -19,11 +19,20 @@ class Usuario(Base):
     nombre = Column(String, nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
     password_hash = Column(String, nullable=False)
+    
+    # Mantenemos la columna ENUM original intacta por ahora (Fase 2 - Etapa 1)
     rol = Column(
         SAEnum(RolUsuario, name="rolusuario", create_type=False),
         default=RolUsuario.visor,
         nullable=False,
     )
+    
+    # NUEVO: La llave foránea hacia la nueva tabla de roles (nullable=True por ahora)
+    rol_id = Column(Integer, ForeignKey("roles.id"), nullable=True)
+
+    # NUEVO: Relación con el modelo Rol (nombre temporal para no chocar con el enum 'rol')
+    rol_asociado = relationship("Rol", back_populates="usuarios")
+
     activo = Column(Boolean, default=True, nullable=False, server_default="true")
     avatar_b64 = Column(Text, nullable=True)
 

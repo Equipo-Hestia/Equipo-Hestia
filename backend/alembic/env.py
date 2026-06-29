@@ -14,6 +14,7 @@ load_dotenv()
 # Mismo orden que backend/app/main.py (resuelve dependencias de FK y
 # relaciones lazy de SQLAlchemy, p.ej. Asignatura -> Taller).
 from app.database import Base
+from app.models import rol
 from app.models import sala, categoria, usuario, movimiento, insumo
 from app.models import audit_log
 from app.models import asignatura
