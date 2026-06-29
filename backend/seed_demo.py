@@ -39,6 +39,7 @@ from datetime import date, datetime, timedelta, timezone
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from app.database import SessionLocal
+from app.models import rol  # noqa  <- antes de usuario (FK roles)
 from app.models.sala import Sala
 from app.models.insumo import Insumo, TipoInsumo
 from app.models.movimiento import Movimiento, TipoMovimiento, SubtipoMovimiento

@@ -76,6 +76,17 @@ obligatorio en todos los endpoints para poblar `sala_nombre` y `proveedor_nombre
 jerarquia academica. `Asignatura` tiene lazy relationships a `Taller` y `PaqueteInsumo`;
 importar ambos modelos antes de la primera query ORM en cualquier script.
 
+**`Rol`** (roles) — catalogo de roles editable, Fase 2 (ENUM -> tabla relacional),
+etapa "expand" en curso desde junio 2026. Reemplazara progresivamente al ENUM
+nativo `rolusuario`. `Usuario.rol_id` es FK nullable hacia esta tabla, poblada
+por migracion (`c7f3a92e1b08_crear_tabla_roles.py`) cruzando el valor del enum.
+`Usuario.rol` (enum) se mantiene intacto y sigue siendo la fuente de verdad
+para RBAC hasta la etapa "contract" (cuando se actualicen deps.py, schemas y
+frontend para usar `rol_id` y se elimine el enum). IMPORTANTE: `rol` debe
+importarse en `main.py`, `crear_admin.py` y `seed_demo.py` (no solo en
+`alembic/env.py`), o el mapper de `Usuario` falla al resolver
+`relationship("Rol", ...)`.
+
 **`TokenRecuperacion`** — token de recuperacion de contrasena de un solo uso.
 Email + hash SHA256 del token + fecha de expiracion (1 hora). Usado por
 `/auth/recuperar-password` y `/auth/confirmar-reset`.
@@ -144,6 +155,9 @@ require_admin        # solo admin
 require_reportes     # admin, operador_coordinador o visor
 ```
 
+RBAC sigue evaluando `Usuario.rol` (enum) hasta que termine la etapa "contract"
+de la Fase 2 (ver 3.1, 3.5). No usar `rol_id` para permisos todavia.
+
 ### 3.5 Reglas de migraciones (Alembic, desde junio 2026)
 
 Hestia usa **Alembic** para todo cambio de esquema nuevo. Flujo correcto:
@@ -158,13 +172,22 @@ Hestia usa **Alembic** para todo cambio de esquema nuevo. Flujo correcto:
 
 **Importante:** cualquier modelo nuevo debe importarse tambien en
 `backend/alembic/env.py` (mismo orden de FK que en `main.py`), o Alembic no lo
-vera al generar migraciones automaticas.
+vera al generar migraciones automaticas. Y, al reves, debe importarse tambien
+en `main.py`, `crear_admin.py` y `seed_demo.py` — importarlo solo en
+`alembic/env.py` no es suficiente: el proceso real de la app (no solo Alembic)
+necesita la clase registrada para resolver relationships por nombre de string.
 
 El sistema anterior (`MIGRACIONES_COLUMNAS` / `MIGRACIONES_ENUM` en
 `database.py`, con `psycopg2` + `autocommit=True` para los enums) queda
-**congelado** como referencia historica. No agregar nuevas entradas ahi. Se
-elimina por completo una vez migrados `carreraasignatura` y `rolusuario`
-(enums de catalogo de negocio editable) a tablas relacionales.
+**congelado** como referencia historica. No agregar nuevas entradas ahi.
+
+**Patron expand/contract para migrar un ENUM de catalogo a tabla relacional**
+(usado para `rolusuario`, ver 3.1; pendiente para `carreraasignatura`):
+1. *Expand*: crear la tabla nueva, poblarla con los valores del enum, agregar
+   FK nullable en la tabla que usaba el enum, backfill cruzando por nombre.
+   La columna enum vieja sigue siendo la fuente de verdad.
+2. *Contract* (etapa posterior, no apresurar): migrar RBAC/schemas/frontend
+   para leer la FK, y solo entonces eliminar la columna/tipo enum viejo.
 
 `create_type=False` en `SAEnum` cuando el tipo ya existe en PostgreSQL — sigue
 aplicando a los enums de estado interno que se mantienen como ENUM nativo
@@ -254,7 +277,9 @@ Prefijos registrados: `/auth`, `/insumos`, `/importar`, `/resumen`, `/salas`,
 8. **No exponer puertos 5432, 8000 ni 3000 a la LAN.**
 9. **SKU auto-generado.** `db.flush()` para obtener ID, luego `sku = f"HST-{id:05d}"`.
 10. **Enum `carreraasignatura`.** Valores: `TENS|TQF|TLCBS|TONS|preparador_fisico`.
-11. **Enum `rolusuario`.** Sin `docente`.
+    Pendiente migrar a tabla relacional (Fase 2, aun no iniciada para este enum).
+11. **Enum `rolusuario`.** Sin `docente`. En migracion a tabla relacional
+    (Fase 2, etapa "expand" completa — ver 3.1, 3.5); RBAC sigue usando el enum.
 12. **Dark mode.** Nuevos componentes deben usar tokens `h-*`. Ver DESIGN.md.
 13. **Blob error parsing.** Peticiones con `responseType: 'blob'` que fallan: convertir
     con `.text()` y parsear JSON para obtener el `detail` real.
@@ -270,6 +295,8 @@ Prefijos registrados: `/auth`, `/insumos`, `/importar`, `/resumen`, `/salas`,
     los conteos; `activos` (lista filtrada) solo para la tabla.
 19. **Migraciones de esquema.** Siempre Alembic (ver 3.5). Nunca tocar `database.py`
     a mano para columnas/enums nuevos.
+20. **Modelos nuevos** se importan en `main.py`, `crear_admin.py`, `seed_demo.py`
+    Y `alembic/env.py` — los cuatro, no solo Alembic (ver 3.1, caso `Rol`).
 
 ---
 
@@ -298,12 +325,14 @@ Prefijos registrados: `/auth`, `/insumos`, `/importar`, `/resumen`, `/salas`,
 | Vista Salas   | Mapa SVG interactivo con estados en tiempo real    | OK junio 2026  |
 | Reportes      | Valorizacion PDF/XLSX, consumo carreras            | OK             |
 | Migraciones   | Alembic activo (start.sh -> alembic upgrade head)  | OK junio 2026  |
+| Migraciones   | Fase 2 "expand": tabla `roles` creada, `usuarios.rol_id` poblado por backfill | EN CURSO |
 
 ### Pendiente
 
 | Funcionalidad                                    | Complejidad |
 |---|---|
-| Migrar enums `carreraasignatura`/`rolusuario` a tablas relacionales | Alta |
+| Fase 2 "contract": migrar RBAC/schemas/frontend a `rol_id` y eliminar enum `rolusuario` | Alta |
+| Migrar enum `carreraasignatura` a tabla relacional (Fase 2, expand aun no iniciado) | Alta |
 | Vista movil de Operadoras — Guia del dia por sala| Media       |
 | Reporte de conflictos de recursos                | Media       |
 | Extraer ShimmerButton a componente reutilizable  | Media       |

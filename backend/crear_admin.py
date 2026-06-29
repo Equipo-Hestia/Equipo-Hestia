@@ -3,6 +3,7 @@ import os
 sys.path.append(".")
 
 from app.database import SessionLocal, Base, engine, aplicar_migraciones_pendientes
+from app.models import rol                          # noqa  <- antes de usuario
 from app.models.usuario import Usuario, RolUsuario
 from app.utils.security import hashear_password
 from app.models.sala import Sala

@@ -4,6 +4,7 @@ from fastapi.openapi.utils import get_openapi
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from app.database import Base, engine, aplicar_migraciones_pendientes
+from app.models import rol                # noqa  <- antes de usuario (FK roles)
 from app.models import sala, categoria, usuario, movimiento, insumo  # noqa
 from app.models import audit_log          # noqa
 from app.models import asignatura         # noqa
