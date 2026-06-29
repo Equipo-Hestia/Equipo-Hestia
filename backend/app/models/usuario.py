@@ -19,14 +19,14 @@ class Usuario(Base):
     nombre = Column(String, nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
     password_hash = Column(String, nullable=False)
-    
+
     # Mantenemos la columna ENUM original intacta por ahora (Fase 2 - Etapa 1)
     rol = Column(
         SAEnum(RolUsuario, name="rolusuario", create_type=False),
         default=RolUsuario.visor,
         nullable=False,
     )
-    
+
     # NUEVO: La llave foránea hacia la nueva tabla de roles (nullable=True por ahora)
     rol_id = Column(Integer, ForeignKey("roles.id"), nullable=True)
 
