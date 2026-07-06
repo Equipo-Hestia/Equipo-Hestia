@@ -2,7 +2,7 @@ import sys
 import os
 sys.path.append(".")
 
-from app.database import SessionLocal, Base, engine, aplicar_migraciones_pendientes
+from app.database import SessionLocal, Base, engine
 from app.models import rol                          # noqa  <- antes de usuario
 from app.models.usuario import Usuario, RolUsuario
 from app.utils.security import hashear_password
@@ -28,7 +28,7 @@ from app.models import programacion_taller   # noqa
 from app.models import revision_sala         # noqa
 from app.models import unidad_implemento     # noqa
 from app.models import retorno_implemento    # noqa
-from app.models import orden_entrada         # noqa  <- OrdenEntrada, OrdenEntradaItem
+from app.models import orden_entrada         # noqa
 
 admin_email = os.getenv("ADMIN_EMAIL")
 admin_password = os.getenv("ADMIN_PASSWORD")
@@ -38,8 +38,9 @@ if not admin_email or not admin_password:
     print("        Copia backend/.env.example a backend/.env y completa los valores.")
     sys.exit(1)
 
+# create_all es red de seguridad para fresh installs. En entornos existentes
+# es un no-op. El esquema real es gestionado por Alembic (start.sh).
 Base.metadata.create_all(bind=engine)
-aplicar_migraciones_pendientes()
 
 db = SessionLocal()
 

@@ -3,7 +3,7 @@ from fastapi import FastAPI, Request, Response
 from fastapi.openapi.utils import get_openapi
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
-from app.database import Base, engine, aplicar_migraciones_pendientes
+from app.database import Base, engine
 from app.models import rol                # noqa  <- antes de usuario (FK roles)
 from app.models import sala, categoria, usuario, movimiento, insumo  # noqa
 from app.models import audit_log          # noqa
@@ -21,7 +21,7 @@ from app.models import proveedor          # noqa
 from app.models import orden_mantenimiento  # noqa
 from app.models import programacion_taller  # noqa
 from app.models import revision_sala      # noqa
-from app.models import orden_entrada      # noqa  <- OrdenEntrada, OrdenEntradaItem
+from app.models import orden_entrada      # noqa
 from app.models import incidencia         # noqa
 from app.routes import (
     salas, categorias, usuarios, movimientos, insumos, auth, resumen, importar
@@ -44,8 +44,10 @@ from app.routes import revision_sala as revision_sala_routes
 from app.routes import ordenes_entrada as ordenes_entrada_routes
 from app.routes import incidencias as incidencias_routes
 
+# create_all es red de seguridad para fresh installs: crea las tablas que
+# aun no estan cubiertas por una migracion inicial de Alembic. No reemplaza
+# a Alembic; en entornos existentes es un no-op (checkfirst implicito).
 Base.metadata.create_all(bind=engine)
-aplicar_migraciones_pendientes()
 
 _docs_habilitados = os.getenv("DOCS_HABILITADOS", "false").lower() == "true"
 _cors_origin = os.getenv("CORS_ORIGIN", "http://localhost:3000")
