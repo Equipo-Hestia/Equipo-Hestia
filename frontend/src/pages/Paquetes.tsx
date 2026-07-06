@@ -1,3 +1,5 @@
+// frontend/src/pages/Paquetes.tsx
+
 import { useEffect, useState, useCallback } from 'react'
 import {
   Package, ChevronDown, ChevronUp, Lock, Unlock, CheckCircle,
@@ -13,11 +15,11 @@ import { HSelect } from '../components/ui/HSelect'
 import { useLastUpdated } from '../hooks/useLastUpdated'
 
 const CARRERAS: { value: CarreraAsignatura; label: string }[] = [
-  { value: 'TENS',              label: 'T\u00e9cnico en Enfermer\u00eda' },
-  { value: 'TQF',               label: 'T\u00e9c. Qu\u00edmica y Farmacia' },
-  { value: 'TLCBS',             label: 'T\u00e9c. Lab. Cl\u00ednico y Banco de Sangre' },
-  { value: 'TONS',              label: 'T\u00e9cnico en Odontolog\u00eda' },
-  { value: 'preparador_fisico', label: 'Preparador F\u00edsico' },
+  { value: 'TENS',              label: 'Técnico en Enfermería' },
+  { value: 'TQF',               label: 'Técnico en Química y Farmacia' },
+  { value: 'TLCBS',             label: 'Técnico en Lab. Clínico y Banco de Sangre' },
+  { value: 'TONS',              label: 'Técnico en Odontología' },
+  { value: 'preparador_fisico', label: 'Preparador Físico' },
 ]
 
 type BadgeVariant = 'info' | 'warning' | 'success' | 'danger' | 'purple' | 'default'
@@ -31,15 +33,8 @@ const CARRERA_VARIANT: Record<CarreraAsignatura, BadgeVariant> = {
 }
 
 function carreraLabel(c: CarreraAsignatura | null): string {
-  if (!c) return '\u2014'
+  if (!c) return '—'
   return CARRERAS.find(x => x.value === c)?.label ?? c
-}
-
-function formatCLP(n: number | null | undefined): string {
-  if (n == null) return '\u2014'
-  return new Intl.NumberFormat('es-CL', {
-    style: 'currency', currency: 'CLP', maximumFractionDigits: 0,
-  }).format(n)
 }
 
 export function Paquetes() {
@@ -227,7 +222,7 @@ export function Paquetes() {
                   { label: 'Asignatura', align: 'left'  },
                   { label: 'Carrera',   align: 'left'   },
                   { label: 'Semestre',  align: 'center' },
-                  { label: '\u00cdtems', align: 'center' },
+                  { label: 'Ítems', align: 'center' },
                   { label: 'Estado',    align: 'center' },
                   { label: 'Acciones',  align: 'center' },
                 ].map(({ label, align }) => (
@@ -255,7 +250,7 @@ export function Paquetes() {
                     <Package size={32} className="mx-auto mb-2 text-h-tertiary opacity-40" />
                     <p className="font-semibold text-h-secondary">Sin paquetes que mostrar</p>
                     <p className="text-xs mt-1 text-h-tertiary">
-                      Crea talleres y asigna paquetes de insumos para verlos aqu\u00ed.
+                      Crea talleres y asigna paquetes de insumos para verlos aquí.
                     </p>
                   </td>
                 </tr>
@@ -265,16 +260,9 @@ export function Paquetes() {
                 const estaExpandido = expandido === p.id
                 const esHover = rowHover === p.id
 
-                const costoTotal = p.items.reduce((acc, item) => {
-                  if (item.insumo_costo_unitario == null) return acc
-                  return acc + Number(item.insumo_costo_unitario) * item.cantidad_requerida
-                }, 0)
-                const tieneCostos = p.items.some(i => i.insumo_costo_unitario != null)
-
                 return (
-                  <>
+                  <div key={p.id} className="contents">
                     <tr
-                      key={p.id}
                       style={{
                         background: esHover
                           ? 'var(--h-bg-highlight)'
@@ -310,7 +298,7 @@ export function Paquetes() {
                             <span className="leading-tight">{asig.nombre}</span>
                           </span>
                         ) : (
-                          <span className="text-h-tertiary">\u2014</span>
+                          <span className="text-h-tertiary">—</span>
                         )}
                       </td>
                       <td className="px-4 py-3.5">
@@ -319,7 +307,7 @@ export function Paquetes() {
                             {carreraLabel(asig.carrera)}
                           </Badge>
                         ) : (
-                          <span className="text-h-tertiary">\u2014</span>
+                          <span className="text-h-tertiary">—</span>
                         )}
                       </td>
                       <td className="px-4 py-3.5 text-center">
@@ -381,7 +369,7 @@ export function Paquetes() {
                         >
                           {p.items.length === 0 ? (
                             <p className="text-h-tertiary text-sm italic">
-                              Este paquete no tiene \u00edtems a\u00fan.
+                              Este paquete no tiene ítems aún.
                             </p>
                           ) : (
                             <>
@@ -391,60 +379,41 @@ export function Paquetes() {
                                     <th className="text-left py-1.5 pr-4">Insumo o implemento</th>
                                     <th className="text-center py-1.5 pr-4">Tipo</th>
                                     <th className="text-center py-1.5 pr-4">Cantidad requerida</th>
-                                    <th className="text-right py-1.5 pr-4">Costo unitario</th>
-                                    <th className="text-right py-1.5 pr-4">Subtotal</th>
                                     <th className="text-left py-1.5">Notas</th>
                                   </tr>
                                 </thead>
                                 <tbody className="divide-y border-h-subtle">
-                                  {p.items.map(item => {
-                                    const subtotal =
-                                      item.insumo_costo_unitario != null
-                                        ? Number(item.insumo_costo_unitario)
-                                          * item.cantidad_requerida
-                                        : null
-                                    return (
-                                      <tr
-                                        key={item.id}
-                                        className="transition-colors"
-                                        style={{ borderColor: 'var(--h-border-subtle)' }}
-                                      >
-                                        <td className="py-2.5 pr-4 font-semibold text-h-primary">
-                                          {item.insumo_nombre}
-                                        </td>
-                                        <td className="py-2.5 pr-4 text-center">
-                                          {insumoTipoBadge(item.insumo_tipo)}
-                                        </td>
-                                        <td className="py-2.5 pr-4 text-center">
-                                          <span className="font-bold text-h-primary">
-                                            {item.cantidad_requerida}
+                                  {p.items.map(item => (
+                                    <tr
+                                      key={item.id}
+                                      className="transition-colors"
+                                      style={{ borderColor: 'var(--h-border-subtle)' }}
+                                    >
+                                      <td className="py-2.5 pr-4 font-semibold text-h-primary">
+                                        {item.insumo_nombre}
+                                      </td>
+                                      <td className="py-2.5 pr-4 text-center">
+                                        {insumoTipoBadge(item.insumo_tipo)}
+                                      </td>
+                                      <td className="py-2.5 pr-4 text-center">
+                                        <span className="font-bold text-h-primary">
+                                          {item.cantidad_requerida}
+                                        </span>
+                                        {item.insumo_unidad_medida && (
+                                          <span className="ml-1.5 text-xs text-h-tertiary font-normal">
+                                            {item.insumo_unidad_medida}
                                           </span>
-                                          {item.insumo_unidad_medida && (
-                                            <span className="ml-1.5 text-xs text-h-tertiary font-normal">
-                                              {item.insumo_unidad_medida}
-                                            </span>
-                                          )}
-                                        </td>
-                                        <td className="py-2.5 pr-4 text-right text-h-secondary tabular-nums">
-                                          {formatCLP(
-                                            item.insumo_costo_unitario != null
-                                              ? Number(item.insumo_costo_unitario)
-                                              : null
-                                          )}
-                                        </td>
-                                        <td className="py-2.5 pr-4 text-right font-semibold text-h-primary tabular-nums">
-                                          {formatCLP(subtotal)}
-                                        </td>
-                                        <td className="py-2.5 text-h-secondary">
-                                          {item.notas ?? '\u2014'}
-                                        </td>
-                                      </tr>
-                                    )
-                                  })}
+                                        )}
+                                      </td>
+                                      <td className="py-2.5 text-h-secondary">
+                                        {item.notas ?? '—'}
+                                      </td>
+                                    </tr>
+                                  ))}
                                 </tbody>
                               </table>
 
-                              {/* Pie: costo total + autor */}
+                              {/* Pie: autor */}
                               <div
                                 className="
                                   mt-4 pt-3 border-t border-h-subtle
@@ -456,29 +425,13 @@ export function Paquetes() {
                                     ? `Creado por ${p.creado_por_nombre}`
                                     : ''}
                                 </p>
-                                {tieneCostos && (
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-xs font-semibold text-h-tertiary uppercase tracking-wide">
-                                      Costo estimado del paquete
-                                    </span>
-                                    <span
-                                      className="text-base font-black tabular-nums"
-                                      style={{ color: 'var(--h-teal-hover)' }}
-                                    >
-                                      {formatCLP(costoTotal)}
-                                    </span>
-                                    <span className="text-xs text-h-tertiary">
-                                      (solo \u00edtems con costo registrado)
-                                    </span>
-                                  </div>
-                                )}
                               </div>
                             </>
                           )}
                         </td>
                       </tr>
                     )}
-                  </>
+                  </div>
                 )
               })}
             </tbody>

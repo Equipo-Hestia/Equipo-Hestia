@@ -159,7 +159,7 @@ function TabPaquetes({ refreshKey }: { refreshKey: number }) {
         <div className="px-5 py-4 border-b border-h-subtle">
           <h3 className="font-bold text-h-primary">Paquetes de insumos ({paquetes.length})</h3>
           <p className="text-xs text-h-tertiary mt-0.5">
-            Haz clic en una fila para ver el detalle de insumos del paquete.
+            Haz clic en una fila para ver el detalle de insumos del paquete y su valorización.
           </p>
         </div>
         <div className="overflow-x-auto">
@@ -173,7 +173,7 @@ function TabPaquetes({ refreshKey }: { refreshKey: number }) {
                   { l: 'Asignatura', a: 'left'   },
                   { l: 'Carrera',    a: 'left'   },
                   { l: 'Semestre',   a: 'center' },
-                  { l: 'Items',      a: 'center' },
+                  { l: 'Ítems',      a: 'center' },
                   { l: 'Estado',     a: 'center' },
                 ].map(h => (
                   <th key={h.l}
@@ -196,9 +196,16 @@ function TabPaquetes({ refreshKey }: { refreshKey: number }) {
                 const taller = talleres.find(t => t.id === p.taller_id)
                 const asig   = asignaturas.find(a => a.id === taller?.asignatura_id)
                 const abierto = expandido === p.id
+
+                const costoTotal = p.items.reduce((acc, item) => {
+                  if (item.insumo_costo_unitario == null) return acc
+                  return acc + Number(item.insumo_costo_unitario) * item.cantidad_requerida
+                }, 0)
+                const tieneCostos = p.items.some(i => i.insumo_costo_unitario != null)
+
                 return (
-                  <>
-                    <tr key={p.id}
+                  <div key={p.id} className="contents">
+                    <tr
                       className="border-b border-h-subtle transition-colors cursor-pointer"
                       onClick={() => setExpandido(abierto ? null : p.id)}
                       onMouseEnter={e =>
@@ -237,47 +244,84 @@ function TabPaquetes({ refreshKey }: { refreshKey: number }) {
                     </tr>
                     {abierto && (
                       <tr key={`${p.id}-det`}>
-                        <td colSpan={7} className="px-8 py-3"
+                        <td colSpan={7} className="px-8 py-5 border-b border-h-subtle"
                           style={{ background: 'var(--h-bg-elevated)' }}>
                           {p.items.length === 0 ? (
-                            <p className="text-h-tertiary text-xs italic">Sin items.</p>
+                            <p className="text-h-tertiary text-xs italic">Sin ítems.</p>
                           ) : (
-                            <table className="w-full text-xs">
-                              <thead>
-                                <tr className="text-h-tertiary font-bold uppercase tracking-wide">
-                                  <th className="text-left py-1 pr-4">Insumo / implemento</th>
-                                  <th className="text-center py-1 pr-4">Tipo</th>
-                                  <th className="text-center py-1 pr-4">Cantidad</th>
-                                  <th className="text-left py-1">Notas</th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-h-subtle">
-                                {p.items.map(it => (
-                                  <tr key={it.id}>
-                                    <td className="py-1.5 pr-4 font-semibold text-h-primary">
-                                      {it.insumo_nombre}
-                                    </td>
-                                    <td className="py-1.5 pr-4 text-center text-h-secondary">
-                                      {it.insumo_tipo}
-                                    </td>
-                                    <td className="py-1.5 pr-4 text-center font-bold text-h-primary">
-                                      {it.cantidad_requerida}
-                                    </td>
-                                    <td className="py-1.5 text-h-tertiary">{it.notas ?? '—'}</td>
+                            <>
+                              <table className="w-full text-xs mb-3">
+                                <thead>
+                                  <tr className="text-h-tertiary font-bold uppercase tracking-wide">
+                                    <th className="text-left py-1 pr-4">Insumo / implemento</th>
+                                    <th className="text-center py-1 pr-4">Tipo</th>
+                                    <th className="text-center py-1 pr-4">Cantidad</th>
+                                    <th className="text-right py-1 pr-4">Costo unit.</th>
+                                    <th className="text-right py-1 pr-4">Subtotal</th>
+                                    <th className="text-left py-1">Notas</th>
                                   </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          )}
-                          {p.creado_por_nombre && (
-                            <p className="text-xs text-h-tertiary mt-2">
-                              Creado por {p.creado_por_nombre}
-                            </p>
+                                </thead>
+                                <tbody className="divide-y divide-h-subtle">
+                                  {p.items.map(it => {
+                                    const subtotal = it.insumo_costo_unitario != null
+                                        ? Number(it.insumo_costo_unitario) * it.cantidad_requerida
+                                        : null
+                                    return (
+                                      <tr key={it.id}>
+                                        <td className="py-2 pr-4 font-semibold text-h-primary">
+                                          {it.insumo_nombre}
+                                        </td>
+                                        <td className="py-2 pr-4 text-center text-h-secondary">
+                                          {it.insumo_tipo}
+                                        </td>
+                                        <td className="py-2 pr-4 text-center font-bold text-h-primary">
+                                          {it.cantidad_requerida}
+                                          {it.insumo_unidad_medida && (
+                                            <span className="ml-1 text-[10px] font-normal text-h-tertiary">
+                                              {it.insumo_unidad_medida}
+                                            </span>
+                                          )}
+                                        </td>
+                                        <td className="py-2 pr-4 text-right text-h-secondary tabular-nums">
+                                          {it.insumo_costo_unitario != null ? fmt(Number(it.insumo_costo_unitario)) : '—'}
+                                        </td>
+                                        <td className="py-2 pr-4 text-right font-semibold text-h-primary tabular-nums">
+                                          {subtotal != null ? fmt(subtotal) : '—'}
+                                        </td>
+                                        <td className="py-2 text-h-tertiary">{it.notas ?? '—'}</td>
+                                      </tr>
+                                    )
+                                  })}
+                                </tbody>
+                              </table>
+                              
+                              <div className="pt-3 border-t border-h-subtle flex items-center justify-between gap-4">
+                                <p className="text-xs text-h-tertiary">
+                                  {p.creado_por_nombre ? `Creado por ${p.creado_por_nombre}` : ''}
+                                </p>
+                                {tieneCostos && (
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-semibold text-h-tertiary uppercase tracking-wide">
+                                      Costo estimado del paquete
+                                    </span>
+                                    <span
+                                      className="text-base font-black tabular-nums"
+                                      style={{ color: 'var(--h-teal-hover)' }}
+                                    >
+                                      {fmt(costoTotal)}
+                                    </span>
+                                    <span className="text-xs text-h-tertiary">
+                                      (solo ítems con costo registrado)
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            </>
                           )}
                         </td>
                       </tr>
                     )}
-                  </>
+                  </div>
                 )
               })}
             </tbody>
