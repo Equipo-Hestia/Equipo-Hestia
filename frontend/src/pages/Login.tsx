@@ -3,8 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import { useAuthStore } from '../store/auth'
 import { Logo } from '../components/ui/Logo'
+import { Eye, EyeOff } from 'lucide-react'
 import { HSelect } from '../components/ui/HSelect'
 import { TotpInput } from '../components/ui/TotpInput'
+import { InteractiveGrid } from '../components/ui/InteractiveGrid'
 import type { LoginResponse, Setup2FAResponse } from '../types/api'
 
 // ─── Constantes ─────────────────────────────────────────────────────────────────
@@ -256,34 +258,20 @@ function PanelIzquierdo() {
     const dx = (x - cx) / cx
     const dy = (y - cy) / cy
 
-    if (!glowReady.current) {
-      glow.style.transition = 'none'
-      glow.style.left = `${x}px`
-      glow.style.top  = `${y}px`
-      void glow.offsetWidth
-      glow.style.transition = 'left 0.07s ease-out, top 0.07s ease-out'
-      glowReady.current = true
-    } else {
-      glow.style.left = `${x}px`
-      glow.style.top  = `${y}px`
-    }
+    // Usamos transform directamente para aceleración por GPU (0 lag)
+    glow.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`
+    glow.style.opacity = '1'
 
-    if (orb1Ref.current) orb1Ref.current.style.transform =
-      `translate(${dx * 22}px, ${dy * 16}px)`
-    if (orb2Ref.current) orb2Ref.current.style.transform =
-      `translate(${dx * -18}px, ${dy * -14}px)`
-    if (orb3Ref.current) orb3Ref.current.style.transform =
-      `translate(calc(-50% + ${dx * 12}px), calc(-50% + ${dy * 10}px))`
+    if (orb1Ref.current) orb1Ref.current.style.transform = `translate(${dx * 22}px, ${dy * 16}px)`
+    if (orb2Ref.current) orb2Ref.current.style.transform = `translate(${dx * -18}px, ${dy * -14}px)`
+    if (orb3Ref.current) orb3Ref.current.style.transform = `translate(calc(-50% + ${dx * 12}px), calc(-50% + ${dy * 10}px))`
   }, [])
 
   const handleMouseLeave = useCallback(() => {
     const glow = glowRef.current
     if (glow) {
-      glow.style.transition = 'none'
-      glow.style.left = '-999px'
-      glow.style.top  = '-999px'
+      glow.style.opacity = '0'
     }
-    glowReady.current = false
     if (orb1Ref.current) orb1Ref.current.style.transform = 'translate(0,0)'
     if (orb2Ref.current) orb2Ref.current.style.transform = 'translate(0,0)'
     if (orb3Ref.current) orb3Ref.current.style.transform = 'translate(-50%,-50%)'
@@ -305,11 +293,7 @@ function PanelIzquierdo() {
       className="hidden lg:flex flex-col justify-between relative overflow-hidden
                  border-r border-h-subtle"
       style={{ width: '52%', background: 'var(--h-bg-surface)' }}>
-      <div className="absolute inset-0 pointer-events-none" style={{
-        backgroundImage:
-          'radial-gradient(circle, var(--h-border-subtle) 1px, transparent 1px)',
-        backgroundSize: '28px 28px',
-      }} />
+      <InteractiveGrid />
       <div ref={orb1Ref} className="absolute pointer-events-none" style={{
         width: '420px', height: '420px', top: '-120px', left: '-80px',
         borderRadius: '50%',
@@ -331,12 +315,14 @@ function PanelIzquierdo() {
           'radial-gradient(circle, rgba(93,202,165,0.10) 0%, transparent 68%)',
         filter: 'blur(40px)', transition: 'transform 0.15s ease-out',
       }} />
-      <div ref={glowRef} className="absolute pointer-events-none" style={{
-        width: '320px', height: '320px', left: '-999px', top: '-999px',
+      <div ref={glowRef} className="absolute pointer-events-none z-0" style={{
+        width: '320px', height: '320px', left: '0', top: '0',
         borderRadius: '50%',
-        background:
-          'radial-gradient(circle, rgba(29,158,117,0.10) 0%, transparent 65%)',
-        filter: 'blur(10px)', transform: 'translate(-50%,-50%)',
+        background: 'radial-gradient(circle, rgba(29,158,117,0.15) 0%, transparent 65%)',
+        filter: 'blur(10px)', 
+        opacity: 0,
+        transform: 'translate(-50%,-50%)',
+        transition: 'opacity 0.2s ease-out' // Solo animamos la aparición/desaparición
       }} />
       <div className="relative z-10 flex flex-col justify-between h-full p-10">
         <div className="flex items-center gap-3">
@@ -453,6 +439,7 @@ export function Login() {
 
   const [email,    setEmail]    = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [loading,  setLoading]  = useState(false)
   const [error,    setError]    = useState<string | null>(null)
 
@@ -831,9 +818,17 @@ export function Login() {
                 </div>
                 <div>
                   <label className={labelCls}>Contraseña</label>
-                  <input type="password" value={password}
-                    onChange={e => { setPassword(e.target.value); setError(null) }}
-                    className={inputCls} placeholder="••••••••" required />
+                  <div className="relative">
+                    <input type={showPassword ? "text" : "password"} value={password}
+                      onChange={e => { setPassword(e.target.value); setError(null) }}
+                      className={`${inputCls} pr-10`} placeholder="••••••••" required />
+                    <button type="button" onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-h-tertiary hover:text-h-primary transition-colors duration-200"
+                      aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                    >
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
                 </div>
                 {error && <p className={errorCls(error.includes('intento'))}>{error}</p>}
                 <ShimmerButton type="submit" disabled={loading}>

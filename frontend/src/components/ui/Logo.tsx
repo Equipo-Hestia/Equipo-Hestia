@@ -9,7 +9,7 @@
 export function Logo({ className = 'w-32 h-32' }) {
   const img = (
     <img
-      src="/logo_hestia_final_sinfondo.svg"
+      src="/logo_hestia.svg"
       alt="Hestia"
       // object-contain asegura que el SVG se escale proporcionalmente sin cortarse
       // flex-shrink-0 evita que se encoja en layouts muy apretados

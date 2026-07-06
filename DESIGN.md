@@ -136,7 +136,8 @@ Los tokens de la seccion 3. Implementados en `frontend/src/index.css`.
 
 ### Layer 3 — Micro-animaciones (IMPLEMENTADA EN LOGIN; PARCIAL EN INTERIOR)
 
-En `Login.tsx`: blob reactivo al cursor, shimmer beam, animacion TOTP.
+En Login.tsx: malla interactiva fluida (ambient wave en canvas), blob reactivo al cursor (acelerado por GPU), 
+shimmer beam, animacion TOTP.
 
 En paginas internas: hover de filas de tabla con `onMouseEnter/Leave` aplicado
 consistentemente en ActivosFijos, Movimientos, UnidadesImplemento, Insumos,
