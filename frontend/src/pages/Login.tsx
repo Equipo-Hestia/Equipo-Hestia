@@ -445,6 +445,7 @@ export function Login() {
 
   const [preToken,  setPreToken]  = useState<string | null>(null)
   const [totpValue, setTotpValue] = useState('')
+  const [totpKey,   setTotpKey]   = useState<string | null>(null)
   const [recovery,  setRecovery]  = useState('')
   const [modo2FA,   setModo2FA]   = useState<Modo2FA>('totp')
 
@@ -456,6 +457,7 @@ export function Login() {
   const [setupQR,      setSetupQR]      = useState<Setup2FAResponse | null>(null)
   const [setupStep,    setSetupStep]    = useState<SetupStep>('qr')
   const [setupTotp,    setSetupTotp]    = useState('')
+  const [setupTotpKey, setSetupTotpKey] = useState<string | null>(null)
   // Ref para la animacion TotpInput en el paso de confirmacion del setup
   const setupAnimRef = useRef<(() => void) | null>(null)
   const [setupCodes,   setSetupCodes]   = useState<string[]>([])
@@ -533,6 +535,9 @@ export function Login() {
         err as { response?: { data?: { detail?: string } } }
       ).response?.data?.detail
       setError(msg ?? 'Código incorrecto')
+
+      setTotpValue('')
+      setTotpKey((prev: string | null) => (prev ?? '0') + 1)
     } finally { setLoading(false) }
   }
 
@@ -574,6 +579,8 @@ export function Login() {
         err as { response?: { data?: { detail?: string } } }
       ).response?.data?.detail
       setError(msg ?? 'Código incorrecto. Verifica que la app este sincronizada.')
+      setSetupTotp('')
+      setSetupTotpKey((prev: string | null) => (prev ?? '') + 1)
     } finally { setLoading(false) }
   }
 
@@ -748,6 +755,7 @@ export function Login() {
                 </p>
                 <div className="space-y-4">
                   <TotpInput
+                    key={setupTotpKey}
                     value={setupTotp}
                     onChange={v => { setSetupTotp(v); setError(null) }}
                     onConfirm={handleSetupActivar}
@@ -914,6 +922,7 @@ export function Login() {
               </p>
               <div className="space-y-4">
                 <TotpInput
+                  key={totpKey}
                   value={totpValue}
                   onChange={v => { setTotpValue(v); setError(null) }}
                   onConfirm={handleTotp}
