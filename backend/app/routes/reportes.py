@@ -105,7 +105,7 @@ def _obtener_consumo_carreras(db: Session, semestre: str) -> ConsumoCarrerasResp
         .join(Asignatura, Asignatura.id == Taller.asignatura_id)
         .join(
             PaqueteInsumo,
-            (PaqueteInsumo.taller_id == Taller.id) 
+            (PaqueteInsumo.taller_id == Taller.id)
             & (PaqueteInsumo.semestre == semestre)
         )
         .join(PaqueteItem, PaqueteItem.paquete_id == PaqueteInsumo.id)
