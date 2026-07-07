@@ -15,12 +15,13 @@ import {
   ArrowDownCircle, DoorOpen, Users, ArrowRight,
   XCircle, Activity, TrendingDown, GripVertical,
   RefreshCw, CalendarDays, Eye, EyeOff, RotateCcw,
-  Clock,
+  Clock, AlertCircle
 } from 'lucide-react'
 import { api } from '../api/client'
 import type {
   ResumenResponse, InsumoAlerta, DiaMovimiento,
   ActividadReciente, TopInsumo, SalaHoy,
+  PaqueteResponse, ValorizacionResponse
 } from '../types/api'
 import { MetricCardSkeleton, AlertaCardSkeleton } from '../components/ui/Skeleton'
 import { Badge } from '../components/ui/Badge'
@@ -37,20 +38,22 @@ type WidgetId =
   | 'actividad'
   | 'top_insumos'
   | 'salas_hoy'
+  | 'riesgo_reposicion' // <-- Nuevo Widget
   | 'alertas'
 
 // Definimos el tamaño responsivo usando CSS Grid modular (True Bento)
 const WIDGET_CONFIG: Record<WidgetId, { label: string, classes: string }> = {
-  grafico_semana:    { label: 'Actividad semanal',     classes: 'col-span-12 xl:col-span-8 row-span-2' }, // 8x2 bloques
-  estado_inventario: { label: 'Estado del inventario', classes: 'col-span-12 xl:col-span-4 row-span-2' }, // 4x2 bloques
-  actividad:         { label: 'Actividad reciente',    classes: 'col-span-12 xl:col-span-5 row-span-2' }, // 5x2 bloques
-  top_insumos:       { label: 'Más retirados',         classes: 'col-span-12 xl:col-span-4 row-span-2' }, // 4x2 bloques
-  salas_hoy:         { label: 'Salas con clase hoy',   classes: 'col-span-12 xl:col-span-3 row-span-2' }, // 3x2 bloques
-  alertas:           { label: 'Alertas de stock',      classes: 'col-span-12 xl:col-span-12 row-span-1' }, // 12x1 bloques (Ocupa todo el ancho, poca altura)
+  grafico_semana:    { label: 'Actividad semanal',     classes: 'col-span-12 xl:col-span-8 row-span-2' },
+  estado_inventario: { label: 'Estado del inventario', classes: 'col-span-12 xl:col-span-4 row-span-2' },
+  actividad:         { label: 'Actividad reciente',    classes: 'col-span-12 xl:col-span-5 row-span-2' },
+  top_insumos:       { label: 'Más retirados',         classes: 'col-span-12 xl:col-span-4 row-span-2' },
+  salas_hoy:         { label: 'Salas con clase hoy',   classes: 'col-span-12 xl:col-span-3 row-span-2' },
+  riesgo_reposicion: { label: 'Riesgo de reposición',  classes: 'col-span-12 xl:col-span-4 row-span-2' }, // 4 Bloques
+  alertas:           { label: 'Alertas de stock',      classes: 'col-span-12 xl:col-span-8 row-span-2' }, // Ajustado a 8 bloques para complementar
 }
 
 const DEFAULT_ORDER: WidgetId[] = [
-  'grafico_semana', 'estado_inventario', 'actividad', 'top_insumos', 'salas_hoy', 'alertas'
+  'grafico_semana', 'estado_inventario', 'actividad', 'top_insumos', 'salas_hoy', 'riesgo_reposicion', 'alertas'
 ]
 
 const ALL_WIDGET_IDS = Object.keys(WIDGET_CONFIG) as WidgetId[]
@@ -119,7 +122,6 @@ function WidgetCard({
   return (
     <div className="bg-h-surface border border-h-subtle rounded-2xl flex flex-col h-full overflow-hidden shadow-sm">
       <div className="flex items-center justify-between px-4 py-3 border-b border-h-subtle shrink-0" style={{ background: 'var(--h-bg-elevated)' }}>
-        {/* ZONA DE ARRASTRE EXCLUSIVA */}
         <div
           {...dragListeners}
           {...dragAttributes}
@@ -129,8 +131,6 @@ function WidgetCard({
           {icon}
           <span className="text-sm font-semibold text-h-primary">{title}</span>
         </div>
-        
-        {/* ZONA DE BOTONES (No arrastrable) */}
         {extra && <div className="flex-shrink-0 ml-2">{extra}</div>}
       </div>
       <div className="flex-1 overflow-y-auto p-4">{children}</div>
@@ -187,9 +187,7 @@ function GraficoBarras({ datos }: { datos: DiaMovimiento[] }) {
   )
 }
 
-function GraficoEstado({ total, bajo, agotados }: {
-  total: number; bajo: number; agotados: number
-}) {
+function GraficoEstado({ total, bajo, agotados }: { total: number; bajo: number; agotados: number }) {
   const ok = total - bajo
   const soloAlerta = bajo - agotados
   const base = Math.max(total, 1)
@@ -400,7 +398,7 @@ function AlertasContent({ alertas, loading }: { alertas: InsumoAlerta[]; loading
     )
   }
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
       {alertas.map(a => (
         <div
           key={a.id}
@@ -435,6 +433,78 @@ function AlertasContent({ alertas, loading }: { alertas: InsumoAlerta[]; loading
 }
 
 // ---------------------------------------------------------------------------
+// Nuevo Widget: Riesgo de Reposición
+// ---------------------------------------------------------------------------
+
+function RiesgoReposicionContent({ paquetes, val, loading }: { paquetes: PaqueteResponse[], val: ValorizacionResponse | null, loading: boolean }) {
+  if (loading) {
+    return (
+      <div className="space-y-3">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i}>
+            <div className="skeleton h-4 rounded w-3/4 mb-1.5" />
+            <div className="skeleton h-3 rounded w-1/2" />
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  if (!val) return null
+
+  // Mapa veloz para cruzar el stock actual
+  const stockMap = new Map<string, number>()
+  val.insumos.forEach(i => stockMap.set(i.nombre, i.stock_actual))
+  if (val.insumos_sin_costo) {
+    val.insumos_sin_costo.forEach(i => stockMap.set(i.nombre, i.stock_actual))
+  }
+
+  // Calculamos cuáles están en riesgo
+  const paquetesEnRiesgo = paquetes.map(p => {
+    const faltantes = p.items.filter(it => it.cantidad_requerida > (stockMap.get(it.insumo_nombre) ?? 0))
+    return faltantes.length > 0 ? { ...p, faltantes } : null
+  }).filter(Boolean) as (PaqueteResponse & { faltantes: any[] })[]
+
+  if (paquetesEnRiesgo.length === 0) {
+    return (
+      <div className="rounded-xl p-4 text-center border" style={{ background: 'var(--h-sem-success-bg)', borderColor: 'var(--h-sem-success-border)' }}>
+        <p className="font-semibold text-sm" style={{ color: 'var(--h-sem-success-text)' }}>Sin riesgo</p>
+        <p className="text-xs mt-0.5" style={{ color: 'var(--h-sem-success-text)', opacity: 0.75 }}>Todos los paquetes de insumos tienen stock suficiente para armarse.</p>
+      </div>
+    )
+  }
+
+  return (
+    <ul className="space-y-2.5">
+      {paquetesEnRiesgo.map(p => (
+        <li key={p.id} className="p-3 rounded-xl border border-h-subtle flex flex-col gap-1.5" style={{ background: 'var(--h-bg-elevated)' }}>
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-sm font-bold text-h-primary truncate" title={p.taller_nombre}>{p.taller_nombre}</p>
+            <Badge variant="warning">{p.faltantes.length} {p.faltantes.length === 1 ? 'faltante' : 'faltantes'}</Badge>
+          </div>
+          <div className="text-xs text-h-secondary space-y-1 mt-1">
+            {p.faltantes.slice(0, 2).map((f, i) => {
+              const stock = stockMap.get(f.insumo_nombre) ?? 0
+              return (
+                <div key={i} className="flex justify-between items-center">
+                  <span className="truncate pr-2">• {f.insumo_nombre}</span>
+                  <span className="flex-shrink-0 font-medium" style={{ color: 'var(--h-sem-warning-text)' }}>
+                    {stock} / {f.cantidad_requerida}
+                  </span>
+                </div>
+              )
+            })}
+            {p.faltantes.length > 2 && (
+              <p className="text-[10px] text-h-tertiary pt-1 italic">Y {p.faltantes.length - 2} insumo(s) más...</p>
+            )}
+          </div>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Sortable Wrapper
 // ---------------------------------------------------------------------------
 
@@ -450,10 +520,8 @@ function SortableWidget({ id, renderContent }: { id: WidgetId, renderContent: (p
   return (
     <div ref={setNodeRef} style={style} className={`${WIDGET_CONFIG[id].classes} relative`}>
       <div className={`h-full w-full rounded-2xl transition-opacity duration-200 ${
-        // Este es el diseño del "hueco" que queda en la grilla
         isDragging ? 'opacity-30 border-2 border-dashed border-h-teal-hover bg-h-bg-elevated' : 'opacity-100'
       }`}>
-        {/* Ocultamos el contenido real del hueco para que no distraiga */}
         <div className={`h-full w-full ${isDragging ? 'invisible' : 'visible'}`}>
           {renderContent({ dragListeners: listeners, dragAttributes: attributes })}
         </div>
@@ -504,15 +572,18 @@ export function Dashboard() {
   const [topInsumos, setTopInsumos] = useState<TopInsumo[]>([])
   const [salasHoy,   setSalasHoy]   = useState<SalaHoy[]>([])
   
+  // Estados para el nuevo widget
+  const [paquetes, setPaquetes]     = useState<PaqueteResponse[]>([])
+  const [val, setVal]               = useState<ValorizacionResponse | null>(null)
 
   const [loading,          setLoading]      = useState(true)
   const [chartLoading,     setChartLoading] = useState(true)
   const [actividadLoading, setActLoading]   = useState(true)
   const [topLoading,       setTopLoading]   = useState(true)
   const [salasLoading,     setSalasLoading] = useState(true)
-  
+  const [riesgoLoading,    setRiesgoLoading]= useState(true)
 
-  // ── Nuevo Estado de Orden (Dnd-Kit) ──────────────────────────────────────
+  // ── Estado de Orden (Dnd-Kit) ───────────────────────────────────────────
   const [widgetOrder, setWidgetOrder] = useState<WidgetId[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_ORDER_KEY(uid))
@@ -537,7 +608,6 @@ export function Dashboard() {
   const { labelTiempo, marcarActualizado } = useLastUpdated()
 
   // ── Sensores para Dnd-Kit ────────────────────────────────────────────────
-  // El constraint de distancia evita clics accidentales como arrastres
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
@@ -587,11 +657,22 @@ export function Dashboard() {
         setSalasHoy(data)
       } finally { setSalasLoading(false) }
     }
+    async function loadRiesgo() {
+      try {
+        const [paqRes, valRes] = await Promise.all([
+          api.get<PaqueteResponse[]>('/paquetes/'),
+          api.get<ValorizacionResponse>('/reportes/valorizacion')
+        ])
+        setPaquetes(paqRes.data)
+        setVal(valRes.data)
+      } finally { setRiesgoLoading(false) }
+    }
     
     loadChart(); 
     loadActividad(); 
     loadTop(); 
-    loadSalas()
+    loadSalas();
+    loadRiesgo();
   }, [])
 
   // ── Handlers ──────────────────────────────────────────────────────────────
@@ -665,6 +746,11 @@ export function Dashboard() {
         {salasHoy.length > 0 && <SalasHoyContent items={salasHoy} loading={salasLoading} />}
       </WidgetCard>
     ),
+    riesgo_reposicion: (props) => (
+      <WidgetCard title="Riesgo de reposición" icon={<AlertCircle size={13} style={{ color: 'var(--h-sem-warning-text)' }} />} {...props}>
+        <RiesgoReposicionContent paquetes={paquetes} val={val} loading={riesgoLoading} />
+      </WidgetCard>
+    ),
     alertas: (props) => (
       <WidgetCard title="Alertas de stock" icon={<AlertTriangle size={13} style={{ color: 'var(--h-sem-warning-text)' }} />} {...props}>
         {alertas.length > 0 && <AlertasContent alertas={alertas} loading={loading} />}
@@ -692,7 +778,6 @@ export function Dashboard() {
       {/* ── BENTO BOX NATIVO CON CSS GRID & DND-KIT ── */}
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={handleDragCancel}> 
         <SortableContext items={visibleWidgets} strategy={rectSortingStrategy}>
-          {/* Añadimos grid-flow-row-dense y auto-rows-[160px] */}
           <div className="grid grid-cols-1 md:grid-cols-6 xl:grid-cols-12 gap-4 auto-rows-[160px] grid-flow-row-dense w-full relative">
             {visibleWidgets.map(id => (
               <SortableWidget key={id} id={id} renderContent={widgetRenderers[id]} />
@@ -700,10 +785,9 @@ export function Dashboard() {
           </div>
         </SortableContext>
 
-        {/* ── LA MAGIA VISUAL: EL OVERLAY DE ARRASTRE ── */}
         <DragOverlay dropAnimation={{
           duration: 300,
-          easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)', // Efecto de rebote (Spring)
+          easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)', 
           sideEffects: defaultDropAnimationSideEffects({ styles: { active: { opacity: '0.4' } } }),
         }}>
           {activeWidget ? (
