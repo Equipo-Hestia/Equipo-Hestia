@@ -105,8 +105,8 @@ def _obtener_consumo_carreras(db: Session, semestre: str) -> ConsumoCarrerasResp
         .join(Asignatura, Asignatura.id == Taller.asignatura_id)
         .join(
             PaqueteInsumo,
-            (PaqueteInsumo.taller_id == Taller.id) &
-            (PaqueteInsumo.semestre == semestre)
+            (PaqueteInsumo.taller_id == Taller.id) 
+            & (PaqueteInsumo.semestre == semestre)
         )
         .join(PaqueteItem, PaqueteItem.paquete_id == PaqueteInsumo.id)
         .join(Insumo, Insumo.id == PaqueteItem.insumo_id)
@@ -158,7 +158,7 @@ def _obtener_consumo_carreras(db: Session, semestre: str) -> ConsumoCarrerasResp
         ))
 
     carreras.sort(key=lambda c: -c.costo_total)
-    
+
     return ConsumoCarrerasResponse(
         semestre=semestre,
         costo_total_semestre=costo_total_semestre,
@@ -231,7 +231,7 @@ def _generar_pdf_bytes(
         pdf.set_text_color(*TEAL)
         pdf.cell(col_w, 10, value, border=1, align="C", fill=True)
     pdf.ln()
-    
+
     x_inicio = pdf.l_margin
     for idx, (label, _) in enumerate(kpis):
         pdf.set_xy(x_inicio + idx * col_w, pdf.get_y())
@@ -330,11 +330,10 @@ def _generar_xlsx_bytes(
     HEADER_FONT = Font(color="FFFFFF", bold=True, size=10)
     ALT_FILL = PatternFill("solid", fgColor="F0FDFA")
     CENTER = Alignment(horizontal="center", vertical="center")
-    RIGHT = Alignment(horizontal="right", vertical="center")
 
     zona_chile = ZoneInfo("America/Santiago")
     fecha = datetime.now(zona_chile).strftime("%d/%m/%Y %H:%M")
-    
+
     wb = openpyxl.Workbook()
 
     # -----------------------------------------------------------------------
@@ -345,7 +344,7 @@ def _generar_xlsx_bytes(
 
     ws1.append(["Reporte Consolidado - Hestia"])
     ws1["A1"].font = Font(bold=True, size=14, color=TEAL_HEX)
-    
+
     meta_str = (
         f"Generado por: {usuario.nombre} | Fecha: {fecha} | "
         f"Sistema: Hestia | Semestre: {semestre}"
@@ -356,9 +355,9 @@ def _generar_xlsx_bytes(
     # Costo Carrera
     ws1.append(["Consumo por Carrera (Semestre Actual)"])
     ws1[ws1.max_row][0].font = Font(bold=True, size=12)
-    
+
     h_carr = [
-        "Carrera", "Talleres", "Estudiantes", 
+        "Carrera", "Talleres", "Estudiantes",
         "Costo Total", "Costo/Estudiante"
     ]
     ws1.append(h_carr)
@@ -380,11 +379,11 @@ def _generar_xlsx_bytes(
                 cell.fill = ALT_FILL
 
     ws1.append([])
-    
+
     # Categorias Bodega
     ws1.append(["Valorizacion por Categoria (Bodega Actual)"])
     ws1[ws1.max_row][0].font = Font(bold=True, size=12)
-    
+
     ws1.append(["Categoria", "Valor Total (CLP)", "Cant. Insumos"])
     for cell in ws1[ws1.max_row]:
         cell.fill = HEADER_FILL
@@ -451,7 +450,7 @@ def _generar_xlsx_bytes(
     for paquete in paquetes:
         taller = db.query(Taller).filter(Taller.id == paquete.taller_id).first()
         asig = db.query(Asignatura).filter(Asignatura.id == taller.asignatura_id).first() if taller and taller.asignatura_id else None
-        
+
         taller_nombre = taller.nombre if taller else "-"
         asig_nombre = asig.nombre if asig else "-"
         carrera_val = asig.carrera.value if (asig and asig.carrera) else "-"
