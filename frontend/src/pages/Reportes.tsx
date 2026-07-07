@@ -101,6 +101,34 @@ function TabPaquetes({ refreshKey }: { refreshKey: number }) {
     </div>
   )
 
+  // ---------------------------------------------------------------------------
+  // Calculos KPI: Costos y Riesgo de Reposicion
+  // ---------------------------------------------------------------------------
+  const stockMap = new Map<string, number>()
+  if (val) {
+    val.insumos.forEach(i => stockMap.set(i.nombre, i.stock_actual))
+    if (val.insumos_sin_costo) {
+      val.insumos_sin_costo.forEach(i => stockMap.set(i.nombre, i.stock_actual))
+    }
+  }
+
+  let costoTotalPaquetes = 0
+  let paquetesEnRiesgo = 0
+  const riesgoIds = new Set<number>()
+
+  paquetes.forEach(p => {
+    let enRiesgo = false
+    p.items.forEach(it => {
+      costoTotalPaquetes += (Number(it.insumo_costo_unitario || 0) * it.cantidad_requerida)
+      const stock = stockMap.get(it.insumo_nombre) ?? 0
+      if (it.cantidad_requerida > stock) enRiesgo = true
+    })
+    if (enRiesgo) {
+      paquetesEnRiesgo++
+      riesgoIds.add(p.id)
+    }
+  })
+
   return (
     <div className="mt-4 space-y-6">
 
@@ -110,45 +138,75 @@ function TabPaquetes({ refreshKey }: { refreshKey: number }) {
       )}
 
       {val && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-4">
           <div className="rounded-xl border border-h-subtle p-5"
             style={{ background: 'var(--h-bg-surface)' }}>
-            <div className="flex items-center gap-3 mb-2">
+            <div className="flex items-center gap-2 mb-2">
               <div className="p-2 rounded-lg" style={{ background: 'var(--h-teal-subtle)' }}>
-                <DollarSign size={18} style={{ color: 'var(--h-teal-hover)' }} />
+                <DollarSign size={16} style={{ color: 'var(--h-teal-hover)' }} />
               </div>
-              <p className="text-xs font-bold text-h-tertiary uppercase tracking-wide">
-                Valor Total Inventario
+              <p className="text-[10px] font-bold text-h-tertiary uppercase tracking-wide">
+                Inventario General
               </p>
             </div>
-            <p className="text-2xl font-black text-h-primary">
+            <p className="text-xl font-black text-h-primary truncate" title={fmt(val.valor_total_inventario)}>
               {fmt(val.valor_total_inventario)}
             </p>
           </div>
+          
           <div className="rounded-xl border border-h-subtle p-5"
             style={{ background: 'var(--h-bg-surface)' }}>
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 rounded-lg" style={{ background: 'var(--h-sem-success-bg)' }}>
-                <Package size={18} style={{ color: 'var(--h-sem-success-text)' }} />
+            <div className="flex items-center gap-2 mb-2">
+              <div className="p-2 rounded-lg" style={{ background: 'rgba(13, 115, 119, 0.15)' }}>
+                <Package size={16} style={{ color: 'var(--h-teal-hover)' }} />
               </div>
-              <p className="text-xs font-bold text-h-tertiary uppercase tracking-wide">
+              <p className="text-[10px] font-bold text-h-tertiary uppercase tracking-wide">
+                Costo Paquetes
+              </p>
+            </div>
+            <p className="text-xl font-black text-h-primary truncate" title={fmt(costoTotalPaquetes)}>
+              {fmt(costoTotalPaquetes)}
+            </p>
+          </div>
+
+          <div className="rounded-xl border border-h-subtle p-5"
+            style={{ background: 'var(--h-bg-surface)' }}>
+            <div className="flex items-center gap-2 mb-2">
+              <div className="p-2 rounded-lg" style={{ background: 'var(--h-bg-elevated)' }}>
+                <Package size={16} className="text-h-secondary" />
+              </div>
+              <p className="text-[10px] font-bold text-h-tertiary uppercase tracking-wide">
                 Total Paquetes
               </p>
             </div>
-            <p className="text-2xl font-black text-h-primary">{paquetes.length}</p>
+            <p className="text-xl font-black text-h-primary">{paquetes.length}</p>
           </div>
+
           <div className="rounded-xl border border-h-subtle p-5"
             style={{ background: 'var(--h-bg-surface)' }}>
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 rounded-lg"
-                style={{ background: 'rgba(139,92,246,0.15)' }}>
-                <TrendingUp size={18} style={{ color: '#a78bfa' }} />
+            <div className="flex items-center gap-2 mb-2">
+              <div className="p-2 rounded-lg" style={{ background: 'rgba(139,92,246,0.15)' }}>
+                <TrendingUp size={16} style={{ color: '#a78bfa' }} />
               </div>
-              <p className="text-xs font-bold text-h-tertiary uppercase tracking-wide">
+              <p className="text-[10px] font-bold text-h-tertiary uppercase tracking-wide">
                 Total Talleres
               </p>
             </div>
-            <p className="text-2xl font-black text-h-primary">{talleres.length}</p>
+            <p className="text-xl font-black text-h-primary">{talleres.length}</p>
+          </div>
+
+          <div className="rounded-xl border border-h-subtle p-5"
+            style={{ background: 'var(--h-bg-surface)' }}>
+            <div className="flex items-center gap-2 mb-2">
+              <div className="p-2 rounded-lg"
+                style={{ background: paquetesEnRiesgo > 0 ? 'var(--h-sem-warning-bg)' : 'var(--h-sem-success-bg)' }}>
+                <AlertCircle size={16} style={{ color: paquetesEnRiesgo > 0 ? 'var(--h-sem-warning-text)' : 'var(--h-sem-success-text)' }} />
+              </div>
+              <p className="text-[10px] font-bold text-h-tertiary uppercase tracking-wide leading-tight">
+                Riesgo Reposición
+              </p>
+            </div>
+            <p className="text-xl font-black text-h-primary">{paquetesEnRiesgo}</p>
           </div>
         </div>
       )}
@@ -156,11 +214,20 @@ function TabPaquetes({ refreshKey }: { refreshKey: number }) {
       {/* Tabla de paquetes */}
       <div className="rounded-xl border border-h-subtle overflow-hidden"
         style={{ background: 'var(--h-bg-surface)' }}>
-        <div className="px-5 py-4 border-b border-h-subtle">
-          <h3 className="font-bold text-h-primary">Paquetes de insumos ({paquetes.length})</h3>
-          <p className="text-xs text-h-tertiary mt-0.5">
-            Haz clic en una fila para ver el detalle de insumos del paquete y su valorización.
-          </p>
+        <div className="px-5 py-4 border-b border-h-subtle flex justify-between items-center">
+          <div>
+            <h3 className="font-bold text-h-primary">Paquetes de insumos ({paquetes.length})</h3>
+            <p className="text-xs text-h-tertiary mt-0.5">
+              Haz clic en una fila para ver el detalle de insumos del paquete y su valorización.
+            </p>
+          </div>
+          {paquetesEnRiesgo > 0 && (
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold"
+              style={{ background: 'var(--h-sem-warning-bg)', color: 'var(--h-sem-warning-text)' }}>
+              <AlertCircle size={14} />
+              {paquetesEnRiesgo} {paquetesEnRiesgo === 1 ? 'paquete' : 'paquetes'} en riesgo
+            </div>
+          )}
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -197,11 +264,12 @@ function TabPaquetes({ refreshKey }: { refreshKey: number }) {
                 const asig   = asignaturas.find(a => a.id === taller?.asignatura_id)
                 const abierto = expandido === p.id
 
-                const costoTotal = p.items.reduce((acc, item) => {
+                const pCostoTotal = p.items.reduce((acc, item) => {
                   if (item.insumo_costo_unitario == null) return acc
                   return acc + Number(item.insumo_costo_unitario) * item.cantidad_requerida
                 }, 0)
                 const tieneCostos = p.items.some(i => i.insumo_costo_unitario != null)
+                const enRiesgo = riesgoIds.has(p.id)
 
                 return (
                   <div key={p.id} className="contents">
@@ -219,7 +287,14 @@ function TabPaquetes({ refreshKey }: { refreshKey: number }) {
                           : <span>&#9660;</span>}
                       </td>
                       <td className="px-4 py-3 font-semibold text-h-primary">
-                        {p.taller_nombre}
+                        <div className="flex items-center gap-2">
+                          {p.taller_nombre}
+                          {enRiesgo && (
+                            <span title="Riesgo de reposición: Stock insuficiente">
+                              <AlertCircle size={14} style={{ color: 'var(--h-sem-warning-text)' }} />
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-h-secondary text-sm max-w-[220px]">
                         {asig?.nombre ?? '—'}
@@ -263,11 +338,14 @@ function TabPaquetes({ refreshKey }: { refreshKey: number }) {
                                 </thead>
                                 <tbody className="divide-y divide-h-subtle">
                                   {p.items.map(it => {
+                                    const stock = stockMap.get(it.insumo_nombre) ?? 0
+                                    const deficit = it.cantidad_requerida > stock
                                     const subtotal = it.insumo_costo_unitario != null
                                         ? Number(it.insumo_costo_unitario) * it.cantidad_requerida
                                         : null
+                                        
                                     return (
-                                      <tr key={it.id}>
+                                      <tr key={it.id} style={deficit ? { background: 'rgba(245, 158, 11, 0.05)' } : {}}>
                                         <td className="py-2 pr-4 font-semibold text-h-primary">
                                           {it.insumo_nombre}
                                         </td>
@@ -280,6 +358,11 @@ function TabPaquetes({ refreshKey }: { refreshKey: number }) {
                                             <span className="ml-1 text-[10px] font-normal text-h-tertiary">
                                               {it.insumo_unidad_medida}
                                             </span>
+                                          )}
+                                          {deficit && (
+                                            <div className="block mt-0.5 text-[10px] font-semibold" style={{ color: 'var(--h-sem-warning-text)' }}>
+                                              Faltan {it.cantidad_requerida - stock} unid.
+                                            </div>
                                           )}
                                         </td>
                                         <td className="py-2 pr-4 text-right text-h-secondary tabular-nums">
@@ -308,10 +391,10 @@ function TabPaquetes({ refreshKey }: { refreshKey: number }) {
                                       className="text-base font-black tabular-nums"
                                       style={{ color: 'var(--h-teal-hover)' }}
                                     >
-                                      {fmt(costoTotal)}
+                                      {fmt(pCostoTotal)}
                                     </span>
                                     <span className="text-xs text-h-tertiary">
-                                      (solo ítems con costo registrado)
+                                      (solo ítems con costo)
                                     </span>
                                   </div>
                                 )}
@@ -328,7 +411,8 @@ function TabPaquetes({ refreshKey }: { refreshKey: number }) {
           </table>
         </div>
       </div>
-
+      
+      {/* ... [La tabla de Valorizacion del inventario se mantiene igual] ... */}
       {val && val.insumos.length > 0 && (
         <div className="rounded-xl border border-h-subtle overflow-hidden"
           style={{ background: 'var(--h-bg-surface)' }}>
@@ -414,7 +498,7 @@ function TabCarreras() {
 
   const COLS: { label: string; align: 'left' | 'right' }[] = [
     { label: 'Carrera',          align: 'left'  },
-    { label: 'Solicitudes',      align: 'right' },
+    { label: 'Talleres',      align: 'right' },
     { label: 'Estudiantes',      align: 'right' },
     { label: 'Costo Total',      align: 'right' },
     { label: 'Costo/Estudiante', align: 'right' },
@@ -531,12 +615,12 @@ function TabCarreras() {
 // Tab: Exportar
 // ---------------------------------------------------------------------------
 function TabExportar() {
-  const [semestre, setSemestre]           = useState(getSemestreActual)
-  const [descargandoPdf, setDescargandoPdf]   = useState(false)
+  const semestre = getSemestreActual() // Ya no es un estado modificable
+  const [descargandoPdf, setDescargandoPdf] = useState(false)
   const [descargandoXlsx, setDescargandoXlsx] = useState(false)
-  const [errorPdf, setErrorPdf]   = useState<string | null>(null)
+  const [errorPdf, setErrorPdf] = useState<string | null>(null)
   const [errorXlsx, setErrorXlsx] = useState<string | null>(null)
-  const [okPdf, setOkPdf]   = useState(false)
+  const [okPdf, setOkPdf] = useState(false)
   const [okXlsx, setOkXlsx] = useState(false)
 
   async function _blobError(err: unknown): Promise<string> {
@@ -547,19 +631,19 @@ function TabExportar() {
         return JSON.parse(texto)?.detail ?? 'Error desconocido'
       } catch { return 'Error desconocido' }
     }
-    return (response?.data as { detail?: string } | undefined)?.detail ?? 'Error desconocido'
+    return (response?.data as { detail?: string } | undefined)?.detail ?? 'Error'
   }
 
   async function descargarPdf() {
     setDescargandoPdf(true); setErrorPdf(null); setOkPdf(false)
     try {
-      const params = semestre.trim()
-        ? `?semestre=${encodeURIComponent(semestre.trim())}` : ''
-      const resp = await api.get(`/reportes/valorizacion/pdf${params}`, { responseType: 'blob' })
+      // Usamos el endpoint actualizado
+      const params = `?semestre=${encodeURIComponent(semestre)}`
+      const resp = await api.get(`/reportes/exportar/pdf${params}`, { responseType: 'blob' })
       const url = URL.createObjectURL(new Blob([resp.data], { type: 'application/pdf' }))
       const a = document.createElement('a')
       a.href = url
-      a.download = `valorizacion_hestia${semestre ? `_${semestre}` : ''}.pdf`
+      a.download = `reporte_hestia_${semestre}.pdf`
       a.click()
       URL.revokeObjectURL(url)
       setOkPdf(true); setTimeout(() => setOkPdf(false), 3000)
@@ -570,14 +654,14 @@ function TabExportar() {
   async function descargarXlsx() {
     setDescargandoXlsx(true); setErrorXlsx(null); setOkXlsx(false)
     try {
-      const params = semestre.trim()
-        ? `?semestre=${encodeURIComponent(semestre.trim())}` : ''
-      const resp = await api.get(`/reportes/valorizacion/xlsx${params}`, { responseType: 'blob' })
+      // Usamos el endpoint actualizado
+      const params = `?semestre=${encodeURIComponent(semestre)}`
+      const resp = await api.get(`/reportes/exportar/xlsx${params}`, { responseType: 'blob' })
       const mime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
       const url = URL.createObjectURL(new Blob([resp.data], { type: mime }))
       const a = document.createElement('a')
       a.href = url
-      a.download = `valorizacion_hestia${semestre ? `_${semestre}` : ''}.xlsx`
+      a.download = `reporte_hestia_${semestre}.xlsx`
       a.click()
       URL.revokeObjectURL(url)
       setOkXlsx(true); setTimeout(() => setOkXlsx(false), 3000)
@@ -585,29 +669,19 @@ function TabExportar() {
     } finally { setDescargandoXlsx(false) }
   }
 
-  const inputCls = `w-full px-3 py-2 text-sm rounded-lg border border-h-subtle
-    focus:outline-none focus:border-h-visible bg-h-elevated text-h-primary
-    placeholder:text-h-tertiary`
-
-  const campoSemestre = (
-    <div>
-      <label className="block text-[10px] font-semibold text-h-tertiary mb-1
-                        uppercase tracking-widest">
-        Semestre (opcional)
-      </label>
-      <input value={semestre} onChange={e => setSemestre(e.target.value)}
-        placeholder="Ej: 2026-1" className={inputCls} />
-      <p className="text-xs text-h-tertiary mt-1">
-        Semestre actual: <strong>{getSemestreActual()}</strong>
-      </p>
-    </div>
-  )
-
   return (
     <div className="mt-4">
-      <div className="max-w-xs mb-6">{campoSemestre}</div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="mb-6">
+        <h2 className="text-lg font-bold text-h-primary">
+          Exportar reportes del semestre {semestre}
+        </h2>
+        <p className="text-sm text-h-secondary mt-1">
+          El reporte incluirá la información de los paquetes de insumos, costo por carrera 
+          y valorización del inventario actual.
+        </p>
+      </div>
 
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Panel PDF */}
         <div className="rounded-xl border border-h-subtle p-6 space-y-4"
           style={{ background: 'var(--h-bg-surface)' }}>
@@ -617,14 +691,14 @@ function TabExportar() {
               Reporte PDF
             </h3>
             <p className="text-sm text-h-secondary">
-              Genera un PDF con la valorizacion del inventario agrupado por categoria.
+              Genera un documento PDF consolidado con los costos por carrera, 
+              resumen de paquetes y la valorización de bodega.
             </p>
           </div>
           {errorPdf && (
             <div className="flex items-start gap-3 rounded-lg px-3 py-2 text-sm"
               style={{
-                background: 'var(--h-sem-danger-bg)',
-                color: 'var(--h-sem-danger-text)',
+                background: 'var(--h-sem-danger-bg)', color: 'var(--h-sem-danger-text)',
                 border: '1px solid var(--h-sem-danger-border)',
               }}>
               <AlertCircle size={14} className="flex-shrink-0 mt-0.5" />
@@ -634,8 +708,7 @@ function TabExportar() {
           {okPdf && (
             <div className="rounded-lg px-3 py-2 text-sm font-semibold"
               style={{
-                background: 'var(--h-sem-success-bg)',
-                color: 'var(--h-sem-success-text)',
+                background: 'var(--h-sem-success-bg)', color: 'var(--h-sem-success-text)',
                 border: '1px solid var(--h-sem-success-border)',
               }}>
               PDF descargado correctamente.
@@ -662,15 +735,14 @@ function TabExportar() {
               Reporte Excel
             </h3>
             <p className="text-sm text-h-secondary">
-              Genera un archivo Excel (.xlsx) con la valorizacion del inventario,
-              paquetes de insumos y resumen por categoria.
+              Genera una planilla interactiva (.xlsx) con tablas detalladas de paquetes, 
+              carreras y todo el inventario valorizado.
             </p>
           </div>
           {errorXlsx && (
             <div className="flex items-start gap-3 rounded-lg px-3 py-2 text-sm"
               style={{
-                background: 'var(--h-sem-danger-bg)',
-                color: 'var(--h-sem-danger-text)',
+                background: 'var(--h-sem-danger-bg)', color: 'var(--h-sem-danger-text)',
                 border: '1px solid var(--h-sem-danger-border)',
               }}>
               <AlertCircle size={14} className="flex-shrink-0 mt-0.5" />
@@ -680,8 +752,7 @@ function TabExportar() {
           {okXlsx && (
             <div className="rounded-lg px-3 py-2 text-sm font-semibold"
               style={{
-                background: 'var(--h-sem-success-bg)',
-                color: 'var(--h-sem-success-text)',
+                background: 'var(--h-sem-success-bg)', color: 'var(--h-sem-success-text)',
                 border: '1px solid var(--h-sem-success-border)',
               }}>
               Excel descargado correctamente.
@@ -711,7 +782,7 @@ export function Reportes() {
   const [refreshKey, setRefreshKey] = useState(0)
 
   const tabs: { id: Tab; label: string }[] = [
-    { id: 'paquetes', label: 'Paquetes de insumos' },
+    { id: 'paquetes', label: 'Información general' },
     { id: 'carreras', label: 'Costo por carrera' },
     { id: 'exportar', label: 'Exportar' },
   ]
@@ -725,7 +796,7 @@ export function Reportes() {
             Reportes
           </h1>
           <p className="text-h-secondary text-sm mt-0.5">
-            Paquetes de insumos, valorizacion y costo por carrera.
+            Paquetes de insumos, valorización de inventario y costo por carrera.
             Semestre actual: <strong>{getSemestreActual()}</strong>
           </p>
         </div>
