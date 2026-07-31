@@ -345,8 +345,8 @@ def completar_login_2fa(
     if not totp.verify(datos.codigo, valid_window=TOTP_VALID_WINDOW):
         registrar_fallo(usuario.email)
         # 403 en lugar de 401: el usuario esta autenticado con credenciales validas;
-        # solo el segundo factor es incorrecto. Un 401 dispararía el interceptor
-        # de Axios y cerraría la sesion de forma incorrecta.
+        # solo el segundo factor es incorrecto. Un 401 dispararia el interceptor
+        # de Axios y cerraria la sesion de forma incorrecta.
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Codigo 2FA incorrecto",
@@ -563,8 +563,8 @@ def activar_2fa_inicial(
     totp = pyotp.TOTP(usuario.totp_secret)
     if not totp.verify(datos.codigo, valid_window=TOTP_VALID_WINDOW):
         # 403 en lugar de 401: el usuario llego hasta aqui con credenciales
-        # validas y un QR ya escaneado. Un 401 dispararía el interceptor de
-        # Axios, destruiría el estado del componente Login y forzaría un nuevo
+        # validas y un QR ya escaneado. Un 401 dispararia el interceptor de
+        # Axios, destruiria el estado del componente Login y forzaria un nuevo
         # QR al reiniciar sesion, invalidando la cuenta TOTP ya vinculada.
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
