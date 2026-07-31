@@ -255,7 +255,7 @@ def reset_2fa_usuario(
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
     target.totp_habilitado = False
     target.totp_secret = None
-    target.totp_recovery_codes = None
+    target.recovery_codes = None
     db.commit()
     registrar(
         db, "RESET_2FA_USUARIO", usuario=admin,

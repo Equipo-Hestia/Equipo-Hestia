@@ -160,14 +160,14 @@ def _generar_recovery_codes() -> tuple[list[str], str]:
 def _verificar_y_consumir_recovery_code(
     usuario: Usuario, codigo: str, db: Session
 ) -> bool:
-    if not usuario.totp_recovery_codes:
+    if not usuario.recovery_codes:
         return False
-    registros = json.loads(usuario.totp_recovery_codes)
+    registros = json.loads(usuario.recovery_codes)
     hash_input = hashlib.sha256(codigo.upper().encode()).hexdigest()
     for reg in registros:
         if not reg["usado"] and reg["hash"] == hash_input:
             reg["usado"] = True
-            usuario.totp_recovery_codes = json.dumps(registros)
+            usuario.recovery_codes = json.dumps(registros)
             db.commit()
             return True
     return False
@@ -402,7 +402,7 @@ def recuperar_acceso_2fa(
     # Deshabilitar 2FA y forzar reconfigurar (2FA es obligatorio)
     usuario.totp_habilitado = False
     usuario.totp_secret = None
-    usuario.totp_recovery_codes = None
+    usuario.recovery_codes = None
     db.commit()
     setup_token = crear_setup_token({"sub": str(usuario.id)})
     return LoginResponse(
@@ -450,7 +450,7 @@ def activar_2fa(
         )
     codigos_planos, json_hashes = _generar_recovery_codes()
     usuario.totp_habilitado = True
-    usuario.totp_recovery_codes = json_hashes
+    usuario.recovery_codes = json_hashes
     db.commit()
     return ActivarResponse(
         mensaje="2FA activado correctamente.",
@@ -572,7 +572,7 @@ def activar_2fa_inicial(
         )
     codigos_planos, json_hashes = _generar_recovery_codes()
     usuario.totp_habilitado = True
-    usuario.totp_recovery_codes = json_hashes
+    usuario.recovery_codes = json_hashes
     db.commit()
     token = crear_token({"sub": str(usuario.id), "rol": usuario.rol.value})
     return LoginResponse(
