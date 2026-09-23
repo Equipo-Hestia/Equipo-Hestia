@@ -100,7 +100,7 @@ No se requiere instalar Python, Node.js ni PostgreSQL de forma manual.
 ### 1. Clonar el repositorio
 
 ```bash
-git clone https://github.com/Hestia-Project-DuocUC/hestia.git
+git clone https://github.com/Equipo-Hestia/Equipo-Hestia.git hestia
 cd hestia
 ```
 
@@ -256,7 +256,7 @@ Ver [`.github/CONTRIBUTING.md`](.github/CONTRIBUTING.md) para más detalles.
 ## Equipo
 
 Desarrollado por estudiantes de Informática Biomédica — DuocUC San Bernardo
-Proyecto Ruta IE · Escuela de Salud · 2024–2026
+Proyecto Ruta IE · Escuela de Salud · 2026
 
 ---
 
