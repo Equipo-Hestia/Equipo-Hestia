@@ -19,6 +19,7 @@ Genera:
     - 1 orden de mantenimiento demo (pendiente actualizacion Commit 2)
     - 10 talleres + 10 paquetes de insumos
     - 10 programaciones de taller (semestre 2026-1)
+    - 2 programaciones para el dia en que se ejecuta el seed (Vista de Salas en vivo)
     - 10 revisiones de sala (8 completadas, 2 en_revision), 32 items
     - 3 incidencias en activos fijos
     - 3 ordenes de entrada (1 cerrada, 1 confirmada, 1 borrador), 9 items
@@ -39,6 +40,7 @@ import sys
 import os
 import random
 from datetime import date, datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -1180,6 +1182,48 @@ def _insertar_programaciones(db, talleres_por_nombre, salas_por_nombre) -> dict:
     return programaciones_por_clave
 
 
+def _insertar_programaciones_hoy(db, talleres_por_nombre, salas_por_nombre) -> int:
+    """Programaciones con la fecha del dia en que se ejecuta el seed.
+
+    La Vista de Salas y la revision post-taller solo operan sobre el dia
+    actual; sin esto el flujo no puede mostrarse en vivo. Horas relativas
+    al momento del seed (hora de Santiago, igual que auth.py):
+      - Sala 010: termino hace 30 min -> 'pendiente de revision'
+      - Sala 011: en curso            -> 'en clase'
+    Ejecutar el seed el mismo dia de la demo (ver docs/DEMO.md).
+    """
+    print("Insertando programaciones de hoy (Vista de Salas en vivo)...")
+    ahora = datetime.now(ZoneInfo("America/Santiago"))
+    inicio_dia = ahora.replace(hour=0, minute=0, second=0, microsecond=0)
+    fin_dia = ahora.replace(hour=23, minute=59, second=0, microsecond=0)
+
+    def _hhmm(delta_min: int) -> str:
+        t = ahora + timedelta(minutes=delta_min)
+        return min(max(t, inicio_dia), fin_dia).strftime("%H:%M")
+
+    datos = [
+        ("Taller de RCP avanzado", "Sala 010", _hhmm(-150), _hhmm(-30),
+         "David Contreras", "Requiere Fantoma adulto alta fidelidad operativo"),
+        ("Taller de venopuncion", "Sala 011", _hhmm(-60), _hhmm(120),
+         "Maria Jose Toro", None),
+    ]
+    for taller_nombre, sala_nombre, hora_inicio, hora_fin, docente, notas in datos:
+        db.add(ProgramacionTaller(
+            taller_id=talleres_por_nombre[taller_nombre].id,
+            sala_id=salas_por_nombre[sala_nombre].id,
+            fecha=ahora.date(),
+            hora_inicio=hora_inicio,
+            hora_fin=hora_fin,
+            docente_nombre=docente,
+            seccion="001D",
+            semestre="2026-1",
+            notas=notas,
+        ))
+    db.flush()
+    print(f"  {len(datos)} programaciones para hoy ({ahora.date().isoformat()})")
+    return len(datos)
+
+
 def _insertar_revisiones_sala(
     db, programaciones_por_clave, salas_por_nombre, operadores
 ) -> int:
@@ -1325,6 +1369,9 @@ def main():
         total_revisiones = _insertar_revisiones_sala(
             db, programaciones_por_clave, salas_por_nombre, operadores,
         )
+        total_prog_hoy = _insertar_programaciones_hoy(
+            db, talleres_por_nombre, salas_por_nombre,
+        )
         total_incidencias = _insertar_incidencias(
             db, activos_por_nombre, salas_por_nombre, usuarios,
         )
@@ -1359,6 +1406,7 @@ def main():
         print(f"  Talleres:          {len(talleres_por_nombre)}")
         print(f"  Paquetes:          {total_paquetes}")
         print(f"  Programaciones:    {len(programaciones_por_clave)}")
+        print(f"  Programaciones hoy: {total_prog_hoy} (Vista de Salas en vivo)")
         print(f"  Revisiones sala:   {total_revisiones}")
         print(f"  Incidencias:       {total_incidencias}")
         print(f"  Ordenes entrada:   {total_ordenes_entrada}")
