@@ -7,12 +7,13 @@ Uso:
 
 Genera:
     - 18 salas clinicas, 10 categorias
-    - 5 usuarios (admin, 2 operadores, 2 visores)
+    - 6 usuarios (admin, operador coordinador, 2 operadores, 2 visores),
+      todos con 2FA TOTP ya configurado (secretos fijos de demo, ver abajo)
     - 15 docentes
     - 29 asignaturas de 4 carreras activas (TENS, TQF, TLCBS, TONS)
-    - 88 insumos/implementos en Bodega
+    - 86 insumos/implementos en Bodega
     - Unidades fisicas de implementos
-    - ~560 movimientos en los ultimos 60 dias
+    - ~700 movimientos en los ultimos 60 dias
     - 16 activos fijos: 8 muebles + 8 phantomas
     - 2 proveedores: Laerdal Chile y MedSupply SpA
     - 1 orden de mantenimiento demo (pendiente actualizacion Commit 2)
@@ -22,14 +23,17 @@ Genera:
     - 3 incidencias en activos fijos
     - 3 ordenes de entrada (1 cerrada, 1 confirmada, 1 borrador), 9 items
 
-Credenciales:
+Credenciales (detalle y secretos TOTP en docs/DEMO.md):
     admin@hestia.duoc.cl          / Admin2024!
+    psoto@hestia.duoc.cl          / Coord2024!
     mgonzalez@hestia.duoc.cl      / Oper2024!
     cfuentes@hestia.duoc.cl       / Oper2024!
     amartinez@hestia.duoc.cl      / Visor2024!
     lperez@hestia.duoc.cl         / Visor2024!
 """
 
+import hashlib
+import json
 import re
 import sys
 import os
@@ -40,6 +44,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from app.database import SessionLocal
 from app.models import rol  # noqa  <- antes de usuario (FK roles)
+from app.models.rol import Rol
 from app.models.sala import Sala
 from app.models.insumo import Insumo, TipoInsumo
 from app.models.movimiento import Movimiento, TipoMovimiento, SubtipoMovimiento
@@ -126,11 +131,51 @@ CATEGORIAS = [
 
 USUARIOS = [
     ("Administrador Hestia", "admin@hestia.duoc.cl", "Admin2024!", RolUsuario.admin),
+    (
+        "Patricia Soto", "psoto@hestia.duoc.cl", "Coord2024!",
+        RolUsuario.operador_coordinador,
+    ),
     ("Maria Gonzalez", "mgonzalez@hestia.duoc.cl", "Oper2024!", RolUsuario.operador),
     ("Carlos Fuentes", "cfuentes@hestia.duoc.cl", "Oper2024!", RolUsuario.operador),
     ("Ana Martinez", "amartinez@hestia.duoc.cl", "Visor2024!", RolUsuario.visor),
     ("Luis Perez", "lperez@hestia.duoc.cl", "Visor2024!", RolUsuario.visor),
 ]
+
+# ---------------------------------------------------------------------------
+# 2FA de demo
+# ---------------------------------------------------------------------------
+# ADVERTENCIA: estos secretos TOTP son EXCLUSIVOS DE DEMO. Estan publicados en
+# el repositorio y en docs/DEMO.md, por lo que cualquiera puede generar los
+# codigos. NO usarlos en ningun otro entorno (ni produccion, ni datos reales).
+# Permiten que las cuentas demo entren sin escanear un QR en cada instalacion:
+# se cargan una sola vez en Google Authenticator (ver docs/DEMO.md).
+TOTP_DEMO = {
+    "admin@hestia.duoc.cl": "LXMXOC2QI77XU53MY56KUUAIXWA425JK",
+    "psoto@hestia.duoc.cl": "5WD44E4LF2UCHICON3T3UHIELEA2BYSV",
+    "mgonzalez@hestia.duoc.cl": "YWZ3PHGDHRPASDRM2TIOW4HQH7BV2OCP",
+    "cfuentes@hestia.duoc.cl": "KWKFKT4AE4VP4MFTYJXORR2DNU4567VR",
+    "amartinez@hestia.duoc.cl": "DZDWCIWYM3NF43AJEGHWI23J5EJJD46X",
+    "lperez@hestia.duoc.cl": "XDGZQ733L6F4SENXAPQAYMN2E6XL7HE2",
+}
+
+
+def _recovery_codes_demo(n_usuario: int) -> list[str]:
+    """Codigos de recuperacion conocidos (EXCLUSIVOS DE DEMO).
+
+    Patron DE0{n}000{k}-DE0{n}000{k}, con n = posicion del usuario en
+    USUARIOS (1-6) y k = 0-9. Mismo formato hex XXXXXXXX-XXXXXXXX que
+    genera la app, para que el input del login los acepte.
+    """
+    return [f"DE0{n_usuario}000{k}-DE0{n_usuario}000{k}" for k in range(10)]
+
+
+def _recovery_codes_json(codigos: list[str]) -> str:
+    """Mismo formato que app/routes/auth.py: lista de {hash sha256, usado}."""
+    return json.dumps([
+        {"hash": hashlib.sha256(c.encode()).hexdigest(), "usado": False}
+        for c in codigos
+    ])
+
 
 # Formato: (nombre, email, rut)
 # Los docentes NO tienen cuenta en Hestia; son entidades externas gestionadas
@@ -808,10 +853,16 @@ def _insertar_categorias(db) -> list:
 def _insertar_usuarios(db) -> tuple:
     print("Insertando usuarios...")
     usuarios = []
-    for nombre, email, pwd, rol in USUARIOS:
+    # La tabla roles la puebla la migracion c7f3a92e1b08 (Fase 2 expand).
+    rol_ids = {r.nombre: r.id for r in db.query(Rol).all()}
+    for n_usuario, (nombre, email, pwd, rol_usuario) in enumerate(USUARIOS, 1):
         u = Usuario(
             nombre=nombre, email=email,
-            password_hash=hashear_password(pwd), rol=rol,
+            password_hash=hashear_password(pwd), rol=rol_usuario,
+            rol_id=rol_ids.get(rol_usuario.value),
+            totp_secret=TOTP_DEMO[email],
+            totp_habilitado=True,
+            recovery_codes=_recovery_codes_json(_recovery_codes_demo(n_usuario)),
         )
         db.add(u)
         usuarios.append(u)
@@ -1187,22 +1238,29 @@ def _insertar_incidencias(db, activos_por_nombre, salas_por_nombre, usuarios) ->
 
 
 def _insertar_ordenes_entrada(
-    db, proveedores_map, insumos_db, usuarios, operadores
+    db, proveedores_map, insumos_db, usuarios
 ) -> int:
     print("Insertando ordenes de entrada...")
     insumos_por_nombre = {i.nombre: i for i in insumos_db}
+    # Crear y cerrar ordenes exige admin u operador_coordinador en el backend
+    # (_require_coord_o_admin en routes/ordenes_entrada.py).
+    coordinadora = next(
+        u for u in usuarios if u.rol == RolUsuario.operador_coordinador
+    )
     total_ordenes = 0
     for (prov_key, tipo, estado, actividad_duoc,
          notas, items) in ORDENES_ENTRADA_DATA:
         prov_id = proveedores_map.get(prov_key) if prov_key else None
-        cerrado_por_id = operadores[0].id if estado == EstadoOrdenEntrada.cerrada else None
+        cerrado_por_id = (
+            coordinadora.id if estado == EstadoOrdenEntrada.cerrada else None
+        )
         orden = OrdenEntrada(
             proveedor_id=prov_id,
             tipo=tipo,
             estado=estado,
             actividad_duoc=actividad_duoc,
             notas=notas,
-            creado_por_id=operadores[0].id,
+            creado_por_id=coordinadora.id,
             cerrado_por_id=cerrado_por_id,
         )
         db.add(orden)
@@ -1271,7 +1329,7 @@ def main():
             db, activos_por_nombre, salas_por_nombre, usuarios,
         )
         total_ordenes_entrada = _insertar_ordenes_entrada(
-            db, proveedores_map, insumos_db, usuarios, operadores,
+            db, proveedores_map, insumos_db, usuarios,
         )
 
         alertas = sum(1 for _, _, s, m, *_ in INSUMOS if s <= m)
@@ -1304,9 +1362,9 @@ def main():
         print(f"  Revisiones sala:   {total_revisiones}")
         print(f"  Incidencias:       {total_incidencias}")
         print(f"  Ordenes entrada:   {total_ordenes_entrada}")
-        print("\nCredenciales:")
-        for _, email, pwd, rol in USUARIOS:
-            print(f"  {email:38} | {pwd:12} | {rol.value}")
+        print("\nCredenciales (2FA ya configurado, secretos en docs/DEMO.md):")
+        for _, email, pwd, rol_usuario in USUARIOS:
+            print(f"  {email:38} | {pwd:12} | {rol_usuario.value}")
         print()
 
     except Exception as e:
