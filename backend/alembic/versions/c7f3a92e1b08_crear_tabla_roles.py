@@ -79,6 +79,11 @@ def upgrade() -> None:
     if nuevos:
         op.bulk_insert(roles_table, nuevos)
 
+    # Fresh install: 'usuarios' aun no existe (create_all la crea despues,
+    # ya con rol_id). No hay columna que agregar ni usuarios que backfillear.
+    if 'usuarios' not in inspector.get_table_names():
+        return
+
     cols = {c['name'] for c in inspector.get_columns('usuarios')}
     if 'rol_id' not in cols:
         op.add_column(

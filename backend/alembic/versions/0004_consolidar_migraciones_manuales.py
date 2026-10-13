@@ -43,13 +43,17 @@ _DDL = [
     "ALTER TABLE IF EXISTS insumos ADD COLUMN IF NOT EXISTS sku VARCHAR(20)",
     "ALTER TABLE IF EXISTS insumos ADD COLUMN IF NOT EXISTS codigo_barras VARCHAR(100)",
     "ALTER TABLE IF EXISTS insumos ADD COLUMN IF NOT EXISTS costo_unitario NUMERIC(10,2)",
+    # CREATE INDEX no admite IF EXISTS sobre la tabla: en fresh install
+    # 'insumos' aun no existe, por eso se protege con to_regclass().
     (
+        "DO $$ BEGIN IF to_regclass('insumos') IS NOT NULL THEN "
         "CREATE UNIQUE INDEX IF NOT EXISTS uix_insumos_sku "
-        "ON insumos (sku) WHERE sku IS NOT NULL"
+        "ON insumos (sku) WHERE sku IS NOT NULL; END IF; END $$"
     ),
     (
+        "DO $$ BEGIN IF to_regclass('insumos') IS NOT NULL THEN "
         "CREATE UNIQUE INDEX IF NOT EXISTS uix_insumos_codigo_barras "
-        "ON insumos (codigo_barras) WHERE codigo_barras IS NOT NULL"
+        "ON insumos (codigo_barras) WHERE codigo_barras IS NOT NULL; END IF; END $$"
     ),
     (
         "ALTER TABLE IF EXISTS solicitudes_retiro "
@@ -178,7 +182,7 @@ _DDL = [
         "    SELECT 1 FROM pg_constraint c "
         "    JOIN pg_class r ON c.confrelid = r.oid "
         "    WHERE c.conname = 'clases_docente_docente_id_fkey' "
-        "      AND c.conrelid = 'clases_docente'::regclass "
+        "      AND c.conrelid = to_regclass('clases_docente') "
         "      AND r.relname = 'usuarios' "
         "  ) INTO fk_a_usuarios; "
         "  IF fk_a_usuarios THEN "
@@ -196,7 +200,7 @@ _DDL = [
         "  IF NOT EXISTS ( "
         "    SELECT 1 FROM pg_constraint "
         "    WHERE conname = 'clases_docente_docente_id_fkey' "
-        "      AND conrelid = 'clases_docente'::regclass "
+        "      AND conrelid = to_regclass('clases_docente') "
         "  ) THEN "
         "    IF EXISTS ( "
         "      SELECT 1 FROM pg_class WHERE relname = 'docentes' "
