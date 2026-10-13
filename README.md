@@ -2,7 +2,9 @@
 
 **Sistema de gestión de insumos médicos — Escuela de Salud DuocUC**
 
-Hestia es una aplicación web para el control de stock de insumos e implementos en las salas clínicas de la Escuela de Salud de DuocUC, sede San Bernardo. Desarrollado por estudiantes de Informática Biomédica como proyecto de título y para una posterior posible implementación en ayuda de los estudiantes de la misma Escuela.
+Hestia es una aplicación web para el control de stock de insumos e implementos en las salas clínicas de la Escuela de Salud de DuocUC, sede San Bernardo. Desarrollado por estudiantes de Informática Biomédica como proyecto de título.
+
+> **Estado del proyecto (octubre 2026):** desarrollo cerrado. El sistema está en su versión final para la demo de defensa; no hay nuevas funcionalidades planificadas ni un despliegue productivo. Ver [`docs/DEMO.md`](docs/DEMO.md) para levantar la demo y [`docs/FLUJOS_USUARIO.md`](docs/FLUJOS_USUARIO.md) para los flujos por rol.
 
 ---
 
@@ -16,7 +18,7 @@ Hestia es una aplicación web para el control de stock de insumos e implementos 
 | Tipografía | Nunito (Google Fonts) |
 | Autenticación | JWT · bcrypt · TOTP 2FA (Google Authenticator) |
 | Contenedores | Docker · Docker Compose |
-| CI | GitHub Actions (flake8) |
+| CI | GitHub Actions (flake8, pip-audit, npm audit) |
 
 ---
 
@@ -55,12 +57,14 @@ Hestia es una aplicación web para el control de stock de insumos e implementos 
 
 | Rol | Acceso |
 |---|---|
-| `admin` | Acceso completo — gestión de usuarios, insumos, activos fijos, asignaturas, talleres, paquetes, clases, importar, audit log |
-| `operador_coordinador` | Igual que Operador. Sus permisos adicionales se definirán próximamente |
-| `operador` | Insumos, activos fijos, movimientos, alertas, salas, categorías, paquetes de insumos |
-| `visor` | Solo lectura — dashboard, insumos, activos fijos, movimientos, alertas, salas, categorías |
+| `admin` | Acceso completo: usuarios y reset de 2FA, asignaturas y clases, importaciones (insumos, horario, programación), audit log, más todo lo operativo |
+| `operador_coordinador` | Operación más gestión: órdenes de entrada (compras), proveedores, docentes y sus comentarios, reportes de valorización, importar programación |
+| `operador` | Operación diaria: insumos, unidades de implementos, movimientos, activos fijos, incidencias, mantenimiento, preparar taller, paquetes, revisión de salas. Sin acceso a reportes financieros |
+| `visor` | Solo lectura de inventario, activos, movimientos, alertas y Vista de Salas, más reportes de valorización |
 
-> El rol `docente` fue eliminado. No hay solicitudes de retiro individuales: Maritza y las operadoras gestionan los paquetes de insumos antes del semestre.
+La matriz completa de módulos × roles (permiso real del backend y diferencias de la interfaz) está en [`docs/FLUJOS_USUARIO.md`](docs/FLUJOS_USUARIO.md).
+
+> Los docentes no tienen cuenta en Hestia: son registros gestionados por la coordinación. No existen solicitudes de retiro individuales; la coordinación y las operadoras gestionan los paquetes de insumos antes del semestre.
 
 ---
 
@@ -110,7 +114,7 @@ cd hestia
 cp backend/.env.example backend/.env
 ```
 
-El `.env` generado funciona directamente para desarrollo local. Sin este archivo el contenedor no puede conectarse a la base de datos.
+El `.env` generado funciona tal cual para la demo y el desarrollo local (la contraseña de `DATABASE_URL` coincide con la de `docker-compose.yml`). Sin este archivo `docker compose` no arranca.
 
 ### 3. Levantar el proyecto
 
@@ -118,35 +122,41 @@ El `.env` generado funciona directamente para desarrollo local. Sin este archivo
 docker compose up --build
 ```
 
-Esto levanta los tres servicios en orden:
+Esto levanta los cinco servicios (`db`, `api`, `frontend`, `nginx`, `backup`):
 
-| Servicio | URL local |
+| Servicio | URL |
 |---|---|
-| Frontend (React) | http://localhost:3000 |
-| API (FastAPI) | http://localhost:8000 |
-| Docs interactivos | http://localhost:8000/docs |
+| Aplicación vía nginx (HTTPS) | https://localhost o `https://<IP-LAN>` |
+| Frontend (React, solo este equipo) | http://localhost:3000 |
+| API (FastAPI, solo este equipo) | http://localhost:8000 |
+| Docs interactivos | http://localhost:8000/docs (solo con `DOCS_HABILITADOS=true` en `backend/.env`) |
 
-La base de datos se crea automáticamente al iniciar la API. Las migraciones de esquema se aplican con Alembic en cada arranque del contenedor `api`, antes de levantar el servidor — no se pierden datos.
+La base de datos se crea sola. En cada arranque del contenedor `api` se aplican las migraciones Alembic, se crea el admin definido en `ADMIN_EMAIL`/`ADMIN_PASSWORD` si no existe y luego se levanta el servidor (`backend/start.sh`). No se pierden datos entre arranques.
 
-### 4. Cargar datos de demo (opcional)
+### 4. Cargar datos de demo
 
-Para una demo con 88 insumos médicos, 19 asignaturas de las 5 carreras, 8 clases y ~560 movimientos distribuidos en 60 días:
+Datos alineados al Centro de Simulación Clínica: 18 salas, 86 insumos e implementos (10 bajo mínimo) con 64 unidades físicas, 16 activos fijos (muebles y phantomas), 29 asignaturas de 5 carreras, 10 talleres con sus paquetes, programación 2026-1 con revisiones de sala, incidencias, órdenes de mantenimiento y de entrada, y ~700 movimientos en los últimos 60 días. Incluye además dos talleres programados para el día en que se ejecuta el seed, para mostrar la Vista de Salas en vivo.
 
 ```bash
 docker compose exec api python seed_demo.py
 ```
 
-El script pide confirmación antes de borrar datos existentes y muestra las credenciales generadas al finalizar.
+El script pide confirmación, **borra todos los datos existentes** y muestra las credenciales al finalizar. Conviene ejecutarlo el mismo día de la demo.
 
-**Credenciales de demo:**
+**Credenciales de demo** (todas con 2FA ya configurado):
 
 | Email | Contraseña | Rol |
 |---|---|---|
 | `admin@hestia.duoc.cl` | `Admin2024!` | Administrador |
+| `psoto@hestia.duoc.cl` | `Coord2024!` | Operador coordinador |
 | `mgonzalez@hestia.duoc.cl` | `Oper2024!` | Operador |
 | `cfuentes@hestia.duoc.cl` | `Oper2024!` | Operador |
 | `amartinez@hestia.duoc.cl` | `Visor2024!` | Visor |
 | `lperez@hestia.duoc.cl` | `Visor2024!` | Visor |
+
+Los secretos TOTP (y QR) para cargar estas cuentas en Google Authenticator, los códigos de recuperación y el guion paso a paso por rol están en [`docs/DEMO.md`](docs/DEMO.md). **Esos secretos son exclusivos de demo y no deben usarse en ningún otro entorno.**
+
+> El seed también borra al admin de arranque del `.env` (`admin@hestia.cl` por defecto); se vuelve a crear, sin 2FA, al reiniciar el contenedor `api`.
 
 ---
 
@@ -179,17 +189,15 @@ docker compose logs -f frontend
 
 ---
 
-## Despliegue en red LAN
+## Acceso desde la red LAN
 
-Hestia está diseñado para correr en un servidor dentro de la red interna de DuocUC. Los clientes acceden únicamente desde su navegador; no instalan nada.
+Hestia está diseñado para correr en un equipo dentro de una red interna (en la demo, el notebook del equipo). Los clientes acceden solo desde el navegador; no instalan nada. Solo nginx (puertos 80/443) es alcanzable desde la LAN; la BD, la API y el frontend quedan restringidos a `localhost`.
 
-El proyecto incluye un servicio `nginx` con TLS configurado (certificado autofirmado). Los usuarios verán una advertencia de seguridad la primera vez; basta con aceptarla una vez por dispositivo.
+El servicio `nginx` genera un certificado autofirmado en el primer arranque. Los navegadores muestran una advertencia la primera vez; basta con aceptarla una vez por dispositivo. Para incluir la IP real del equipo en el certificado, ejecuta `./generate-cert.sh` y luego `docker compose restart nginx`.
 
-```bash
-docker compose up --build
-```
+Los usuarios acceden desde `https://<IP-del-equipo>` (puerto 443). La cámara para escanear códigos de barras requiere HTTPS.
 
-Los usuarios acceden desde `https://<IP_SERVIDOR>` (puerto 443).
+**Recuperación de contraseña:** sin `SMTP_HOST` configurado, el enlace no se envía por correo; aparece en `docker compose logs api | grep "Recovery link"`.
 
 ---
 
@@ -231,9 +239,14 @@ hestia/
 │   └── public/
 │       └── logo.png
 ├── docker/
-│   └── nginx/
-│       └── nginx.conf     → reverse proxy HTTPS con TLS 1.2/1.3
+│   ├── nginx/             → reverse proxy HTTPS (TLS 1.2/1.3) + cert autofirmado
+│   └── backup/            → pg_dump diario cifrado (cron)
+├── docs/
+│   ├── DEMO.md            → guion de demo, credenciales y 2FA de demo, checklist
+│   ├── FLUJOS_USUARIO.md  → matriz módulos × roles y flujos principales
+│   └── demo-2fa/          → QR de los secretos TOTP de demo
 ├── docker-compose.yml
+├── DESIGN.md              → sistema de diseño del frontend
 ├── CLAUDE.md              → contexto técnico para asistentes IA
 └── .github/
     ├── workflows/         → CI (validación flake8)
@@ -243,13 +256,22 @@ hestia/
 
 ---
 
+## Limitaciones conocidas
+
+- **Coordinador en Asignaturas y Clases:** la interfaz le muestra los botones de crear y editar, pero el backend exige rol admin y responde 403. Esas acciones se hacen con la cuenta admin. En Insumos, Movimientos, Categorías y Salas ocurre lo inverso: la interfaz oculta al coordinador los botones de escritura que el backend sí le permitiría. Detalle en [`docs/FLUJOS_USUARIO.md`](docs/FLUJOS_USUARIO.md).
+- **Backup automático (no verificado):** el cron del contenedor `backup` (BusyBox `crond`) probablemente no hereda las variables de entorno del contenedor. Si es así, `backup.sh` se aborta cada noche por no encontrar `BACKUP_ENCRYPTION_KEY`. No afecta la demo. Para un respaldo manual: `docker compose exec backup backup.sh`.
+- **Escaneo de dependencias en CI:** el workflow ejecuta `pip-audit -r requirements.txt` sobre el `requirements.txt` de la raíz, que está vacío. Por eso no audita las dependencias reales de `backend/requirements.txt`. El escaneo del frontend (`npm audit`) sí funciona.
+- **Revisión de sala:** solo opera sobre el día actual (por diseño). Para la demo, el seed crea talleres para el día en que se ejecuta.
+- **Esquema en instalación limpia:** las tablas base las crea `Base.metadata.create_all()` al arrancar y no una migración inicial de Alembic. Las migraciones existentes son defensivas y se omiten si la tabla aún no existe.
+
+---
+
 ## Flujo de trabajo del equipo
 
-- Commits directos a `main` durante la fase de desarrollo activo
-- El CI valida automáticamente con flake8 en cada push
-- Para funcionalidades grandes o colaboración externa, abrir rama `feat/nombre` y Pull Request
+- Rama principal: `main`. El desarrollo de funcionalidades está cerrado; solo se integran correcciones de bugs y documentación mediante Pull Request.
+- El CI (GitHub Actions) ejecuta flake8 sobre `backend/app/`, pip-audit y npm audit en cada push o PR a `main`/`develop`.
 
-Ver [`.github/CONTRIBUTING.md`](.github/CONTRIBUTING.md) para más detalles.
+Ver [`.github/CONTRIBUTING.md`](.github/CONTRIBUTING.md) para las convenciones de ramas y commits.
 
 ---
 
