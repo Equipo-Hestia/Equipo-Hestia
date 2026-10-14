@@ -222,7 +222,7 @@ function ActivoModal({ activo, salas, proveedores, onClose, onSaved }: ModalProp
                   <EstadoBadge estado={estado as EstadoActivo} />
                   <p className="text-xs text-h-tertiary">
                     {estado === 'en_mantenimiento'
-                      ? 'Gestionado por el modulo de Mantenimiento'
+                      ? 'Gestionado por el módulo de Mantenimiento'
                       : 'Estado terminal, no modificable'}
                   </p>
                 </div>
@@ -264,7 +264,7 @@ function ActivoModal({ activo, salas, proveedores, onClose, onSaved }: ModalProp
 
           {/* Codigo de barras */}
           <div>
-            <label className={labelCls}>Codigo de barras</label>
+            <label className={labelCls}>Código de barras</label>
             <input className={inputCls} value={codigoBarras}
               onChange={e => setCodigoBarras(e.target.value)}
               placeholder="Escanear o ingresar manualmente" />
@@ -272,11 +272,11 @@ function ActivoModal({ activo, salas, proveedores, onClose, onSaved }: ModalProp
 
           {/* Descripcion */}
           <div>
-            <label className={labelCls}>Descripcion</label>
+            <label className={labelCls}>Descripción</label>
             <textarea className={`${inputCls} resize-none`} rows={2}
               value={descripcion}
               onChange={e => setDescripcion(e.target.value)}
-              placeholder="Caracteristicas adicionales..." />
+              placeholder="Características adicionales..." />
           </div>
 
           {/* Notas */}
@@ -394,7 +394,7 @@ export function ActivosFijos() {
   }, [])
 
   async function handleDarDeBaja(af: ActivoFijoResponse) {
-    if (!confirm(`Dar de baja a "${af.nombre}"?`)) return
+    if (!confirm(`¿Dar de baja a "${af.nombre}"?`)) return
     try {
       await api.put(`/activos-fijos/${af.id}`, { estado: 'dado_de_baja' })
       mostrarToast('Activo dado de baja'); cargar(); cargarTodos()
@@ -415,7 +415,7 @@ export function ActivosFijos() {
 
   const salaFiltroOpts = salas.map(s => ({ value: String(s.id), label: s.nombre }))
   const COLS = [
-    'Codigo', 'Nombre', 'Proveedor', 'Tipo',
+    'Código', 'Nombre', 'Proveedor', 'Tipo',
     'Estado', 'Sala de origen', 'Fidelidad', 'Acciones',
   ]
 
@@ -437,7 +437,7 @@ export function ActivosFijos() {
             <Sofa size={22} className="text-h-accent" />
             Activos Fijos</h1>
           <p className="text-sm text-h-secondary mt-0.5">
-            Muebles clinicos y phantomas de simulacion
+            Muebles clínicos y phantomas de simulación
           </p>
           {labelTiempo && (
             <p className="text-xs text-h-tertiary mt-1">{labelTiempo}</p>
@@ -497,7 +497,7 @@ export function ActivosFijos() {
                        bg-h-elevated border-h-subtle text-h-primary
                        focus:outline-none focus:border-h-visible
                        placeholder:text-h-tertiary transition-colors"
-            placeholder="Buscar por nombre o codigo..."
+            placeholder="Buscar por nombre o código..."
             value={busqueda}
             onChange={e => setBusqueda(e.target.value)}
           />

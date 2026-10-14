@@ -62,8 +62,8 @@ export function Alertas() {
           </h1>
           <p className="text-h-secondary text-sm mt-0.5">
             {tab === 'activas'
-              ? 'Insumos con stock igual o por debajo del minimo establecido.'
-              : 'Insumos que superaron el minimo y recibieron entradas recientemente.'}
+              ? 'Insumos con stock igual o por debajo del mínimo establecido.'
+              : 'Insumos que superaron el mínimo y recibieron entradas recientemente.'}
           </p>
           {labelTiempo && (
             <p className="text-xs text-h-tertiary mt-1">{labelTiempo}</p>
@@ -110,7 +110,7 @@ export function Alertas() {
       {/* Selector de dias (tab resueltas) */}
       {tab === 'resueltas' && (
         <div className="flex items-center gap-2 mb-5">
-          <span className="text-sm text-h-secondary">Entradas en los ultimos:</span>
+          <span className="text-sm text-h-secondary">Entradas en los últimos:</span>
           {DIAS_OPTIONS.map(d => (
             <button key={d} onClick={() => setDias(d)}
               className="px-3 py-1 rounded-lg text-xs font-bold transition-colors"
@@ -129,7 +129,7 @@ export function Alertas() {
                 if (dias !== d) e.currentTarget.style.background = 'var(--h-bg-elevated)'
               }}
             >
-              {d} dias
+              {d} días
             </button>
           ))}
         </div>
@@ -142,7 +142,7 @@ export function Alertas() {
             {items.length === 0
               ? tab === 'activas'
                 ? 'Sin alertas activas'
-                : `Sin alertas resueltas en los ultimos ${dias} dias`
+                : `Sin alertas resueltas en los últimos ${dias} días`
               : `${items.length} insumo${items.length !== 1 ? 's' : ''} ${
                   tab === 'activas'
                     ? 'en alerta'
@@ -187,13 +187,13 @@ export function Alertas() {
           <p className="font-bold"
             style={{ color: tab === 'activas' ? 'var(--h-sem-success-text)' : 'var(--h-text-primary)' }}>
             {tab === 'activas'
-              ? 'Todo el inventario esta en orden'
-              : `Sin alertas resueltas en los ultimos ${dias} dias`}
+              ? 'Todo el inventario está en orden'
+              : `Sin alertas resueltas en los últimos ${dias} días`}
           </p>
           <p className="text-sm mt-1 text-h-secondary">
             {tab === 'activas'
-              ? 'Ningun insumo esta bajo el stock minimo definido.'
-              : 'No hubo insumos que superaran el minimo en este periodo.'}
+              ? 'Ningún insumo está bajo el stock mínimo definido.'
+              : 'No hubo insumos que superaran el mínimo en este período.'}
           </p>
         </div>
       ) : (
@@ -244,7 +244,7 @@ export function Alertas() {
                   </div>
                 </div>
                 {tab === 'activas'
-                  ? <Badge variant={gravedad(a)}>Deficit: {a.deficit}</Badge>
+                  ? <Badge variant={gravedad(a)}>Déficit: {a.deficit}</Badge>
                   : <span className="text-xs font-bold whitespace-nowrap"
                       style={{ color: 'var(--h-sem-success-text)' }}>
                       Stock: {a.stock_actual} / min {a.stock_minimo}
@@ -258,7 +258,7 @@ export function Alertas() {
                     Stock actual:{' '}
                     <span className="font-bold text-h-primary">{a.stock_actual}</span>
                   </span>
-                  <span>Minimo: <span className="font-bold">{a.stock_minimo}</span></span>
+                  <span>Mínimo: <span className="font-bold">{a.stock_minimo}</span></span>
                 </div>
                 <div className="h-2 rounded-full overflow-hidden"
                   style={{ background: 'var(--h-bg-elevated)' }}>

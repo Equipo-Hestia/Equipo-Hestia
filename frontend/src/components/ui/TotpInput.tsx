@@ -246,7 +246,7 @@ export function TotpInput({
           if (e.key === 'Enter' && isComplete && !isAnimating.current)
             runConfirmAnimation()
         }}
-        aria-label="Codigo TOTP de 6 digitos"
+        aria-label="Código TOTP de 6 dígitos"
         style={{
           position: 'absolute', inset: 0, opacity: 0, cursor: 'text',
           zIndex: 10, fontSize: '1px', background: 'transparent',

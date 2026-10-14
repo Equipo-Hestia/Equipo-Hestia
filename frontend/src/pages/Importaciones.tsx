@@ -17,15 +17,15 @@ const OPCIONES: Opcion[] = [
   {
     to:          '/importar-programacion',
     icon:        CalendarRange,
-    titulo:      'Programacion de talleres',
-    descripcion: 'Carga el Excel de planificacion semestral para '
+    titulo:      'Programación de talleres',
+    descripcion: 'Carga el Excel de planificación semestral para '
       + 'alimentar la Vista de Salas.',
     roles:       COORD_ADMIN,
   },
   {
     to:          '/importar-horario',
     icon:        Calendar,
-    titulo:      'Horario academico',
+    titulo:      'Horario académico',
     descripcion: 'Carga el CSV de horario exportado de DuocUC, con '
       + 'mapeo de columnas interactivo.',
     roles:       SOLO_ADMIN,
@@ -35,7 +35,7 @@ const OPCIONES: Opcion[] = [
     icon:        Upload,
     titulo:      'Insumos',
     descripcion: 'Carga masiva de insumos desde CSV o XLSX, con '
-      + 'verificacion TOTP.',
+      + 'verificación TOTP.',
     roles:       SOLO_ADMIN,
   },
 ]
@@ -89,7 +89,7 @@ export function Importaciones() {
 
         {opciones.length === 0 && (
           <p className="text-sm text-h-tertiary text-center py-10">
-            No tienes acceso a ninguna opcion de importacion.
+            No tienes acceso a ninguna opción de importación.
           </p>
         )}
       </div>

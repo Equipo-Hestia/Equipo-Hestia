@@ -335,7 +335,7 @@ function ModalEliminar({ orden, onClose, onSaved }: ModalEliminarProps) {
             Eliminar orden de mantenimiento
           </h2>
           <p className="text-sm text-h-secondary leading-relaxed">
-            Se cancelara la orden{' '}
+            Se cancelará la orden{' '}
             <span className="font-semibold text-h-primary">
               #ORD-{String(orden.id).padStart(4, '0')}
             </span>
@@ -346,11 +346,11 @@ function ModalEliminar({ orden, onClose, onSaved }: ModalEliminarProps) {
             <span className="font-semibold text-h-primary">
               {nActivos} activo{nActivos !== 1 ? 's' : ''}
             </span>
-            {' '}volvera{nActivos !== 1 ? 'n' : ''} a estado{' '}
+            {' '}volverá{nActivos !== 1 ? 'n' : ''} a estado{' '}
             <span className="font-semibold" style={{ color: 'var(--h-teal-hover)' }}>
               Disponible
             </span>.
-            {' '}Esta accion quedara registrada en el historial.
+            {' '}Esta acción quedará registrada en el historial.
           </p>
 
           {error && (
@@ -380,7 +380,7 @@ function ModalEliminar({ orden, onClose, onSaved }: ModalEliminarProps) {
             onMouseLeave={e =>
               (e.currentTarget.style.background = 'var(--h-sem-danger-text)')}
           >
-            {eliminando ? 'Eliminando...' : 'Si, eliminar orden'}
+            {eliminando ? 'Eliminando...' : 'Sí, eliminar orden'}
           </button>
         </div>
       </div>
@@ -425,7 +425,7 @@ export function OrdenesMantenimiento() {
       setOrdenes(res.data.data ?? [])
       marcarActualizado()
     } catch {
-      mostrarToast('Error al cargar ordenes')
+      mostrarToast('Error al cargar órdenes')
     } finally { setCargando(false) }
   }, [filtroEstado, marcarActualizado])
 
@@ -489,7 +489,7 @@ export function OrdenesMantenimiento() {
         <div>
           <h1 className="text-2xl font-bold text-h-primary flex items-center gap-2">
             <Wrench size={22} className="text-h-accent" />
-            Ordenes de Mantenimiento
+            Órdenes de Mantenimiento
           </h1>
           <p className="text-sm text-h-secondary mt-0.5">
             Mantenimiento de activos fijos
@@ -568,17 +568,17 @@ export function OrdenesMantenimiento() {
           <div className="p-12 text-center text-h-secondary">
             <RefreshCw size={22} className="animate-spin mx-auto mb-3"
               style={{ color: 'var(--h-teal-hover)' }} />
-            <p className="text-sm">Cargando ordenes...</p>
+            <p className="text-sm">Cargando órdenes...</p>
           </div>
         ) : ordenes.length === 0 ? (
           <div className="p-12 text-center">
             <Wrench size={40} className="mx-auto mb-3 text-h-tertiary" />
             <p className="text-h-secondary font-medium">
-              No hay ordenes de mantenimiento
+              No hay órdenes de mantenimiento
             </p>
             {puedeEscribir && (
               <p className="text-h-tertiary text-sm mt-1">
-                Crea una nueva orden cuando envies un activo a mantencion.
+                Crea una nueva orden cuando envíes un activo a mantención.
               </p>
             )}
           </div>
@@ -590,7 +590,7 @@ export function OrdenesMantenimiento() {
                   style={{ background: 'var(--h-bg-elevated)' }}>
                   {[
                     'Orden / Proveedor', 'Activo', 'Estado',
-                    'Resultado', 'Fecha visita', 'Retorno est.', 'Dias', 'Acciones',
+                    'Resultado', 'Fecha visita', 'Retorno est.', 'Días', 'Acciones',
                   ].map(col => (
                     <th key={col}
                       className="text-left px-4 py-3 text-[10px] font-semibold

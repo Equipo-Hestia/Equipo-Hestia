@@ -91,7 +91,7 @@ function ModalCrear({ implementoId, onClose, onSaved }: ModalCrearProps) {
               style={{ color: 'var(--h-teal-hover)' }} />
             <p className="text-xs text-h-secondary leading-relaxed">
               La unidad se registra en <strong className="text-h-primary">Bodega</strong>.
-              Su ubicacion cambia automaticamente cuando sea retirada
+              Su ubicación cambia automáticamente cuando sea retirada
               para un taller.
             </p>
           </div>
@@ -237,7 +237,7 @@ function ModalEditar({ unidad, salas, esAdmin, onClose, onSaved }: ModalEditarPr
                                 mb-1.5 uppercase tracking-widest">
                 <span className="flex items-center gap-1.5">
                   <MapPin size={11} />
-                  Ubicacion fisica
+                  Ubicación física
                   <span className="ml-1 px-1.5 py-0.5 rounded text-[9px]
                                    bg-amber-100 text-amber-700
                                    dark:bg-amber-900/40 dark:text-amber-300
@@ -254,7 +254,7 @@ function ModalEditar({ unidad, salas, esAdmin, onClose, onSaved }: ModalEditarPr
                 className="w-full"
               />
               <p className="text-[10px] text-h-tertiary mt-1.5 leading-relaxed">
-                La ubicacion normalmente la gestiona el flujo de retiro.
+                La ubicación normalmente la gestiona el flujo de retiro.
                 Modifica solo si hay un error de registro.
               </p>
             </div>
@@ -364,9 +364,9 @@ function ModalGenerarLote(
 
         <div className="px-6 py-5 space-y-4">
           <p className="text-sm text-h-secondary leading-relaxed">
-            Se crearan <strong className="text-h-primary">{cantidad}</strong> unidades
+            Se crearán <strong className="text-h-primary">{cantidad}</strong> unidades
             nuevas en <strong className="text-h-primary">Bodega</strong>, cada una
-            con su subcodigo unico generado automaticamente.
+            con su subcódigo único generado automáticamente.
           </p>
 
           <div>
@@ -384,7 +384,7 @@ function ModalGenerarLote(
                          focus:outline-none transition-all
                          bg-h-elevated border border-h-visible focus:border-h-strong"
             />
-            <p className="text-[10px] text-h-tertiary mt-1">Maximo 500 por operacion.</p>
+            <p className="text-[10px] text-h-tertiary mt-1">Máximo 500 por operación.</p>
           </div>
 
           {error && (
@@ -492,7 +492,7 @@ export function UnidadesImplemento() {
   useEffect(() => { cargar() }, [cargar])
 
   async function handleDarDeBaja(u: UnidadImplementoResponse) {
-    if (!confirm(`Dar de baja a ${u.codigo ?? 'esta unidad'}?`)) return
+    if (!confirm(`¿Dar de baja a ${u.codigo ?? 'esta unidad'}?`)) return
     try {
       await api.put(`/unidades-implemento/${u.id}`, { estado: 'dado_de_baja' })
       mostrarToast('Unidad dada de baja')
@@ -529,7 +529,7 @@ export function UnidadesImplemento() {
   if (!implementoId) {
     return (
       <div className="p-6 text-center text-h-secondary">
-        No se especifico un implemento. Accede desde la pagina de Insumos.
+        No se especificó un implemento. Accede desde la página de Insumos.
       </div>
     )
   }
@@ -575,7 +575,7 @@ export function UnidadesImplemento() {
               </span>
             </div>
             <p className="text-sm text-h-secondary">
-              Unidades fisicas individuales &mdash;{' '}
+              Unidades físicas individuales &mdash;{' '}
               <strong className="text-h-primary">{totalEnSalas}</strong> en salas,{' '}
               <strong className="text-h-primary">{totalEnBodega}</strong> en bodega
             </p>
@@ -613,12 +613,12 @@ export function UnidadesImplemento() {
               <p className="text-sm font-semibold"
                 style={{ color: 'var(--h-sem-warning-text)' }}>
                 {diferencia}{' '}
-                {diferencia === 1 ? 'unidad sin subcodigo' : 'unidades sin subcodigo'}
+                {diferencia === 1 ? 'unidad sin subcódigo' : 'unidades sin subcódigo'}
               </p>
               <p className="text-xs mt-0.5"
                 style={{ color: 'var(--h-sem-warning-text)', opacity: 0.85 }}>
                 El stock indica {stockContable} unidades pero solo hay
-                {' '}{unidadesRegistradas} operativas con subcodigo asignado.
+                {' '}{unidadesRegistradas} operativas con subcódigo asignado.
               </p>
             </div>
           </div>
@@ -653,7 +653,7 @@ export function UnidadesImplemento() {
             </p>
             <p className="text-xs mt-0.5"
               style={{ color: 'var(--h-sem-danger-text)', opacity: 0.85 }}>
-              Hay {unidadesRegistradas} unidades fisicas operativas pero el stock
+              Hay {unidadesRegistradas} unidades físicas operativas pero el stock
               indica solo {stockContable}. Revisa si alguna debe darse de baja.
             </p>
           </div>
@@ -703,7 +703,7 @@ export function UnidadesImplemento() {
           <div className="p-12 text-center">
             <Package size={32} className="mx-auto mb-3 text-h-tertiary" />
             <p className="text-h-secondary font-medium text-sm">
-              No hay unidades para esta seleccion
+              No hay unidades para esta selección
             </p>
             {puedeEscribir && (
               <p className="text-h-tertiary text-xs mt-1">
@@ -717,7 +717,7 @@ export function UnidadesImplemento() {
               <thead>
                 <tr className="border-b border-h-subtle"
                   style={{ background: 'var(--h-bg-elevated)' }}>
-                  {['Subcodigo', 'Ubicacion', 'Estado', 'Notas', 'Acciones'].map(col => (
+                  {['Subcódigo', 'Ubicación', 'Estado', 'Notas', 'Acciones'].map(col => (
                     <th key={col}
                       className="text-left px-4 py-3 text-[10px] font-semibold
                                  text-h-tertiary uppercase tracking-widest">

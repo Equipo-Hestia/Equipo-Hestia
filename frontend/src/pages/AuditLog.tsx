@@ -91,7 +91,7 @@ export function AuditLog() {
       const msg = (err as { response?: { data?: { detail?: string } } })
         .response?.data?.detail
       setApiError(
-        msg ?? 'No se pudo conectar con el servidor. Revisa que la API este activa.'
+        msg ?? 'No se pudo conectar con el servidor. Revisa que la API esté activa.'
       )
     } finally {
       setLoading(false); setRefreshing(false)
@@ -159,7 +159,7 @@ export function AuditLog() {
           <input
             type="text" value={inputAccion}
             onChange={e => setInputAccion(e.target.value)}
-            placeholder="Filtrar por accion (ej: LOGIN)"
+            placeholder="Filtrar por acción (ej: LOGIN)"
             className="
               w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-h-subtle
               focus:outline-none focus:border-h-visible bg-h-elevated
@@ -233,7 +233,7 @@ export function AuditLog() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-h-subtle bg-h-elevated">
-                {['Fecha', 'Accion', 'Usuario', 'Entidad', 'Detalle', 'IP'].map(h => (
+                {['Fecha', 'Acción', 'Usuario', 'Entidad', 'Detalle', 'IP'].map(h => (
                   <th
                     key={h}
                     className="

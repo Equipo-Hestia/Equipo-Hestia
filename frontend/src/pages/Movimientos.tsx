@@ -379,7 +379,7 @@ export function Movimientos() {
 
         {!loading && totalPages > 1 && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-h-subtle">
-            <p className="text-xs text-h-tertiary">Pagina {page + 1} de {totalPages}</p>
+            <p className="text-xs text-h-tertiary">Página {page + 1} de {totalPages}</p>
             <div className="flex gap-1">
               <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}
                 className="px-3 py-1 text-xs rounded-lg border border-h-subtle text-h-secondary
@@ -454,7 +454,7 @@ export function Movimientos() {
               <label className={labelCls}>Motivo</label>
               <input type="text" value={motivo} onChange={e => setMotivo(e.target.value)}
                 className={inputCls}
-                placeholder="Ej: Reposicion mensual, Uso en practica clinica..." />
+                placeholder="Ej: Reposición mensual, Uso en práctica clínica..." />
             </div>
             {formError && (
               <p className="text-xs px-3 py-2 rounded-lg font-medium"

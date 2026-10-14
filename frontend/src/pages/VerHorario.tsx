@@ -13,7 +13,7 @@ function getSemestre(): string {
 }
 
 const DIAS_KEY = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes']
-const DIAS_LABEL = ['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes']
+const DIAS_LABEL = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes']
 
 interface DocenteGrupo {
   docente_id: number
@@ -258,7 +258,7 @@ export function VerHorario() {
       setClases(data)
       setConsultado(sem)
     } catch {
-      setError('No se pudo cargar el horario academico.')
+      setError('No se pudo cargar el horario académico.')
     } finally {
       setLoading(false)
     }
@@ -288,7 +288,7 @@ export function VerHorario() {
         <div>
           <h1 className="text-2xl font-bold text-h-primary flex items-center gap-2">
             <Calendar size={22} className="text-h-accent" />
-            Horario Academico
+            Horario Académico
           </h1>
           <p className="text-h-secondary text-sm mt-0.5">
             Visualiza el horario cargado por semestre.

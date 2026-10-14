@@ -11,7 +11,7 @@ import { TotpInput } from '../components/ui/TotpInput'
 
 type Step = 'loading' | 'intro' | 'qr' | 'verify' | 'codes' | 'success'
 
-const WIZARD_STEPS = ['QR', 'Verificar', 'Codigos']
+const WIZARD_STEPS = ['QR', 'Verificar', 'Códigos']
 const WIZARD_STEP_IDX: Record<Step, number> = {
   loading: -1, intro: -1, qr: 0, verify: 1, codes: 2, success: 2,
 }
@@ -57,7 +57,7 @@ export function Configuracion2FA() {
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { detail?: string } } })
         .response?.data?.detail
-      setError(msg ?? 'Codigo incorrecto.')
+      setError(msg ?? 'Código incorrecto.')
     } finally { setLoading(false) }
   }
 
@@ -90,8 +90,8 @@ export function Configuracion2FA() {
         >
           <ArrowLeft size={14} /> Dashboard
         </Link>
-        <h1 className="text-2xl font-bold text-h-primary">Verificacion en dos pasos</h1>
-        <p className="text-h-secondary text-sm mt-0.5">Configuracion de Google Authenticator.</p>
+        <h1 className="text-2xl font-bold text-h-primary">Verificación en dos pasos</h1>
+        <p className="text-h-secondary text-sm mt-0.5">Configuración de Google Authenticator.</p>
       </div>
 
       {step === 'loading' && (
@@ -120,7 +120,7 @@ export function Configuracion2FA() {
             </div>
             <div className="flex-1">
               <div className="flex items-center gap-2">
-                <p className="font-bold text-h-primary text-sm">Verificacion en dos pasos</p>
+                <p className="font-bold text-h-primary text-sm">Verificación en dos pasos</p>
                 <span className="text-xs font-bold px-2 py-0.5 rounded-full text-white"
                   style={{
                     background: totp2FAEnabled
@@ -131,8 +131,8 @@ export function Configuracion2FA() {
               </div>
               <p className="text-xs text-h-secondary mt-0.5">
                 {totp2FAEnabled
-                  ? 'Cada inicio de sesion requiere tu codigo TOTP.'
-                  : 'El 2FA es obligatorio. Configuralo para acceder al sistema.'
+                  ? 'Cada inicio de sesión requiere tu código TOTP.'
+                  : 'El 2FA es obligatorio. Configúralo para acceder al sistema.'
                 }
               </p>
             </div>
@@ -145,11 +145,11 @@ export function Configuracion2FA() {
               <div className="space-y-4 mb-6">
                 {[
                   { n: '1', title: 'Escaneas el QR',
-                    desc: 'Abres Google Authenticator y escaneas el codigo QR.' },
-                  { n: '2', title: 'La app genera codigos',
-                    desc: 'Un codigo de 6 digitos diferente cada 30 segundos.' },
-                  { n: '3', title: 'Recibes codigos de respaldo',
-                    desc: '10 codigos de un solo uso si pierdes acceso al telefono.' },
+                    desc: 'Abres Google Authenticator y escaneas el código QR.' },
+                  { n: '2', title: 'La app genera códigos',
+                    desc: 'Un código de 6 dígitos diferente cada 30 segundos.' },
+                  { n: '3', title: 'Recibes códigos de respaldo',
+                    desc: '10 códigos de un solo uso si pierdes acceso al teléfono.' },
                 ].map(({ n, title, desc }) => (
                   <div key={n} className="flex items-start gap-3">
                     <div className="w-7 h-7 rounded-lg text-white flex items-center
@@ -194,11 +194,11 @@ export function Configuracion2FA() {
                 <div>
                   <p className="font-bold text-h-primary text-sm mb-1">El 2FA es obligatorio</p>
                   <p className="text-h-secondary text-sm leading-relaxed">
-                    La verificacion en dos pasos no puede desactivarse en Hestia.
+                    La verificación en dos pasos no puede desactivarse en Hestia.
                     Esto garantiza la seguridad del sistema.
                   </p>
                   <p className="text-h-tertiary text-xs mt-3">
-                    Si necesitas resetear tu configuracion, contacta al
+                    Si necesitas resetear tu configuración, contacta al
                     administrador del sistema.
                   </p>
                 </div>
@@ -252,7 +252,7 @@ export function Configuracion2FA() {
           {step === 'qr' && setupData && (
             <div className="rounded-2xl border border-h-subtle p-8"
               style={{ background: 'var(--h-bg-surface)' }}>
-              <h2 className="font-bold text-h-primary mb-1">Escanea el codigo QR</h2>
+              <h2 className="font-bold text-h-primary mb-1">Escanea el código QR</h2>
               <p className="text-h-secondary text-sm mb-6">
                 Abre Google Authenticator → toca <strong>+</strong> → Escanear QR.
               </p>
@@ -274,7 +274,7 @@ export function Configuracion2FA() {
                     className="flex-shrink-0 flex items-center gap-1 text-xs font-bold
                                transition-colors"
                     style={{ color: 'var(--h-teal-hover)' }}>
-                    <Copy size={12} />{copied ? 'Copiado!' : 'Copiar'}
+                    <Copy size={12} />{copied ? '¡Copiado!' : 'Copiar'}
                   </button>
                 </div>
               </div>
@@ -299,9 +299,9 @@ export function Configuracion2FA() {
           {step === 'verify' && (
             <div className="rounded-2xl border border-h-subtle p-8"
               style={{ background: 'var(--h-bg-surface)' }}>
-              <h2 className="font-bold text-h-primary mb-1">Confirma el codigo</h2>
+              <h2 className="font-bold text-h-primary mb-1">Confirma el código</h2>
               <p className="text-h-secondary text-sm mb-6">
-                Ingresa el codigo de 6 digitos que muestra la app ahora.
+                Ingresa el código de 6 dígitos que muestra la app ahora.
               </p>
               <div className="space-y-4">
                 <TotpInput
@@ -354,12 +354,12 @@ export function Configuracion2FA() {
               }}>
               <div className="flex items-center gap-3 mb-2">
                 <Key size={22} style={{ color: 'var(--h-teal-hover)' }} />
-                <h2 className="font-bold text-h-primary">Codigos de recuperacion</h2>
+                <h2 className="font-bold text-h-primary">Códigos de recuperación</h2>
               </div>
               <p className="text-h-secondary text-sm mb-5">
-                Guarda estos 10 codigos en un lugar seguro. Cada uno funciona{' '}
+                Guarda estos 10 códigos en un lugar seguro. Cada uno funciona{' '}
                 <strong>una sola vez</strong> si pierdes acceso a Google Authenticator.{' '}
-                <strong>No podras verlos de nuevo.</strong>
+                <strong>No podrás verlos de nuevo.</strong>
               </p>
               <div className="rounded-xl p-5 mb-5"
                 style={{ background: 'var(--h-bg-base)' }}>
@@ -380,7 +380,7 @@ export function Configuracion2FA() {
                   background: 'var(--h-bg-elevated)',
                 }}
               >
-                <Copy size={14} />{copiedAll ? 'Copiados!' : 'Copiar todos los codigos'}
+                <Copy size={14} />{copiedAll ? '¡Copiados!' : 'Copiar todos los códigos'}
               </button>
               <button
                 onClick={() => setStep('success')}
@@ -407,11 +407,11 @@ export function Configuracion2FA() {
                 <CheckCircle size={40} style={{ color: 'var(--h-sem-success-text)' }} />
               </div>
               <h2 className="text-xl font-bold text-h-primary mb-2">
-                Verificacion activada!
+                ¡Verificación activada!
               </h2>
               <p className="text-h-secondary text-sm max-w-xs mx-auto mb-8">
-                Tu cuenta esta protegida con 2FA. Necesitaras el codigo TOTP
-                en cada inicio de sesion.
+                Tu cuenta está protegida con 2FA. Necesitarás el código TOTP
+                en cada inicio de sesión.
               </p>
               <Link
                 to="/dashboard"
