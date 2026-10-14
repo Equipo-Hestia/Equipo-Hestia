@@ -135,13 +135,13 @@ La base de datos se crea sola. En cada arranque del contenedor `api` se aplican 
 
 ### 4. Cargar datos de demo
 
-Datos alineados al Centro de Simulación Clínica: 18 salas, 86 insumos e implementos (10 bajo mínimo) con 64 unidades físicas, 16 activos fijos (muebles y phantomas), 29 asignaturas de 5 carreras, 10 talleres con sus paquetes, programación 2026-1 con revisiones de sala, incidencias, órdenes de mantenimiento y de entrada, y ~700 movimientos en los últimos 60 días. Incluye además dos talleres programados para el día en que se ejecuta el seed, para mostrar la Vista de Salas en vivo.
+Datos alineados al Centro de Simulación Clínica que cubren el **año académico 2026 completo hasta el momento de ejecutar el seed** (enero y febrero sin clases, semestre 2026-1 de marzo a julio, receso de invierno, semestre 2026-2 de agosto a mediados de diciembre y cierre de año, sin talleres en feriados). A mediados de diciembre incluye: 18 salas, 112 insumos e implementos (14 bajo mínimo, 3 agotados) con 318 unidades físicas operativas, 30 activos fijos en todos sus estados, 37 asignaturas de las 5 carreras que usan el centro (TENS, TQF, TLCBS, TONS y Preparador Físico, todas en ambos semestres) con 90 secciones, 50 talleres y 59 paquetes, ~1.470 talleres programados con su revisión de sala, 17 incidencias, 10 órdenes de mantenimiento, ~60 órdenes de entrada en todos los estados y ~11.200 movimientos de los 11 subtipos, con el stock cuadrado contra los movimientos. Incluye además cinco talleres programados para el día en que se ejecuta el seed, uno por cada estado del mapa de la Vista de Salas. El detalle está en [`docs/DEMO.md`](docs/DEMO.md#11-qué-datos-carga-el-seed).
 
 ```bash
 docker compose exec api python seed_demo.py
 ```
 
-El script pide confirmación, **borra todos los datos existentes** y muestra las credenciales al finalizar. Conviene ejecutarlo el mismo día de la demo.
+El script pide confirmación, **borra todos los datos existentes**, carga los datos en unos 6 segundos, se autoverifica (si alguna garantía de la demo falla, no guarda nada y termina con error) y muestra las credenciales al finalizar. Conviene ejecutarlo el mismo día de la demo, poco antes de presentar.
 
 **Credenciales de demo** (todas con 2FA ya configurado):
 
@@ -266,6 +266,9 @@ hestia/
   - `braces` **no tiene versión corregida publicada** (el aviso cubre hasta la 3.0.3, la última), y `tailwindcss` ya está en 3.4.19, la última de la línea 3. Corregirlas exige migrar a **Tailwind 4** (salto mayor), lo que se descartó por implicar cambios visuales y de configuración en todo el frontend. Por eso la auditoría completa del CI es informativa.
   - Quedan además **2 moderadas de `react-router` 6** (GHSA-wrjc-x8rr-h8h6 y GHSA-337j-9hxr-rhxg), corregidas solo en la versión 7 (salto mayor). No aplican a Hestia: la primera es una redirección abierta al navegar a destinos controlados por el usuario con `<Link>`/`useNavigate`, y la app no navega a rutas tomadas de la URL ni del estado; la segunda afecta la hidratación con SSR, y Hestia usa `BrowserRouter` sin SSR.
 - **Revisión de sala:** solo opera sobre el día actual (por diseño). Para la demo, el seed crea talleres para el día en que se ejecuta.
+- **Vista de Salas:** el mapa del piso -1 no muestra la Sala 012 (la tapa el rectángulo de la Sala 011), la zona Odontología nunca muestra clases (no reconoce el número de esas salas) y, si una sala tiene varias clases el mismo día, solo se ve la primera. Los datos existen y se ven en Reportes, Ver Horario y Movimientos.
+- **Búsquedas con tilde:** las búsquedas por nombre distinguen tildes ("fisiologico" no encuentra "fisiológico").
+- **Órdenes de mantenimiento canceladas:** al cancelarlas quedan inactivas y la lista no las muestra, por lo que el filtro "Cancelada" aparece vacío.
 - **Esquema en instalación limpia:** las tablas base las crea `Base.metadata.create_all()` al arrancar y no una migración inicial de Alembic. Las migraciones existentes son defensivas y se omiten si la tabla aún no existe.
 
 ---

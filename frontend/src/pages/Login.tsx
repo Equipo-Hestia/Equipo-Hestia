@@ -47,7 +47,7 @@ const TEMAS = [
 const SYSTEM_STATS = [
   { value: '18',   label: 'salas clínicas' },
   { value: '5',    label: 'carreras' },
-  { value: '80+',  label: 'insumos e implementos' },
+  { value: '100+', label: 'insumos e implementos' },
 ]
 
 // ─── Componentes de modales ──────────────────────────────────────────────────────
