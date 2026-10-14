@@ -47,7 +47,7 @@ const TEMAS = [
 const SYSTEM_STATS = [
   { value: '18',   label: 'salas clínicas' },
   { value: '5',    label: 'carreras' },
-  { value: '1000+', label: 'insumos' },
+  { value: '80+',  label: 'insumos e implementos' },
 ]
 
 // ─── Componentes de modales ──────────────────────────────────────────────────────
@@ -353,7 +353,7 @@ function PanelIzquierdo() {
           ))}
         </div>
         <p className="text-[11px] text-h-tertiary">
-          DuocUC San Bernardo • Informática Biomédica • 2026 - 2027
+          DuocUC San Bernardo • Informática Biomédica • 2026
         </p>
       </div>
     </div>
