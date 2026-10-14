@@ -47,11 +47,11 @@ const NAV_SECTIONS: NavSection[] = [
       { to: '/incidencias',   icon: AlertOctagon,   label: 'Incidencias',           roles: TODOS },
       { to: '/mantenimiento', icon: Wrench,         label: 'Mantenimiento',         roles: NO_VISOR },
       { to: '/movimientos',  icon: ArrowLeftRight,  label: 'Movimientos',           roles: TODOS },
-      { to: '/categorias',   icon: Tag,             label: 'Categorias',            roles: TODOS },
+      { to: '/categorias',   icon: Tag,             label: 'Categorías',            roles: TODOS },
     ],
   },
   {
-    label: 'Planificacion',
+    label: 'Planificación',
     roles: TODOS,
     defaultOpen: true,
     items: [
@@ -63,11 +63,11 @@ const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    label: 'Administracion',
+    label: 'Administración',
     roles: COORD_ADMIN,
     defaultOpen: false,
     items: [
-      { to: '/ordenes-entrada', icon: ShoppingCart,  label: 'Ordenes de Entrada', roles: COORD_ADMIN },
+      { to: '/ordenes-entrada', icon: ShoppingCart,  label: 'Órdenes de Entrada', roles: COORD_ADMIN },
       { to: '/proveedores',     icon: Building2,     label: 'Proveedores',       roles: COORD_ADMIN },
       { to: '/clases-docente',  icon: GraduationCap, label: 'Docentes y Clases', roles: COORD_ADMIN },
       { to: '/asignaturas',     icon: BookOpen,       label: 'Asignaturas',      roles: COORD_ADMIN },
@@ -261,7 +261,7 @@ export function Sidebar() {
           )}
         </div>
         <button onClick={handleCollapse}
-          title={collapsed ? 'Expandir menu' : 'Colapsar menu'}
+          title={collapsed ? 'Expandir menú' : 'Colapsar menú'}
           className="relative z-10 w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0
                      text-h-tertiary hover:bg-h-elevated hover:text-h-secondary
                      transition-colors duration-150">
@@ -388,10 +388,10 @@ export function Sidebar() {
                 opacity:    labelsVisible ? 1 : 0,
                 transform:  labelsVisible ? 'translateX(0)' : 'translateX(-6px)',
                 transition: `opacity ${LABEL_IN_MS}ms ease, transform ${LABEL_IN_MS}ms ease`,
-              }}>Cerrar sesion</span>
+              }}>Cerrar sesión</span>
             )}
           </button>
-          {collapsed && <Tooltip label="Cerrar sesion" />}
+          {collapsed && <Tooltip label="Cerrar sesión" />}
         </div>
       </div>
     </aside>

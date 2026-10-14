@@ -35,8 +35,14 @@ interface SalaInfo {
 // Helpers de tiempo
 // ---------------------------------------------------------------------------
 
+// "Hoy" es siempre el dia de Santiago (en-CA formatea como YYYY-MM-DD).
+// toISOString() usaria el dia UTC, que desde las 21:00 ya es el siguiente.
+const FMT_FECHA_SANTIAGO = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'America/Santiago', year: 'numeric', month: '2-digit', day: '2-digit',
+})
+
 function fechaISO(d: Date): string {
-  return d.toISOString().split('T')[0]
+  return FMT_FECHA_SANTIAGO.format(d)
 }
 
 function parseHHMM(h: string | null | undefined): number | null {
@@ -86,7 +92,7 @@ function segsHastaFin(horaFin: string | null): number {
   return Math.max(0, Math.floor((finDate.getTime() - now.getTime()) / 1000))
 }
 
-const DIA_CORTO = ['Dom','Lun','Mar','Mie','Jue','Vie','Sab']
+const DIA_CORTO = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb']
 const MES_CORTO = ['ene','feb','mar','abr','may','jun',
                    'jul','ago','sep','oct','nov','dic']
 
@@ -360,14 +366,14 @@ function MapaOdontologia({ salas, seleccionada, onSelect }: MapaPisoProps) {
   return (
     <svg viewBox="0 0 400 280"
       style={{ width: '100%', height: '100%', maxHeight: '260px' }}
-      role="img" aria-label="Salas de odontologia">
+      role="img" aria-label="Salas de odontología">
       <defs><style>{`
         @keyframes hestia-pulse {
           0%,100% { opacity:1; r:5; } 50% { opacity:0.4; r:7; }
         }
       `}</style></defs>
       <text x={15} y={20} fontSize={10} fontWeight={600}
-        fill="var(--h-text-tertiary)">Odontologia</text>
+        fill="var(--h-text-tertiary)">Odontología</text>
       <text x={15} y={32} fontSize={8}
         fill="var(--h-text-tertiary)" opacity={0.7}>Edificio anexo</text>
       <rect x={X_START-15} y={60}
@@ -488,7 +494,7 @@ function SelectorFecha(
           {cargandoDias ? (
             <RefreshCw size={11} className="animate-spin" />
           ) : (
-            <span className="text-h-tertiary">Dia</span>
+            <span className="text-h-tertiary">Día</span>
           )}
           <span className="text-h-primary font-bold">
             {fechaVista ? formatearDia(fechaVista) : '\u2014'}
@@ -835,7 +841,7 @@ function PanelSala(
           style={{ background: 'var(--h-bg-elevated)',
             border: '1px solid var(--h-border-subtle)' }}>
           <p className="text-xs text-h-tertiary">
-            La revisión de sala solo esta disponible en el día actual.
+            La revisión de sala solo está disponible en el día actual.
           </p>
         </div>
       )}
@@ -1118,7 +1124,7 @@ export function VistaSalas() {
               style={{ background: 'var(--h-bg-elevated)' }}
             >
               <MapPin size={14} />
-              {zona === 'piso-1' ? 'Piso -1' : 'Odontologia'}
+              {zona === 'piso-1' ? 'Piso -1' : 'Odontología'}
               <ChevronDown size={13} style={{
                 transform: zonaDrop ? 'rotate(180deg)' : 'rotate(0)',
                 transition: 'transform 0.2s',
@@ -1154,8 +1160,8 @@ export function VistaSalas() {
                           ? 'var(--h-bg-elevated)' : 'transparent')}
                   >
                     {z === 'piso-1'
-                      ? 'Piso -1 \u00b7 Simulacion'
-                      : 'Odontologia \u00b7 Edificio anexo'}
+                      ? 'Piso -1 \u00b7 Simulación'
+                      : 'Odontología \u00b7 Edificio anexo'}
                   </button>
                 ))}
               </div>

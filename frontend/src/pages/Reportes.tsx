@@ -13,11 +13,11 @@ import { useLastUpdated } from '../hooks/useLastUpdated'
 type Tab = 'paquetes' | 'carreras' | 'exportar'
 
 const CARRERA_NOMBRES: Record<string, string> = {
-  TENS: 'Tecnico en Enfermeria',
-  TQF: 'Tecnico en Quimica y Farmacia',
-  TLCBS: 'Tecnico de Laboratorio Clinico y Banco de Sangre',
-  TONS: 'Tecnico en Odontologia',
-  preparador_fisico: 'Preparador Fisico',
+  TENS: 'Técnico en Enfermería',
+  TQF: 'Técnico en Química y Farmacia',
+  TLCBS: 'Técnico de Laboratorio Clínico y Banco de Sangre',
+  TONS: 'Técnico en Odontología',
+  preparador_fisico: 'Preparador Físico',
 }
 
 function nombreCarrera(carrera: string): string {
@@ -73,7 +73,7 @@ function TabPaquetes({ refreshKey }: { refreshKey: number }) {
       setVal(valRes.data)
       marcarActualizado()
     } catch {
-      setError('No se pudo cargar la informacion de paquetes.')
+      setError('No se pudo cargar la información de paquetes.')
     } finally {
       setLoading(false)
     }
@@ -418,7 +418,7 @@ function TabPaquetes({ refreshKey }: { refreshKey: number }) {
           style={{ background: 'var(--h-bg-surface)' }}>
           <div className="px-5 py-4 border-b border-h-subtle">
             <h3 className="font-bold text-h-primary">
-              Valorizacion del inventario ({val.total_insumos_valorados} insumos)
+              Valorización del inventario ({val.total_insumos_valorados} insumos)
             </h3>
           </div>
           <div className="overflow-x-auto">
@@ -432,7 +432,7 @@ function TabPaquetes({ refreshKey }: { refreshKey: number }) {
                     { label: 'Stock',       align: 'right' },
                     { label: 'Costo Unit.', align: 'right' },
                     { label: 'Valor Total', align: 'right' },
-                    { label: 'Categoria',   align: 'left'  },
+                    { label: 'Categoría',   align: 'left'  },
                   ].map(h => (
                     <th key={h.label}
                       className={`px-4 py-3 text-[10px] font-semibold text-h-tertiary

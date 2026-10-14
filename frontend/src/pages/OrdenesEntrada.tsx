@@ -255,13 +255,13 @@ export function OrdenesEntrada() {
       })
       await api.post(`/ordenes-entrada/${ordenActiva.id}/items/bulk`, { items })
       showToast(
-        `${carrito.length} item${carrito.length !== 1 ? 's' : ''} agregado${carrito.length !== 1 ? 's' : ''}`,
+        `${carrito.length} ítem${carrito.length !== 1 ? 's' : ''} agregado${carrito.length !== 1 ? 's' : ''}`,
       )
       setShowCarrito(false)
       load()
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
-      setFormError(msg ?? 'Error al guardar los items.')
+      setFormError(msg ?? 'Error al guardar los ítems.')
     } finally { setSaving(false) }
   }
 
@@ -315,7 +315,7 @@ export function OrdenesEntrada() {
   }
 
   async function eliminarItem(ordenId: number, itemId: number) {
-    if (!confirm('¿Eliminar este item?')) return
+    if (!confirm('¿Eliminar este ítem?')) return
     try {
       await api.delete(`/ordenes-entrada/${ordenId}/items/${itemId}`)
       showToast('Ítem eliminado'); load()
@@ -558,7 +558,7 @@ export function OrdenesEntrada() {
                   {abierto && (
                     <tr><td colSpan={9} className="bg-h-elevated border-b border-h-subtle px-6 py-4">
                       <div className="flex items-center justify-between mb-3">
-                        <p className="text-xs font-bold text-h-tertiary uppercase tracking-wide">Items de la orden</p>
+                        <p className="text-xs font-bold text-h-tertiary uppercase tracking-wide">Ítems de la orden</p>
                         {esCoord && o.estado === 'borrador' && (
                           <button onClick={() => abrirCarrito(o)}
                             className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg text-white transition-colors duration-150"

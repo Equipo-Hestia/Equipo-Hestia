@@ -19,6 +19,7 @@ from app.schemas.programacion_taller import (
     ImportarProgramacionResponse,
 )
 from app.utils.deps import get_usuario_actual, require_operador
+from app.utils.tiempo import hoy_santiago
 
 router = APIRouter(prefix="/programacion", tags=["Programacion"])
 
@@ -158,7 +159,7 @@ def _parsear_fecha(raw: object, semestre: str) -> Optional[dt.date]:
             try:
                 ano = int(semestre.split('-')[0])
             except (ValueError, IndexError, AttributeError):
-                ano = dt.date.today().year
+                ano = hoy_santiago().year
         try:
             return dt.date(ano, mes, dia)
         except ValueError:
@@ -226,7 +227,7 @@ def programacion_hoy(
     usuario: Usuario = Depends(get_usuario_actual),
 ):
     """Retorna todas las programaciones activas para la fecha de hoy."""
-    hoy = date.today()
+    hoy = hoy_santiago()
     rows = (
         db.query(ProgramacionTaller)
         .options(

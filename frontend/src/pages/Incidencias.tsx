@@ -235,12 +235,17 @@ interface ModalProps {
   onSaved: () => void
 }
 
+// Valor para <input type="datetime-local">: hora local, no UTC. Con
+// toISOString() la hora se mostraria en UTC y al guardar se desplazaria.
+function valorInputLocal(d: Date): string {
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000)
+    .toISOString().slice(0, 16)
+}
+
 function IncidenciaModal({ incidencia, salas, onClose, onSaved }: ModalProps) {
   const esNueva = incidencia === null
 
-  const ahora = new Date()
-  const ahoraLocal = new Date(ahora.getTime() - ahora.getTimezoneOffset() * 60000)
-    .toISOString().slice(0, 16)
+  const ahoraLocal = valorInputLocal(new Date())
 
   const [activoId, setActivoId] = useState<number | null>(
     incidencia?.activo_fijo_id ?? null
@@ -255,7 +260,7 @@ function IncidenciaModal({ incidencia, salas, onClose, onSaved }: ModalProps) {
   const [salaId, setSalaId] = useState<string>(incidencia?.sala_id?.toString() ?? '')
   const [fechaHora, setFechaHora] = useState(
     incidencia
-      ? new Date(incidencia.fecha_hora).toISOString().slice(0, 16)
+      ? valorInputLocal(new Date(incidencia.fecha_hora))
       : ahoraLocal
   )
   // docenteNombre: auto-relleno desde ProgramacionTaller (solo lectura).

@@ -19,7 +19,7 @@ const SOPORTE_EMAIL = 'hestia.soporte.cc@gmail.com'
 const FAQ_ITEMS = [
   {
     q: 'Olvidé mi contraseña. ¿Qué hago?',
-    a: 'Usa el enlace Olvidaste tu contraseña debajo del boton Ingresar. Recibirás un correo con instrucciones.',
+    a: 'Usa el enlace "¿Olvidaste tu contraseña?" debajo del botón Ingresar. Recibirás un correo con instrucciones.',
   },
   {
     q: 'El stock de un insumo parece incorrecto.',
@@ -47,7 +47,7 @@ const TEMAS = [
 const SYSTEM_STATS = [
   { value: '18',   label: 'salas clínicas' },
   { value: '5',    label: 'carreras' },
-  { value: '1000+', label: 'insumos' },
+  { value: '80+',  label: 'insumos e implementos' },
 ]
 
 // ─── Componentes de modales ──────────────────────────────────────────────────────
@@ -353,7 +353,7 @@ function PanelIzquierdo() {
           ))}
         </div>
         <p className="text-[11px] text-h-tertiary">
-          DuocUC San Bernardo • Informática Biomédica • 2026 - 2027
+          DuocUC San Bernardo • Informática Biomédica • 2026
         </p>
       </div>
     </div>
@@ -578,7 +578,7 @@ export function Login() {
       const msg = (
         err as { response?: { data?: { detail?: string } } }
       ).response?.data?.detail
-      setError(msg ?? 'Código incorrecto. Verifica que la app este sincronizada.')
+      setError(msg ?? 'Código incorrecto. Verifica que la app esté sincronizada.')
       setSetupTotp('')
       setSetupTotpKey((prev: string | null) => (prev ?? '') + 1)
     } finally { setLoading(false) }
@@ -679,7 +679,7 @@ export function Login() {
                     borderColor:
                       'var(--h-teal-hover) transparent transparent transparent',
                   }} />
-                <p className="text-h-secondary text-sm">Generando codigo QR...</p>
+                <p className="text-h-secondary text-sm">Generando código QR...</p>
               </div>
 
             ) : setupStep === 'qr' ? (
@@ -786,8 +786,8 @@ export function Login() {
                 <p className="text-h-secondary text-xs mb-4 leading-relaxed">
                   Cada código funciona{' '}
                   <strong className="text-h-primary">una sola vez</strong>.{' '}
-                  <strong className="text-h-primary">No podras verlos de nuevo.</strong>{' '}
-                  Guardalos en un lugar seguro.
+                  <strong className="text-h-primary">No podrás verlos de nuevo.</strong>{' '}
+                  Guárdalos en un lugar seguro.
                 </p>
                 <div className="rounded-xl border border-h-subtle p-4 mb-3"
                   style={{ background: 'var(--h-bg-base)' }}>
@@ -802,10 +802,10 @@ export function Login() {
                   className="w-full mb-3 border border-h-visible text-h-secondary
                              font-semibold py-2 rounded-lg hover:bg-h-elevated
                              transition-colors text-sm">
-                  {copiado ? 'Copiados! \u2713' : '\ud83d\udccb Copiar todos los codigos'}
+                  {copiado ? '¡Copiados! \u2713' : '\ud83d\udccb Copiar todos los códigos'}
                 </button>
                 <ShimmerButton type="button" onClick={handleSetupFinalizar}>
-                  He guardado mis codigos — Ingresar al panel
+                  He guardado mis códigos — Ingresar al panel
                 </ShimmerButton>
               </>
             )
@@ -871,7 +871,7 @@ export function Login() {
                       style={{ color: 'var(--h-teal-hover)' }}>
                       {forgotEmail}
                     </span>{' '}
-                    esta registrado, recibirás un enlace válido por 1 hora.
+                    está registrado, recibirás un enlace válido por 1 hora.
                   </p>
                   <ShimmerButton type="button" onClick={cerrarForgot}>
                     ← Volver al inicio de sesión
@@ -941,7 +941,7 @@ export function Login() {
               <button onClick={() => { setModo2FA('recovery'); setError(null) }}
                 className="w-full mt-4 text-xs text-h-tertiary hover:text-h-secondary
                            font-medium transition-colors duration-150">
-                Perdi acceso a mi app — usar código de recuperación
+                Perdí acceso a mi app — usar código de recuperación
               </button>
             </>
 

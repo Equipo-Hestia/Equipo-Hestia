@@ -119,7 +119,7 @@ export function ImportarInsumos() {
           <div>
             <h1 className="text-2xl font-bold text-h-primary">Importar insumos</h1>
             <p className="text-h-secondary text-sm mt-0.5">
-              Carga masiva desde CSV o XLSX. Requiere codigo 2FA.
+              Carga masiva desde CSV o XLSX. Requiere código 2FA.
             </p>
           </div>
           <button
@@ -190,7 +190,7 @@ export function ImportarInsumos() {
             ) : (
               <>
                 <Upload size={40} className="mx-auto mb-3 text-h-tertiary" />
-                <p className="font-semibold text-h-primary">Arrastra tu archivo aqui</p>
+                <p className="font-semibold text-h-primary">Arrastra tu archivo aquí</p>
                 <p className="text-h-secondary text-sm mt-1">o haz clic para buscarlo</p>
                 <p className="text-xs text-h-tertiary mt-3">CSV o XLSX</p>
               </>
@@ -251,7 +251,7 @@ export function ImportarInsumos() {
               onMouseEnter={e => (e.currentTarget.style.background = 'var(--h-teal-hover)')}
               onMouseLeave={e => (e.currentTarget.style.background = 'var(--h-teal-rest)')}
             >
-              <Shield size={16} /> Continuar con verificacion 2FA
+              <Shield size={16} /> Continuar con verificación 2FA
             </button>
           )}
         </div>
@@ -266,9 +266,9 @@ export function ImportarInsumos() {
               <Shield size={20} style={{ color: 'var(--h-teal-hover)' }} />
             </div>
             <div>
-              <p className="font-bold text-h-primary">Verificacion de seguridad</p>
+              <p className="font-bold text-h-primary">Verificación de seguridad</p>
               <p className="text-h-secondary text-sm">
-                Autoriza la importacion de <strong>{archivo?.name}</strong>.
+                Autoriza la importación de <strong>{archivo?.name}</strong>.
               </p>
             </div>
           </div>
@@ -350,7 +350,7 @@ export function ImportarInsumos() {
                 : <XCircle    size={24} style={{ color: 'var(--h-sem-danger-text)'  }} />
               }
               <p className="font-black text-h-primary text-lg">
-                {resultado.importados > 0 ? 'Importacion completada' : 'Sin filas importadas'}
+                {resultado.importados > 0 ? 'Importación completada' : 'Sin filas importadas'}
               </p>
             </div>
             <div className="grid grid-cols-2 gap-4">

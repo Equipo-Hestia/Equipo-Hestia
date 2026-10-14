@@ -57,10 +57,10 @@ export function Categorias() {
     try {
       if (editTarget) {
         await api.put(`/categorias/${editTarget.id}`, payload)
-        showToast('Categoria actualizada')
+        showToast('Categoría actualizada')
       } else {
         await api.post('/categorias/', payload)
-        showToast('Categoria creada')
+        showToast('Categoría creada')
       }
       cerrar(); load(page * PAGE_SIZE)
     } catch (err: unknown) {
@@ -75,7 +75,7 @@ export function Categorias() {
     setDeleting(true)
     try {
       await api.delete(`/categorias/${delTarget.id}`)
-      showToast('Categoria eliminada')
+      showToast('Categoría eliminada')
       cerrar(); load(page * PAGE_SIZE)
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { detail?: string } } })
@@ -106,10 +106,10 @@ export function Categorias() {
         <div>
           <h1 className="text-2xl font-bold text-h-primary flex items-center gap-2">
             <Tag size={22} className="text-h-accent" />
-            Categorias
+            Categorías
           </h1>
           <p className="text-h-secondary text-sm mt-0.5">
-            {loading ? '...' : `${total} categorias registradas`}
+            {loading ? '...' : `${total} categorías registradas`}
           </p>
         </div>
         {puedeEscribir && (
@@ -119,7 +119,7 @@ export function Categorias() {
             style={{ background: 'var(--h-teal-rest)' }}
             onMouseEnter={e => (e.currentTarget.style.background = 'var(--h-teal-hover)')}
             onMouseLeave={e => (e.currentTarget.style.background = 'var(--h-teal-rest)')}>
-            <Plus size={16} /> Nueva categoria
+            <Plus size={16} /> Nueva categoría
           </button>
         )}
       </div>
@@ -150,7 +150,7 @@ export function Categorias() {
                 <tr>
                   <td colSpan={colCount} className="text-center py-16 text-h-tertiary">
                     <Tag size={32} className="mx-auto mb-2 opacity-30" />
-                    <p className="font-semibold text-h-secondary">Sin categorias registradas</p>
+                    <p className="font-semibold text-h-secondary">Sin categorías registradas</p>
                   </td>
                 </tr>
               ) : categorias.map(c => {
@@ -206,7 +206,7 @@ export function Categorias() {
         {!loading && totalPages > 1 && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-h-subtle">
             <p className="text-xs text-h-tertiary">
-              Pagina {page + 1} de {totalPages}
+              Página {page + 1} de {totalPages}
             </p>
             <div className="flex gap-1">
               <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}
@@ -242,13 +242,13 @@ export function Categorias() {
       </div>
 
       {(showCrear || editTarget) && (
-        <Modal title={editTarget ? 'Editar categoria' : 'Nueva categoria'} onClose={cerrar} size="sm">
+        <Modal title={editTarget ? 'Editar categoría' : 'Nueva categoría'} onClose={cerrar} size="sm">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className={labelCls}>Nombre *</label>
               <input type="text" required value={nombre}
                 onChange={e => { setNombre(e.target.value); setFormError(null) }}
-                className={inputCls} placeholder="Ej: Proteccion personal" autoFocus />
+                className={inputCls} placeholder="Ej: Protección personal" autoFocus />
             </div>
             {formError && (
               <p className="text-sm px-3 py-2 rounded-lg font-semibold"
@@ -291,16 +291,16 @@ export function Categorias() {
       )}
 
       {delTarget && (
-        <Modal title="Eliminar categoria" onClose={cerrar} size="sm">
+        <Modal title="Eliminar categoría" onClose={cerrar} size="sm">
           <div className="text-center">
             <div className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4"
               style={{ background: 'var(--h-sem-danger-bg)' }}>
               <Trash2 size={24} style={{ color: 'var(--h-sem-danger-text)' }} />
             </div>
-            <p className="font-bold text-h-primary mb-1">Eliminar esta categoria?</p>
+            <p className="font-bold text-h-primary mb-1">¿Eliminar esta categoría?</p>
             <p className="text-h-secondary text-sm mb-6">
               <strong className="text-h-primary">{delTarget.nombre}</strong>{' '}
-              sera eliminada permanentemente.
+              será eliminada permanentemente.
             </p>
             {formError && (
               <p className="text-xs px-3 py-2 rounded-lg font-semibold mb-4"

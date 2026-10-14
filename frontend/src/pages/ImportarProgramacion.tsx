@@ -72,7 +72,7 @@ export function ImportarProgramacion() {
       setErrorMsg(
         typeof detail === 'string'
           ? detail
-          : 'Error al importar. Verifica el archivo y la conexion.'
+          : 'Error al importar. Verifica el archivo y la conexión.'
       )
       setPaso('idle')
     }
@@ -97,10 +97,10 @@ export function ImportarProgramacion() {
     <div className="p-6 max-w-2xl mx-auto space-y-5">
       <div>
         <h1 className="text-2xl font-bold text-h-primary">
-          Importar Programacion
+          Importar Programación
         </h1>
         <p className="text-sm text-h-secondary mt-0.5">
-          Carga el Excel de planificacion semestral para alimentar
+          Carga el Excel de planificación semestral para alimentar
           la Vista de Salas.
         </p>
       </div>
@@ -119,7 +119,7 @@ export function ImportarProgramacion() {
           <strong>Sala</strong>,{' '}
           <strong>Horario</strong>,{' '}
           <strong>Docente</strong>,{' '}
-          <strong>Seccion</strong>. Multiples hojas son bienvenidas;
+          <strong>Sección</strong>. Múltiples hojas son bienvenidas;
           re-importar es seguro (upsert idempotente).
         </p>
       </div>
@@ -216,7 +216,7 @@ export function ImportarProgramacion() {
                 <>
                   <Upload size={32} className="mb-2 text-h-tertiary" />
                   <p className="text-sm font-semibold text-h-primary">
-                    Arrastra el Excel aqui
+                    Arrastra el Excel aquí
                   </p>
                   <p className="text-xs text-h-tertiary mt-0.5">
                     o haz clic para buscarlo
@@ -254,7 +254,7 @@ export function ImportarProgramacion() {
             onMouseLeave={e =>
               (e.currentTarget.style.background = 'var(--h-teal-rest)')}
           >
-            <Upload size={15} /> Importar programacion
+            <Upload size={15} /> Importar programación
           </button>
         </div>
       )}
@@ -292,7 +292,7 @@ export function ImportarProgramacion() {
                 : <XCircle size={22}
                     style={{ color: 'var(--h-sem-danger-text)' }} />}
               <div>
-                <p className="font-bold text-h-primary">Importacion completada</p>
+                <p className="font-bold text-h-primary">Importación completada</p>
                 <p className="text-xs text-h-tertiary">
                   Semestre: {semestreEfectivo}
                 </p>

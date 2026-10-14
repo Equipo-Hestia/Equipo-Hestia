@@ -13,7 +13,13 @@ if not DATABASE_URL:
         "Crea backend/.env con DATABASE_URL=postgresql://..."
     )
 
-engine = create_engine(DATABASE_URL)
+# La sesion de PostgreSQL usa la hora de Santiago: asi cast(timestamptz, Date)
+# y los filtros por dia agrupan por el dia chileno y no por el dia UTC.
+# Los timestamptz guardados no cambian; solo su representacion al leerlos.
+engine = create_engine(
+    DATABASE_URL,
+    connect_args={"options": "-c timezone=America/Santiago"},
+)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

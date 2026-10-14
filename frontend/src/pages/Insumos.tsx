@@ -87,18 +87,18 @@ function Paginator({ page, totalPages, onPage }: PaginatorProps) {
     <div className="flex items-center gap-1">
       <button
         onClick={() => onPage(0)} disabled={page === 0}
-        className={`${btnBase} ${btnNav} px-1.5`} title="Primera pagina">
+        className={`${btnBase} ${btnNav} px-1.5`} title="Primera página">
         <ChevronsLeft size={13} />
       </button>
       <button
         onClick={() => onPage(Math.max(0, page - 10))} disabled={page === 0}
-        className={`${btnBase} ${btnNav} px-1.5`} title="Retroceder 10 paginas">
+        className={`${btnBase} ${btnNav} px-1.5`} title="Retroceder 10 páginas">
         <ChevronLeft size={13} />
         <span className="text-[10px] ml-0.5">10</span>
       </button>
       <button
         onClick={() => onPage(page - 1)} disabled={page === 0}
-        className={`${btnBase} ${btnNav} px-1.5`} title="Pagina anterior">
+        className={`${btnBase} ${btnNav} px-1.5`} title="Página anterior">
         <ChevronLeft size={13} />
       </button>
       {pages().map((p, idx) =>
@@ -114,19 +114,19 @@ function Paginator({ page, totalPages, onPage }: PaginatorProps) {
       )}
       <button
         onClick={() => onPage(page + 1)} disabled={page >= totalPages - 1}
-        className={`${btnBase} ${btnNav} px-1.5`} title="Pagina siguiente">
+        className={`${btnBase} ${btnNav} px-1.5`} title="Página siguiente">
         <ChevronRight size={13} />
       </button>
       <button
         onClick={() => onPage(Math.min(totalPages - 1, page + 10))}
         disabled={page >= totalPages - 1}
-        className={`${btnBase} ${btnNav} px-1.5`} title="Avanzar 10 paginas">
+        className={`${btnBase} ${btnNav} px-1.5`} title="Avanzar 10 páginas">
         <span className="text-[10px] mr-0.5">10</span>
         <ChevronRight size={13} />
       </button>
       <button
         onClick={() => onPage(totalPages - 1)} disabled={page >= totalPages - 1}
-        className={`${btnBase} ${btnNav} px-1.5`} title="Ultima pagina">
+        className={`${btnBase} ${btnNav} px-1.5`} title="Última página">
         <ChevronsRight size={13} />
       </button>
     </div>
@@ -402,7 +402,7 @@ export function Insumos() {
             <Package size={22} className="text-h-accent" />
             Insumos e Implementos</h1>
           <p className="text-h-secondary text-sm mt-0.5">
-            {loading ? '...' : `${total} items`}{hasFilters && ' (filtrado)'}
+            {loading ? '...' : `${total} ítems`}{hasFilters && ' (filtrado)'}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -440,7 +440,7 @@ export function Insumos() {
               style={{ background: 'var(--h-teal-rest)' }}
               onMouseEnter={e => (e.currentTarget.style.background = 'var(--h-teal-hover)')}
               onMouseLeave={e => (e.currentTarget.style.background = 'var(--h-teal-rest)')}>
-              <Plus size={16} /> Nuevo item
+              <Plus size={16} /> Nuevo ítem
             </button>
           )}
         </div>
@@ -464,7 +464,7 @@ export function Insumos() {
             value={catFiltro}
             onChange={v => { setCatFiltro(v); goToPage(0) }}
             options={catOpts}
-            placeholder="Todas las categorias"
+            placeholder="Todas las categorías"
             size="sm"
             className="flex-1 min-w-36"
           />
@@ -514,7 +514,7 @@ export function Insumos() {
               <th className="text-right px-4 py-3 text-[10px] font-semibold
                              text-h-tertiary uppercase tracking-widest">Stock</th>
               <th className="text-right px-4 py-3 text-[10px] font-semibold
-                             text-h-tertiary uppercase tracking-widest">Minimo</th>
+                             text-h-tertiary uppercase tracking-widest">Mínimo</th>
               <th className="text-center px-4 py-3 text-[10px] font-semibold
                              text-h-tertiary uppercase tracking-widest">Estado</th>
               {puedeEscribir && <th className="w-10 px-4 py-3" aria-label="Acciones" />}
@@ -530,7 +530,7 @@ export function Insumos() {
                 <td colSpan={puedeEscribir ? 5 : 4}
                   className="text-center py-16 text-h-tertiary">
                   <Package size={32} className="mx-auto mb-2 opacity-30" />
-                  <p className="font-medium">Sin items que mostrar</p>
+                  <p className="font-medium">Sin ítems que mostrar</p>
                   {hasFilters && (
                     <button onClick={limpiarFiltros}
                       className="text-xs mt-1 font-semibold"
@@ -591,7 +591,7 @@ export function Insumos() {
                         {i.tipo === 'implemento' && i.activo && (
                           <button
                             onClick={() => navigate(`/insumos/${i.id}/unidades`)}
-                            title="Ver unidades fisicas"
+                            title="Ver unidades físicas"
                             className="p-1.5 rounded-md text-h-tertiary
                                        transition-colors duration-150
                                        hover:bg-h-highlight hover:text-h-secondary">
@@ -650,7 +650,7 @@ export function Insumos() {
           <div className="flex items-center justify-between px-4 py-3
                           border-t border-h-subtle">
             <p className="text-xs text-h-tertiary">
-              Pagina {page + 1} de {totalPages} - {total} items en total
+              Página {page + 1} de {totalPages} - {total} ítems en total
             </p>
             <Paginator page={page} totalPages={totalPages} onPage={goToPage} />
           </div>
@@ -660,11 +660,11 @@ export function Insumos() {
       {/* Modal crear/editar */}
       {showModal && (
         <Modal
-          title={editTarget ? 'Editar item' : 'Nuevo insumo o implemento'}
+          title={editTarget ? 'Editar ítem' : 'Nuevo insumo o implemento'}
           onClose={cerrarModal} size="lg">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className={labelCls}>Tipo de item *</label>
+              <label className={labelCls}>Tipo de ítem *</label>
               <div className="flex rounded-xl border border-h-subtle overflow-hidden">
                 <button type="button" onClick={() => setField('tipo', 'insumo')}
                   className={`flex-1 py-2.5 text-sm font-semibold transition-colors ${
@@ -687,7 +687,7 @@ export function Insumos() {
               <p className="text-xs text-h-tertiary mt-1">
                 {form.tipo === 'insumo'
                   ? 'Se consume durante la clase y se descuenta del stock en bodega'
-                  : 'Puede asignarse a salas clinicas; sus unidades fisicas se rastrean individualmente'}
+                  : 'Puede asignarse a salas clínicas; sus unidades físicas se rastrean individualmente'}
               </p>
             </div>
 
@@ -705,7 +705,7 @@ export function Insumos() {
                 className={inputCls}
                 placeholder="Ej: caja x100, frasco 500 mL, unidad, par, rollo 5 m" />
               <p className="text-xs text-h-tertiary mt-1">
-                Para liquidos y reactivos, indica el volumen del envase (ej: "frasco 500 mL").
+                Para líquidos y reactivos, indica el volumen del envase (ej: "frasco 500 mL").
               </p>
             </div>
 
@@ -714,10 +714,10 @@ export function Insumos() {
                 <label className={labelCls}>SKU</label>
                 <input type="text" value={form.sku}
                   onChange={e => setField('sku', e.target.value)}
-                  className={inputCls} placeholder="Auto-generado si se deja vacio" />
+                  className={inputCls} placeholder="Auto-generado si se deja vacío" />
               </div>
               <div>
-                <label className={labelCls}>Codigo de barras</label>
+                <label className={labelCls}>Código de barras</label>
                 <div className="flex gap-2">
                   <input type="text" value={form.codigo_barras}
                     onChange={e => setField('codigo_barras', e.target.value)}
@@ -726,7 +726,7 @@ export function Insumos() {
                     className="flex-shrink-0 px-3 rounded-lg border border-h-subtle
                                bg-h-elevated text-h-tertiary transition-colors duration-150
                                hover:border-h-visible hover:text-h-secondary"
-                    title="Escanear con camara">
+                    title="Escanear con cámara">
                     <Camera size={16} />
                   </button>
                 </div>
@@ -742,7 +742,7 @@ export function Insumos() {
                 <p className="text-xs text-h-tertiary mt-1">Total de unidades en bodega y salas.</p>
               </div>
               <div>
-                <label className={labelCls}>Stock minimo *</label>
+                <label className={labelCls}>Stock mínimo *</label>
                 <input type="number" min="0" required value={form.stock_minimo}
                   onChange={e => setField('stock_minimo', e.target.value)}
                   className={inputCls} />
@@ -755,24 +755,24 @@ export function Insumos() {
                 onChange={e => setField('fecha_vencimiento', e.target.value)}
                 className={inputCls} />
               <p className="text-xs text-h-tertiary mt-1">
-                Util para reactivos, insumos de enfermeria y banco de sangre.
+                Útil para reactivos, insumos de enfermería y banco de sangre.
               </p>
             </div>
 
             {/* Categoria con HSelect */}
             <div>
-              <label className={labelCls}>Categoria</label>
+              <label className={labelCls}>Categoría</label>
               <HSelect
                 value={form.categoria_id}
                 onChange={v => setField('categoria_id', v)}
                 options={catFormOpts}
-                placeholder="Sin categoria"
+                placeholder="Sin categoría"
                 className="w-full"
               />
             </div>
 
             <div>
-              <label className={labelCls}>Descripcion</label>
+              <label className={labelCls}>Descripción</label>
               <input type="text" value={form.descripcion}
                 onChange={e => setField('descripcion', e.target.value)}
                 className={inputCls} placeholder="Opcional" />
@@ -805,17 +805,17 @@ export function Insumos() {
 
       {/* Modal desactivar */}
       {deleteTarget && (
-        <Modal title="Desactivar item" onClose={cerrarModal} size="sm">
+        <Modal title="Desactivar ítem" onClose={cerrarModal} size="sm">
           {deleteStep === 'confirm' ? (
             <div className="text-center">
               <div className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4"
                 style={{ background: 'var(--h-sem-danger-bg)' }}>
                 <Archive size={24} style={{ color: 'var(--h-sem-danger-text)' }} />
               </div>
-              <p className="font-semibold text-h-primary mb-1">Desactivar este item?</p>
+              <p className="font-semibold text-h-primary mb-1">¿Desactivar este ítem?</p>
               <p className="text-h-secondary text-sm mb-3">
-                <strong>{deleteTarget.nombre}</strong> desaparecera de los listados
-                y no se le podran registrar movimientos. Su historial se conserva
+                <strong>{deleteTarget.nombre}</strong> desaparecerá de los listados
+                y no se le podrán registrar movimientos. Su historial se conserva
                 y puede reactivarse cuando quieras.
               </p>
               {userHas2FA === false ? (
@@ -831,7 +831,7 @@ export function Insumos() {
                         style={{ color: 'var(--h-sem-warning-text)' }}>2FA requerido</p>
                       <p className="text-xs mt-0.5"
                         style={{ color: 'var(--h-sem-warning-text)' }}>
-                        Activa la verificacion en dos pasos para desactivar items.
+                        Activa la verificación en dos pasos para desactivar ítems.
                       </p>
                     </div>
                   </div>
@@ -845,7 +845,7 @@ export function Insumos() {
               ) : (
                 <>
                   <p className="text-h-tertiary text-xs mb-5">
-                    Necesitaras tu codigo TOTP para confirmar.
+                    Necesitarás tu código TOTP para confirmar.
                   </p>
                   <div className="flex gap-3">
                     <button onClick={cerrarModal}
@@ -864,7 +864,7 @@ export function Insumos() {
           ) : (
             <div>
               <p className="text-h-secondary text-sm mb-5 text-center">
-                Ingresa tu codigo TOTP para confirmar la desactivacion de
+                Ingresa tu código TOTP para confirmar la desactivación de
                 <strong> {deleteTarget.nombre}</strong>.
               </p>
               <input type="text" inputMode="numeric" maxLength={6} value={deleteTotp}
@@ -900,16 +900,16 @@ export function Insumos() {
 
       {/* Modal reactivar */}
       {reactivarTarget && (
-        <Modal title="Reactivar item" onClose={cerrarModal} size="sm">
+        <Modal title="Reactivar ítem" onClose={cerrarModal} size="sm">
           <div className="text-center">
             <div className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4"
               style={{ background: 'var(--h-sem-success-bg)' }}>
               <ArchiveRestore size={24} style={{ color: 'var(--h-sem-success-text)' }} />
             </div>
-            <p className="font-semibold text-h-primary mb-1">Reactivar este item?</p>
+            <p className="font-semibold text-h-primary mb-1">¿Reactivar este ítem?</p>
             <p className="text-h-secondary text-sm mb-5">
-              <strong>{reactivarTarget.nombre}</strong> volvera a aparecer en
-              los listados y podra recibir movimientos de stock.
+              <strong>{reactivarTarget.nombre}</strong> volverá a aparecer en
+              los listados y podrá recibir movimientos de stock.
             </p>
             {formError && (
               <p className="text-xs px-3 py-2 rounded-lg mb-4" style={{

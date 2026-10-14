@@ -19,11 +19,11 @@ const ORDEN_CARRERAS: Array<CarreraAsignatura | '__sin_carrera__'> = [
 ]
 
 const CARRERAS: { value: CarreraAsignatura; label: string }[] = [
-  { value: 'TENS', label: 'Tecnico en Enfermeria' },
-  { value: 'TQF', label: 'Tec. Quimica y Farmacia' },
-  { value: 'TLCBS', label: 'Tec. Lab. Clinico y Banco de Sangre' },
-  { value: 'TONS', label: 'Tecnico en Odontologia' },
-  { value: 'preparador_fisico', label: 'Preparador Fisico' },
+  { value: 'TENS', label: 'Técnico en Enfermería' },
+  { value: 'TQF', label: 'Tec. Química y Farmacia' },
+  { value: 'TLCBS', label: 'Tec. Lab. Clínico y Banco de Sangre' },
+  { value: 'TONS', label: 'Técnico en Odontología' },
+  { value: 'preparador_fisico', label: 'Preparador Físico' },
 ]
 
 type BadgeVariant = 'info' | 'warning' | 'success' | 'danger' | 'purple' | 'default'
@@ -197,7 +197,7 @@ export function Asignaturas() {
                 </th>
                 <th className="text-left px-4 py-3 text-[10px] font-semibold
                                text-h-tertiary uppercase tracking-widest">
-                  Codigo
+                  Código
                 </th>
                 <th className="text-center px-4 py-3 text-[10px] font-semibold
                                text-h-tertiary uppercase tracking-widest">
@@ -327,14 +327,14 @@ export function Asignaturas() {
                 className={inputCls} placeholder="Ej: Primeros Auxilios" />
             </div>
             <div>
-              <label className={labelCls}>Codigo *</label>
+              <label className={labelCls}>Código *</label>
               <input type="text" required value={form.codigo}
                 onChange={e => setForm(f => ({
                   ...f, codigo: e.target.value.toUpperCase()
                 }))}
                 className={inputCls} placeholder="Ej: CIS1101" maxLength={20} />
               <p className="text-xs text-h-tertiary mt-1">
-                Codigo oficial DuocUC (ej: CIS1101). Se convierte a mayusculas.
+                Código oficial DuocUC (ej: CIS1101). Se convierte a mayúsculas.
               </p>
             </div>
             <div>

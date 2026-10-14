@@ -42,8 +42,10 @@ docker compose exec api python seed_demo.py   # responder "s"
 >
 > Es decir, la sala "en clase" (con su cuenta regresiva) solo se ve durante
 > **2 horas tras ejecutar el seed**. Si la demo se retrasa más, vuelve a
-> ejecutarlo. Ejecútalo entre las 08:00 y las 21:00: fuera de ese rango las
-> horas se recortan al día (00:00–23:59) y la ventana "en clase" se acorta. El
+> ejecutarlo. "Hoy" es siempre el día de Santiago, así que la demo funciona a
+> cualquier hora; solo ten en cuenta que las horas se recortan al día
+> (00:00–23:59): antes de las 02:30 el taller de la Sala 010 empieza a las
+> 00:00, y después de las 22:00 la ventana "en clase" dura menos de 2 horas. El
 > seed **borra todos los datos** antes de cargar; repetirlo deja la demo en su
 > estado inicial.
 
