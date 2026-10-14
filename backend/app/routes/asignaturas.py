@@ -39,7 +39,7 @@ def crear_asignatura(
         db.commit()
     except IntegrityError:
         db.rollback()
-        raise HTTPException(status_code=409, detail="El codigo ya esta en uso.")
+        raise HTTPException(status_code=409, detail="El código ya está en uso.")
     db.refresh(nueva)
     return nueva
 
@@ -64,6 +64,6 @@ def actualizar_asignatura(
         db.commit()
     except IntegrityError:
         db.rollback()
-        raise HTTPException(status_code=409, detail="El codigo ya esta en uso.")
+        raise HTTPException(status_code=409, detail="El código ya está en uso.")
     db.refresh(asig)
     return asig

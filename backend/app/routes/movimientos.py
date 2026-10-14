@@ -70,7 +70,7 @@ def _validar_tipo_subtipo(
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=(
-                f"El subtipo '{subtipo.value}' no es valido "
+                f"El subtipo '{subtipo.value}' no es válido "
                 f"para el tipo '{tipo.value}'."
             ),
         )
@@ -257,7 +257,7 @@ def entrega_directa(
     if not docente:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="El usuario indicado no existe o esta inactivo",
+            detail="El usuario indicado no existe o está inactivo",
         )
 
     cantidades: dict[int, int] = {}
@@ -278,7 +278,7 @@ def entrega_directa(
         if not insumo or not insumo.activo:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail=f"'{nombre}' no esta disponible o fue desactivado",
+                detail=f"'{nombre}' no está disponible o fue desactivado",
             )
         if insumo.stock_actual < cantidad:
             raise HTTPException(
@@ -399,7 +399,7 @@ def registrar_movimiento(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=(
-                f"'{insumo.nombre}' esta inactivo. Reactivalo antes de "
+                f"'{insumo.nombre}' está inactivo. Reactívalo antes de "
                 "registrar movimientos."
             ),
         )

@@ -4,17 +4,17 @@ from pydantic import BaseModel, EmailStr, field_validator
 from app.models.usuario import RolUsuario
 
 _PASSWORD_REGLAS = [
-    (r'[A-Z]', "al menos una letra mayuscula"),
-    (r'[a-z]', "al menos una letra minuscula"),
-    (r'\d', "al menos un numero"),
-    (r'[^a-zA-Z0-9]', "al menos un caracter especial (!@#$%, etc.)"),
+    (r'[A-Z]', "al menos una letra mayúscula"),
+    (r'[a-z]', "al menos una letra minúscula"),
+    (r'\d', "al menos un número"),
+    (r'[^a-zA-Z0-9]', "al menos un carácter especial (!@#$%, etc.)"),
 ]
 
 
 def _validar_complejidad_password(v: str) -> str:
     """Valida politica de seguridad de contrasena."""
     if len(v) < 8:
-        raise ValueError("Minimo 8 caracteres")
+        raise ValueError("Mínimo 8 caracteres")
     for patron, mensaje in _PASSWORD_REGLAS:
         if not re.search(patron, v):
             raise ValueError(f"Debe contener {mensaje}")

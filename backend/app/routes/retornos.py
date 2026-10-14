@@ -102,7 +102,7 @@ def marcar_retorno(
     if datos.estado not in ("retornado", "no_retornado"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Estado invalido. Use 'retornado' o 'no_retornado'.",
+            detail="Estado inválido. Use 'retornado' o 'no_retornado'.",
         )
 
     retorno = (

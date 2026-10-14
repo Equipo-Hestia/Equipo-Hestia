@@ -399,11 +399,11 @@ def crear_insumo(
         detalle = str(exc.orig).lower()
         if "sku" in detalle:
             raise HTTPException(
-                status_code=409, detail="El SKU ya esta en uso por otro insumo."
+                status_code=409, detail="El SKU ya está en uso por otro insumo."
             )
         if "codigo_barras" in detalle:
             raise HTTPException(
-                status_code=409, detail="El codigo de barras ya esta en uso."
+                status_code=409, detail="El código de barras ya está en uso."
             )
         raise HTTPException(status_code=409, detail="Conflicto: dato duplicado.")
     db.refresh(nuevo)
@@ -451,11 +451,11 @@ def actualizar_insumo(
         detalle = str(exc.orig).lower()
         if "sku" in detalle:
             raise HTTPException(
-                status_code=409, detail="El SKU ya esta en uso por otro insumo."
+                status_code=409, detail="El SKU ya está en uso por otro insumo."
             )
         if "codigo_barras" in detalle:
             raise HTTPException(
-                status_code=409, detail="El codigo de barras ya esta en uso."
+                status_code=409, detail="El código de barras ya está en uso."
             )
         raise HTTPException(status_code=409, detail="Conflicto: dato duplicado.")
 
@@ -494,7 +494,7 @@ def eliminar_insumo(
     if not totp.verify(codigo_totp, valid_window=TOTP_VALID_WINDOW):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Codigo 2FA incorrecto. El insumo no fue desactivado."
+            detail="Código 2FA incorrecto. El insumo no fue desactivado."
         )
     insumo = db.query(Insumo).filter(Insumo.id == insumo_id).first()
     if not insumo:
@@ -502,7 +502,7 @@ def eliminar_insumo(
     if not insumo.activo:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=f"'{insumo.nombre}' ya esta inactivo",
+            detail=f"'{insumo.nombre}' ya está inactivo",
         )
     insumo.activo = False
     db.commit()

@@ -59,7 +59,7 @@ def _load(prog_id: int, db: Session) -> ProgramacionTaller:
         .first()
     )
     if not p:
-        raise HTTPException(status_code=404, detail="Programacion no encontrada")
+        raise HTTPException(status_code=404, detail="Programación no encontrada")
     return p
 
 
@@ -355,7 +355,7 @@ def importar_xlsx(
         wb = openpyxl.load_workbook(io.BytesIO(contenido), data_only=True)
     except Exception as exc:
         raise HTTPException(
-            status_code=400, detail=f"Archivo xlsx invalido: {exc}"
+            status_code=400, detail=f"Archivo xlsx inválido: {exc}"
         )
 
     salas_cache: dict[str, int] = {

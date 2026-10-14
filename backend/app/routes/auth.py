@@ -52,10 +52,10 @@ HORARIO_INICIO_H = int(os.getenv("HORARIO_INICIO_H", "7"))
 HORARIO_FIN_H = int(os.getenv("HORARIO_FIN_H", "23"))
 
 _PASSWORD_REGLAS = [
-    (r'[A-Z]', "al menos una letra mayuscula"),
-    (r'[a-z]', "al menos una letra minuscula"),
-    (r'\d', "al menos un numero"),
-    (r'[^a-zA-Z0-9]', "al menos un caracter especial"),
+    (r'[A-Z]', "al menos una letra mayúscula"),
+    (r'[a-z]', "al menos una letra minúscula"),
+    (r'\d', "al menos un número"),
+    (r'[^a-zA-Z0-9]', "al menos un carácter especial"),
 ]
 
 
@@ -119,7 +119,7 @@ class ConfirmarResetRequest(BaseModel):
     @classmethod
     def _check_complexity(cls, v: str) -> str:
         if len(v) < 8:
-            raise ValueError("Minimo 8 caracteres")
+            raise ValueError("Mínimo 8 caracteres")
         for patron, msg in _PASSWORD_REGLAS:
             if not re.search(patron, v):
                 raise ValueError(f"Debe contener {msg}")
@@ -234,11 +234,11 @@ def login(
             s = 's' if restantes != 1 else ''
             n = 'n' if restantes != 1 else ''
             detail = (
-                f"Email o contrasena incorrectos. "
+                f"Email o contraseña incorrectos. "
                 f"Te queda{n} {restantes} intento{s} antes del bloqueo."
             )
         else:
-            detail = "Email o contrasena incorrectos."
+            detail = "Email o contraseña incorrectos."
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=detail,
@@ -300,7 +300,7 @@ def logout(
         exp = payload.get("exp")
         if jti and exp:
             revocar(jti, float(exp))
-    return {"mensaje": "Sesion cerrada correctamente"}
+    return {"mensaje": "Sesión cerrada correctamente"}
 
 
 # ---------------------------------------------------------------------------
@@ -320,20 +320,20 @@ def completar_login_2fa(
     if payload is None or payload.get("tipo") != "pre_auth":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="pre_token invalido o expirado",
+            detail="pre_token inválido o expirado",
         )
     try:
         uid = int(payload["sub"])
     except (KeyError, ValueError, TypeError):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="pre_token invalido o expirado",
+            detail="pre_token inválido o expirado",
         )
     usuario = db.query(Usuario).filter(Usuario.id == uid).first()
     if not usuario or not usuario.totp_habilitado or not usuario.totp_secret:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Usuario o configuracion 2FA no valida",
+            detail="Usuario o configuración 2FA no válida",
         )
     if not usuario.activo:
         raise HTTPException(
@@ -349,7 +349,7 @@ def completar_login_2fa(
         # de Axios y cerraria la sesion de forma incorrecta.
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Codigo 2FA incorrecto",
+            detail="Código 2FA incorrecto",
         )
     limpiar(usuario.email)
     token = crear_token({"sub": str(usuario.id), "rol": usuario.rol.value})
@@ -374,20 +374,20 @@ def recuperar_acceso_2fa(
     if payload is None or payload.get("tipo") != "pre_auth":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="pre_token invalido o expirado",
+            detail="pre_token inválido o expirado",
         )
     try:
         uid = int(payload["sub"])
     except (KeyError, ValueError, TypeError):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="pre_token invalido o expirado",
+            detail="pre_token inválido o expirado",
         )
     usuario = db.query(Usuario).filter(Usuario.id == uid).first()
     if not usuario or not usuario.totp_habilitado:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Usuario o configuracion 2FA no valida",
+            detail="Usuario o configuración 2FA no válida",
         )
     if not usuario.activo:
         raise HTTPException(
@@ -397,7 +397,7 @@ def recuperar_acceso_2fa(
     if not _verificar_y_consumir_recovery_code(usuario, datos.recovery_code, db):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Codigo de recuperacion invalido o ya utilizado",
+            detail="Código de recuperación inválido o ya utilizado",
         )
     # Deshabilitar 2FA y forzar reconfigurar (2FA es obligatorio)
     usuario.totp_habilitado = False
@@ -439,14 +439,14 @@ def activar_2fa(
 ):
     """Confirma el QR y activa 2FA. Devuelve 10 codigos de recuperacion."""
     if usuario.totp_habilitado:
-        raise HTTPException(status_code=400, detail="El 2FA ya esta habilitado")
+        raise HTTPException(status_code=400, detail="El 2FA ya está habilitado")
     if not usuario.totp_secret:
         raise HTTPException(status_code=400, detail="Primero llama a /auth/2fa/setup")
     totp = pyotp.TOTP(usuario.totp_secret)
     if not totp.verify(datos.codigo, valid_window=TOTP_VALID_WINDOW):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Codigo incorrecto. Asegurate de haber escaneado el QR.",
+            detail="Código incorrecto. Asegúrate de haber escaneado el QR.",
         )
     codigos_planos, json_hashes = _generar_recovery_codes()
     usuario.totp_habilitado = True
@@ -472,7 +472,7 @@ def desactivar_2fa(
         status_code=status.HTTP_403_FORBIDDEN,
         detail=(
             "El 2FA es obligatorio en Hestia y no puede desactivarse. "
-            "Contacta al administrador si necesitas resetear tu configuracion."
+            "Contacta al administrador si necesitas resetear tu configuración."
         ),
     )
 
@@ -492,14 +492,14 @@ def setup_2fa_inicial(
     if payload is None or payload.get("tipo") != "setup_2fa":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token de configuracion invalido o expirado",
+            detail="Token de configuración inválido o expirado",
         )
     try:
         uid = int(payload["sub"])
     except (KeyError, ValueError, TypeError):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token de configuracion invalido",
+            detail="Token de configuración inválido",
         )
     usuario = db.query(Usuario).filter(
         Usuario.id == uid, Usuario.activo.is_(True)
@@ -507,7 +507,7 @@ def setup_2fa_inicial(
     if not usuario:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Usuario no valido",
+            detail="Usuario no válido",
         )
     if not usuario.totp_secret:
         usuario.totp_secret = pyotp.random_base32()
@@ -538,14 +538,14 @@ def activar_2fa_inicial(
     if payload is None or payload.get("tipo") != "setup_2fa":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token de configuracion invalido o expirado",
+            detail="Token de configuración inválido o expirado",
         )
     try:
         uid = int(payload["sub"])
     except (KeyError, ValueError, TypeError):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token de configuracion invalido",
+            detail="Token de configuración inválido",
         )
     usuario = db.query(Usuario).filter(
         Usuario.id == uid, Usuario.activo.is_(True)
@@ -553,12 +553,12 @@ def activar_2fa_inicial(
     if not usuario or not usuario.totp_secret:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Usuario no valido o configuracion 2FA no iniciada",
+            detail="Usuario no válido o configuración 2FA no iniciada",
         )
     if usuario.totp_habilitado:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="El 2FA ya esta habilitado",
+            detail="El 2FA ya está habilitado",
         )
     totp = pyotp.TOTP(usuario.totp_secret)
     if not totp.verify(datos.codigo, valid_window=TOTP_VALID_WINDOW):
@@ -568,7 +568,7 @@ def activar_2fa_inicial(
         # QR al reiniciar sesion, invalidando la cuenta TOTP ya vinculada.
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Codigo incorrecto. Asegurate de haber escaneado el QR.",
+            detail="Código incorrecto. Asegúrate de haber escaneado el QR.",
         )
     codigos_planos, json_hashes = _generar_recovery_codes()
     usuario.totp_habilitado = True
@@ -616,16 +616,16 @@ def solicitar_recuperacion(
         try:
             enviar_email(
                 datos.email,
-                "Recuperar contrasena — Hestia",
+                "Recuperar contraseña — Hestia",
                 f"<p>Hola {usuario.nombre},</p>"
-                f"<p>Usa este enlace para restablecer tu contrasena "
-                f"(valido por 1 hora):</p>"
+                f"<p>Usa este enlace para restablecer tu contraseña "
+                f"(válido por 1 hora):</p>"
                 f"<p><a href='{link}'>{link}</a></p>"
                 f"<p>Si no solicitaste este cambio, ignora este mensaje.</p>",
             )
         except Exception:
             _log.info("Recovery link (sin SMTP): %s -> %s", datos.email, link)
-    return {"mensaje": "Si el email existe en el sistema, recibiras instrucciones."}
+    return {"mensaje": "Si el email existe en el sistema, recibirás instrucciones."}
 
 
 @router.post("/confirmar-reset")
@@ -648,7 +648,7 @@ def confirmar_reset(
     if not registro:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Token invalido o expirado",
+            detail="Token inválido o expirado",
         )
     usuario = db.query(Usuario).filter(
         Usuario.email == registro.email,
@@ -657,9 +657,9 @@ def confirmar_reset(
     if not usuario:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Token invalido o expirado",
+            detail="Token inválido o expirado",
         )
     registro.usado = True
     usuario.password_hash = hashear_password(datos.nueva_password)
     db.commit()
-    return {"mensaje": "Contrasena actualizada correctamente"}
+    return {"mensaje": "Contraseña actualizada correctamente"}

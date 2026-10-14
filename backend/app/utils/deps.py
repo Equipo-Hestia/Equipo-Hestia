@@ -21,7 +21,7 @@ def get_usuario_actual(
     """
     excepcion = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Token invalido o expirado",
+        detail="Token inválido o expirado",
         headers={"WWW-Authenticate": "Bearer"}
     )
     payload = verificar_token(token)
@@ -71,7 +71,7 @@ def require_operador(usuario: Usuario = Depends(get_usuario_actual)) -> Usuario:
     ]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Se requiere rol operador o superior para esta accion"
+            detail="Se requiere rol operador o superior para esta acción"
         )
     return usuario
 
@@ -81,7 +81,7 @@ def require_admin(usuario: Usuario = Depends(get_usuario_actual)) -> Usuario:
     if usuario.rol != RolUsuario.admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Se requiere rol administrador para esta accion"
+            detail="Se requiere rol administrador para esta acción"
         )
     return usuario
 

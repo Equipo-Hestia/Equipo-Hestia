@@ -176,13 +176,13 @@ def crear_solicitud(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=(
                 f"Debes solicitar con al menos {_MIN_ANTICIPACION // 60} horas "
-                "de anticipacion."
+                "de anticipación."
             ),
         )
     if minutos_hasta > _MAX_ANTICIPACION:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Solo puedes solicitar hasta 1 semana (7 dias) antes del taller.",
+            detail="Solo puedes solicitar hasta 1 semana (7 días) antes del taller.",
         )
 
     # Validar sala
@@ -200,7 +200,7 @@ def crear_solicitud(
         if not cd:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="La clase indicada no existe o no esta activa.",
+                detail="La clase indicada no existe o no está activa.",
             )
 
     # Acumular cantidades por insumo
@@ -220,7 +220,7 @@ def crear_solicitud(
         if not insumo.activo:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail=f"'{insumo.nombre}' esta inactivo y no puede retirarse.",
+                detail=f"'{insumo.nombre}' está inactivo y no puede retirarse.",
             )
         if insumo.stock_actual < cantidad:
             raise HTTPException(
@@ -265,7 +265,7 @@ def marcar_en_preparacion(
             status_code=status.HTTP_409_CONFLICT,
             detail=(
                 f"La solicitud tiene estado '{s.estado.value}' "
-                "y no puede marcarse en preparacion."
+                "y no puede marcarse en preparación."
             ),
         )
     s.estado = EstadoSolicitud.en_preparacion
@@ -290,7 +290,7 @@ def completar_solicitud(
     if s.estado not in (EstadoSolicitud.pendiente, EstadoSolicitud.en_preparacion):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Solo se pueden completar solicitudes pendientes o en preparacion.",
+            detail="Solo se pueden completar solicitudes pendientes o en preparación.",
         )
 
     insumos_bloqueados: dict[int, Insumo] = {}
@@ -305,7 +305,7 @@ def completar_solicitud(
         if not insumo or not insumo.activo:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail=f"El insumo '{nombre}' ya no esta disponible.",
+                detail=f"El insumo '{nombre}' ya no está disponible.",
             )
         if insumo.stock_actual < item.cantidad_solicitada:
             raise HTTPException(

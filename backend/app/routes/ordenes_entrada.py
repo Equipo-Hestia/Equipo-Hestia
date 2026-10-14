@@ -34,7 +34,7 @@ def _require_coord_o_admin(usuario: Usuario = Depends(get_usuario_actual)):
     if usuario.rol not in (RolUsuario.admin, RolUsuario.operador_coordinador):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Solo el coordinador o administrador puede gestionar ordenes.",
+            detail="Solo el coordinador o administrador puede gestionar órdenes.",
         )
     return usuario
 
@@ -239,7 +239,7 @@ def agregar_item(
 ):
     o = _cargar(orden_id, db)
     if o.estado != EstadoOrden.borrador:
-        raise HTTPException(status_code=400, detail="La orden no esta en borrador.")
+        raise HTTPException(status_code=400, detail="La orden no está en borrador.")
     db.add(OrdenEntradaItem(
         orden_id=orden_id,
         tipo_item=datos.tipo_item,
@@ -266,13 +266,13 @@ def eliminar_item(
 ):
     o = _cargar(orden_id, db)
     if o.estado != EstadoOrden.borrador:
-        raise HTTPException(status_code=400, detail="La orden no esta en borrador.")
+        raise HTTPException(status_code=400, detail="La orden no está en borrador.")
     item = db.query(OrdenEntradaItem).filter(
         OrdenEntradaItem.id == item_id,
         OrdenEntradaItem.orden_id == orden_id,
     ).first()
     if not item:
-        raise HTTPException(status_code=404, detail="Item no encontrado.")
+        raise HTTPException(status_code=404, detail="Ítem no encontrado.")
     db.delete(item)
     db.commit()
     return _to_response(_cargar(orden_id, db))
@@ -289,7 +289,7 @@ def confirmar(
     if o.estado != EstadoOrden.borrador:
         raise HTTPException(status_code=400, detail="La orden ya fue confirmada.")
     if not o.items:
-        raise HTTPException(status_code=400, detail="La orden no tiene items.")
+        raise HTTPException(status_code=400, detail="La orden no tiene ítems.")
     o.estado = EstadoOrden.confirmada
     db.commit()
     registrar(
@@ -317,14 +317,14 @@ def registrar_recepcion_item(
     if o.estado not in (EstadoOrden.confirmada, EstadoOrden.en_recepcion):
         raise HTTPException(
             status_code=400,
-            detail="La orden debe estar confirmada para registrar recepcion.",
+            detail="La orden debe estar confirmada para registrar recepción.",
         )
     item = db.query(OrdenEntradaItem).filter(
         OrdenEntradaItem.id == item_id,
         OrdenEntradaItem.orden_id == orden_id,
     ).first()
     if not item:
-        raise HTTPException(status_code=404, detail="Item no encontrado.")
+        raise HTTPException(status_code=404, detail="Ítem no encontrado.")
     if datos.cantidad_recibida is not None:
         item.cantidad_recibida = datos.cantidad_recibida
         if datos.cantidad_recibida == 0:
@@ -356,7 +356,7 @@ def cerrar(
     if o.estado not in (EstadoOrden.confirmada, EstadoOrden.en_recepcion):
         raise HTTPException(
             status_code=400,
-            detail="Solo se puede cerrar una orden confirmada o en recepcion.",
+            detail="Solo se puede cerrar una orden confirmada o en recepción.",
         )
 
     items_procesados = 0
