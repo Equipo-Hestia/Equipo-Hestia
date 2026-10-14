@@ -21,6 +21,7 @@ from app.schemas.insumo import InsumoCreate, InsumoUpdate, InsumoResponse
 from app.schemas.comun import PaginatedResponse
 from app.utils.deps import get_usuario_actual, require_operador, require_admin
 from app.utils.auditoria import registrar, get_ip
+from app.utils.tiempo import hoy_santiago
 
 router = APIRouter(prefix="/insumos", tags=["Insumos"])
 
@@ -189,7 +190,7 @@ def alertas_vencimiento(
     Ordenados del mas urgente (vencido o mas proximo a vencer) al mas lejano.
     Solo incluye insumos que tienen fecha_vencimiento registrada.
     """
-    hoy = date.today()
+    hoy = hoy_santiago()
     limite = hoy + timedelta(days=dias)
     insumos = (
         db.query(Insumo)

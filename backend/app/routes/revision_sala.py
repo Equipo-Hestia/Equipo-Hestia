@@ -18,6 +18,7 @@ from app.schemas.revision_sala import (
     RevisionItemUpdate,
 )
 from app.utils.deps import get_usuario_actual, require_operador
+from app.utils.tiempo import ahora_santiago, hoy_santiago
 from app.utils.auditoria import registrar, get_ip
 
 router = APIRouter(prefix="/revisiones", tags=["Revisiones"])
@@ -76,7 +77,7 @@ def _to_resumen(r: RevisionSala) -> RevisionResumenResponse:
 
 
 def _hora_ahora() -> str:
-    return dt.datetime.now().strftime("%H:%M")
+    return ahora_santiago().strftime("%H:%M")
 
 
 def _generar_items(
@@ -147,7 +148,7 @@ def revisiones_hoy(
     usuario: Usuario = Depends(get_usuario_actual),
 ):
     """Retorna las revisiones del dia de hoy (sin items) para el mapa."""
-    hoy = date.today()
+    hoy = hoy_santiago()
     rows = (
         db.query(RevisionSala)
         .options(

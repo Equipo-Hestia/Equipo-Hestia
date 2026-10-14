@@ -35,8 +35,14 @@ interface SalaInfo {
 // Helpers de tiempo
 // ---------------------------------------------------------------------------
 
+// "Hoy" es siempre el dia de Santiago (en-CA formatea como YYYY-MM-DD).
+// toISOString() usaria el dia UTC, que desde las 21:00 ya es el siguiente.
+const FMT_FECHA_SANTIAGO = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'America/Santiago', year: 'numeric', month: '2-digit', day: '2-digit',
+})
+
 function fechaISO(d: Date): string {
-  return d.toISOString().split('T')[0]
+  return FMT_FECHA_SANTIAGO.format(d)
 }
 
 function parseHHMM(h: string | null | undefined): number | null {

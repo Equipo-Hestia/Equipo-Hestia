@@ -12,6 +12,7 @@ from app.models.sala import Sala
 from app.models.usuario import Usuario
 from app.models.programacion_taller import ProgramacionTaller
 from app.utils.deps import get_usuario_actual
+from app.utils.tiempo import hoy_santiago
 
 router = APIRouter(prefix="/resumen", tags=["Resumen"])
 
@@ -84,7 +85,7 @@ def obtener_resumen(
         .count()
     )
 
-    hoy = date.today()
+    hoy = hoy_santiago()
 
     movimientos_hoy = (
         db.query(Movimiento)
@@ -152,7 +153,7 @@ def grafico_semana(
         .all()
     )
 
-    hoy = date.today()
+    hoy = hoy_santiago()
     serie: dict[str, dict] = {
         (hoy - timedelta(days=i)).isoformat(): {"entradas": 0, "salidas": 0}
         for i in range(6, -1, -1)
@@ -276,7 +277,7 @@ def salas_hoy(
     programada para hoy segun la tabla programacion_talleres.
     Ordenadas por hora de inicio (nulas al final).
     """
-    hoy = date.today()
+    hoy = hoy_santiago()
 
     programaciones = (
         db.query(ProgramacionTaller)
