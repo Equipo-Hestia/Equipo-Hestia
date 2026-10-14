@@ -99,6 +99,37 @@
 }
 
 
+/* ─── Fuente Nunito (alojada en public/fonts/nunito) ─────── */
+/*
+ * Alojada en el proyecto para que la app funcione sin internet (LAN) y sin
+ * relajar la CSP (font-src 'self'). Subconjunto latin, el mismo que entrega
+ * Google Fonts. Licencia: SIL Open Font License 1.1 (public/fonts/nunito/OFL.txt).
+ * - Normal: fuente variable, cubre los pesos 200-1000 (la app usa 400-900).
+ * - Cursiva: solo 400 (textos secundarios de estado vacío).
+ */
+@font-face {
+  font-family: 'Nunito';
+  font-style: normal;
+  font-weight: 200 1000;
+  font-display: swap;
+  src: url('/fonts/nunito/nunito-latin-wght-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212,
+    U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Nunito';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/nunito/nunito-latin-400-italic.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212,
+    U+2215, U+FEFF, U+FFFD;
+}
+
+
 /* ─── Tipografía global ──────────────────────────────────── */
 * {
   font-family: 'Nunito', sans-serif;

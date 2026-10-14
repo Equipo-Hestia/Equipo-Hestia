@@ -20,7 +20,7 @@ de Ruta IE. El sistema corre en red LAN interna; no tiene IP publica ni dominio.
 - Backend: Python 3.11 · FastAPI · PostgreSQL 16 · SQLAlchemy 2.0 · Pydantic v2
 - Frontend: React 19 · Vite · TypeScript · Tailwind CSS · Zustand · Axios ·
   lucide-react ^0.396 · @zxing/browser ^0.1.4
-- Tipografia: Nunito (Google Fonts)
+- Tipografia: Nunito (alojada en el proyecto, licencia OFL)
 - Infra: Docker Compose (5 servicios: `db`, `api`, `frontend`, `nginx`, `backup`)
 - Auth: JWT (python-jose) · bcrypt · TOTP 2FA **obligatorio** (pyotp + QR) · recuperacion
   de contrasena por email (TokenRecuperacion)

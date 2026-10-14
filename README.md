@@ -15,7 +15,7 @@ Hestia es una aplicación web para el control de stock de insumos e implementos 
 | Backend | Python 3.11 · FastAPI · SQLAlchemy · Pydantic v2 |
 | Base de datos | PostgreSQL 16 |
 | Frontend | React 19 · Vite · TypeScript · Tailwind CSS · Zustand |
-| Tipografía | Nunito (Google Fonts) |
+| Tipografía | Nunito (alojada en el proyecto, licencia OFL) |
 | Autenticación | JWT · bcrypt · TOTP 2FA (Google Authenticator) |
 | Contenedores | Docker · Docker Compose |
 | CI | GitHub Actions (flake8, pip-audit, npm audit) |

@@ -61,6 +61,10 @@ const ALL_WIDGET_IDS = Object.keys(WIDGET_CONFIG) as WidgetId[]
 const STORAGE_ORDER_KEY = (uid: number) => `hestia_dash_order_${uid}`
 const STORAGE_HIDDEN_KEY = (uid: number) => `hestia_dash_hidden_${uid}`
 
+// El widget "Riesgo de reposición" usa /reportes/valorizacion, que el backend
+// restringe a estos roles (require_reportes). Para el resto no se pide ni se muestra.
+const ROLES_RIESGO = ['admin', 'operador_coordinador', 'visor']
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -534,7 +538,7 @@ function SortableWidget({ id, renderContent }: { id: WidgetId, renderContent: (p
 // Panel de personalización
 // ---------------------------------------------------------------------------
 
-function PanelPersonalizar({ hiddenWidgets, onToggle, onReset, onClose }: any) {
+function PanelPersonalizar({ widgetIds, hiddenWidgets, onToggle, onReset, onClose }: any) {
   return (
     <div className="absolute right-0 top-12 z-40 w-64 rounded-2xl border border-h-subtle shadow-2xl p-4" style={{ background: 'var(--h-bg-surface)' }}>
       <div className="flex items-center justify-between mb-3">
@@ -542,7 +546,7 @@ function PanelPersonalizar({ hiddenWidgets, onToggle, onReset, onClose }: any) {
         <button onClick={onReset} className="flex items-center gap-1 text-xs text-h-tertiary hover:text-h-teal-hover transition-colors"><RotateCcw size={11} /> Restablecer</button>
       </div>
       <ul className="space-y-1">
-        {ALL_WIDGET_IDS.map(id => (
+        {(widgetIds as WidgetId[]).map(id => (
           <li key={id}>
             <button onClick={() => onToggle(id)} className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-left hover:bg-h-elevated transition-colors">
               <span className="text-xs text-h-secondary">{WIDGET_CONFIG[id].label}</span>
@@ -563,6 +567,10 @@ function PanelPersonalizar({ hiddenWidgets, onToggle, onReset, onClose }: any) {
 export function Dashboard() {
   const { user } = useAuthStore()
   const uid = user?.id ?? 0
+  const puedeVerRiesgo = ROLES_RIESGO.includes(user?.rol ?? '')
+  const widgetsDisponibles = puedeVerRiesgo
+    ? ALL_WIDGET_IDS
+    : ALL_WIDGET_IDS.filter(id => id !== 'riesgo_reposicion')
 
   const [resumen,    setResumen]    = useState<ResumenResponse | null>(null)
   const [activeWidget, setActiveWidget] = useState<WidgetId | null>(null)
@@ -658,6 +666,7 @@ export function Dashboard() {
       } finally { setSalasLoading(false) }
     }
     async function loadRiesgo() {
+      if (!puedeVerRiesgo) { setRiesgoLoading(false); return }
       try {
         const [paqRes, valRes] = await Promise.all([
           api.get<PaqueteResponse[]>('/paquetes/'),
@@ -717,7 +726,9 @@ export function Dashboard() {
     setShowPersonalizar(false)
   }
 
-  const visibleWidgets = widgetOrder.filter(id => !hiddenWidgets.has(id))
+  const visibleWidgets = widgetOrder.filter(
+    id => !hiddenWidgets.has(id) && widgetsDisponibles.includes(id)
+  )
 
   // ── Renderizadores de contenido por Widget ────────────────────────────────
   const widgetRenderers: Record<WidgetId, (props: any) => React.ReactNode> = {
@@ -769,7 +780,7 @@ export function Dashboard() {
         <div className="flex items-center gap-2 relative">
           <button onClick={load} className="p-2 rounded-lg border border-h-subtle bg-h-elevated text-h-tertiary hover:bg-h-highlight transition-colors"><RefreshCw size={15} /></button>
           <button onClick={() => setShowPersonalizar(v => !v)} className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-h-subtle bg-h-elevated text-h-secondary text-xs font-semibold hover:bg-h-highlight transition-colors"><Eye size={13} /> Personalizar</button>
-          {showPersonalizar && <PanelPersonalizar hiddenWidgets={hiddenWidgets} onToggle={toggleWidget} onReset={resetLayout} onClose={() => setShowPersonalizar(false)} />}
+          {showPersonalizar && <PanelPersonalizar widgetIds={widgetsDisponibles} hiddenWidgets={hiddenWidgets} onToggle={toggleWidget} onReset={resetLayout} onClose={() => setShowPersonalizar(false)} />}
         </div>
       </div>
 

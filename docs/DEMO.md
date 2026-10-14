@@ -132,7 +132,7 @@ stock y revisa la sala al terminar la clase.
 
 | # | Pantalla | Acción | Resultado esperado |
 |---|---|---|---|
-| 1 | **Dashboard** | Revisar las tarjetas y widgets | Métricas de stock, gráfico semanal de entradas/salidas, actividad reciente, top insumos retirados, talleres de hoy |
+| 1 | **Dashboard** | Revisar las tarjetas y widgets | Métricas de stock, gráfico semanal de entradas/salidas, actividad reciente, top insumos retirados, talleres de hoy. Sin el widget "Riesgo de reposición": usa datos de valorización, a los que el operador no tiene acceso |
 | 2 | **Alertas** | Abrir la pestaña de alertas activas | ~10 insumos bajo mínimo (p. ej. "Contenedor cortopunzante 3L", "Suero fisiologico NaCl 0.9% 1L", "Mascarillas N95 FFP2") |
 | 3 | **Insumos e Implementos** | Buscar "guantes"; filtrar "Bajo stock" | La tabla se filtra; estados Agotado / Bajo stock con badge de color |
 | 4 | Insumos → implemento (p. ej. "Esfigmomanometro aneroide") | Abrir sus unidades físicas | Lista de unidades con subcódigo, ubicación (Bodega o sala) y estado |
