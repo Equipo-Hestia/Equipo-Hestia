@@ -260,7 +260,11 @@ hestia/
 
 - **Coordinador en Asignaturas y Clases:** la interfaz le muestra los botones de crear y editar, pero el backend exige rol admin y responde 403. Esas acciones se hacen con la cuenta admin. En Insumos, Movimientos, Categorías y Salas ocurre lo inverso: la interfaz oculta al coordinador los botones de escritura que el backend sí le permitiría. Detalle en [`docs/FLUJOS_USUARIO.md`](docs/FLUJOS_USUARIO.md).
 - **Backup automático (no verificado):** el cron del contenedor `backup` (BusyBox `crond`) probablemente no hereda las variables de entorno del contenedor. Si es así, `backup.sh` se aborta cada noche por no encontrar `BACKUP_ENCRYPTION_KEY`. No afecta la demo. Para un respaldo manual: `docker compose exec backup backup.sh`.
-- **Escaneo de dependencias en CI:** el workflow ejecuta `pip-audit -r requirements.txt` sobre el `requirements.txt` de la raíz, que está vacío. Por eso no audita las dependencias reales de `backend/requirements.txt`. El escaneo del frontend (`npm audit`) sí funciona.
+- **Escaneo de dependencias en CI:** el workflow ejecuta `pip-audit -r requirements.txt` sobre el `requirements.txt` de la raíz, que está vacío. Por eso no audita las dependencias reales de `backend/requirements.txt`. El frontend tiene dos pasos: `npm audit --omit=dev --audit-level=high` (bloqueante, solo dependencias de runtime) y una auditoría completa informativa (`continue-on-error`) que incluye las herramientas de build.
+- **Vulnerabilidades conocidas en dependencias del frontend (octubre 2026):**
+  - Las altas restantes están en la cadena de **tailwindcss 3**: `braces`, `micromatch`, `fast-glob`, `chokidar`, más las moderadas de `postcss-selector-parser` y `postcss-nested`. Son **solo herramientas de build**: generan el CSS al compilar y **no llegan al navegador**. Son riesgos de denegación de servicio con patrones de archivos o selectores CSS extremos, que en este proyecto controla el propio repositorio.
+  - `braces` **no tiene versión corregida publicada** (el aviso cubre hasta la 3.0.3, la última), y `tailwindcss` ya está en 3.4.19, la última de la línea 3. Corregirlas exige migrar a **Tailwind 4** (salto mayor), lo que se descartó por implicar cambios visuales y de configuración en todo el frontend. Por eso la auditoría completa del CI es informativa.
+  - Quedan además **2 moderadas de `react-router` 6** (GHSA-wrjc-x8rr-h8h6 y GHSA-337j-9hxr-rhxg), corregidas solo en la versión 7 (salto mayor). No aplican a Hestia: la primera es una redirección abierta al navegar a destinos controlados por el usuario con `<Link>`/`useNavigate`, y la app no navega a rutas tomadas de la URL ni del estado; la segunda afecta la hidratación con SSR, y Hestia usa `BrowserRouter` sin SSR.
 - **Revisión de sala:** solo opera sobre el día actual (por diseño). Para la demo, el seed crea talleres para el día en que se ejecuta.
 - **Esquema en instalación limpia:** las tablas base las crea `Base.metadata.create_all()` al arrancar y no una migración inicial de Alembic. Las migraciones existentes son defensivas y se omiten si la tabla aún no existe.
 
@@ -269,7 +273,7 @@ hestia/
 ## Flujo de trabajo del equipo
 
 - Rama principal: `main`. El desarrollo de funcionalidades está cerrado; solo se integran correcciones de bugs y documentación mediante Pull Request.
-- El CI (GitHub Actions) ejecuta flake8 sobre `backend/app/`, pip-audit y npm audit en cada push o PR a `main`/`develop`.
+- El CI (GitHub Actions) ejecuta flake8 sobre `backend/app/`, pip-audit y npm audit (bloqueante sobre dependencias de runtime, informativo sobre todas) en cada push o PR a `main`/`develop`.
 
 Ver [`.github/CONTRIBUTING.md`](.github/CONTRIBUTING.md) para las convenciones de ramas y commits.
 
