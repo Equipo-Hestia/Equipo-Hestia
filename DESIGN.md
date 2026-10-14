@@ -33,7 +33,7 @@ La direccion elegida es **Opcion B + C**:
 
 | Propiedad  | Valor                                                     |
 |---|---|
-| Familia    | Nunito (Google Fonts)                                     |
+| Familia    | Nunito (alojada en el proyecto, licencia OFL)             |
 | Peso normal| 400                                                       |
 | Peso medium| 600                                                       |
 | Peso bold  | 700 / 800                                                 |
