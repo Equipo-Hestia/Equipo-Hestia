@@ -237,7 +237,7 @@ def confirmar_preparacion(
     elif items_sin_stock:
         mensaje = (
             f"{movimientos_generados} retiro(s) registrado(s). "
-            f"{len(items_sin_stock)} item(s) omitido(s) por stock insuficiente."
+            f"{len(items_sin_stock)} ítem(s) omitido(s) por stock insuficiente."
         )
     else:
         mensaje = (
@@ -347,7 +347,7 @@ def actualizar_paquete(
     if p.bloqueado and not solo_desbloqueo:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="El paquete esta bloqueado y no puede modificarse.",
+            detail="El paquete está bloqueado y no puede modificarse.",
         )
 
     if datos.notas is not None:
@@ -381,7 +381,7 @@ def agregar_item(
     if p.bloqueado:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="El paquete esta bloqueado y no puede modificarse.",
+            detail="El paquete está bloqueado y no puede modificarse.",
         )
 
     insumo = db.query(Insumo).filter(
@@ -427,14 +427,14 @@ def eliminar_item(
     if p.bloqueado:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="El paquete esta bloqueado y no puede modificarse.",
+            detail="El paquete está bloqueado y no puede modificarse.",
         )
     item = db.query(PaqueteItem).filter(
         PaqueteItem.id == item_id,
         PaqueteItem.paquete_id == paquete_id,
     ).first()
     if not item:
-        raise HTTPException(status_code=404, detail="Item no encontrado")
+        raise HTTPException(status_code=404, detail="Ítem no encontrado")
     db.delete(item)
     db.commit()
     return _construir_response(_cargar_paquete(db, paquete_id))

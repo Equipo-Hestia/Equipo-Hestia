@@ -138,7 +138,7 @@ def crear(
         if existente:
             raise HTTPException(
                 status_code=400,
-                detail="El codigo de barras ya esta registrado en otro activo",
+                detail="El código de barras ya está registrado en otro activo",
             )
 
     af = ActivoFijo(**datos.model_dump())
@@ -186,7 +186,7 @@ def actualizar(
         if existente:
             raise HTTPException(
                 status_code=400,
-                detail="El codigo de barras ya esta registrado en otro activo",
+                detail="El código de barras ya está registrado en otro activo",
             )
 
     # Detectar dar de baja antes de aplicar cambios

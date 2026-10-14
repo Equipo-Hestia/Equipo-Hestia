@@ -178,7 +178,7 @@ def _generar_pdf_bytes(
         from fpdf import FPDF
     except ImportError:
         raise HTTPException(
-            status_code=501, detail="fpdf2 no esta instalado."
+            status_code=501, detail="fpdf2 no está instalado."
         )
 
     # Forzamos hora de Chile (UTC-4/-3 dependiendo de horario de verano)
@@ -322,7 +322,7 @@ def _generar_xlsx_bytes(
         import io
     except ImportError:
         raise HTTPException(
-            status_code=501, detail="openpyxl no esta instalado."
+            status_code=501, detail="openpyxl no está instalado."
         )
 
     TEAL_HEX = "0D7377"

@@ -40,7 +40,7 @@ def _cargar_revision(rev_id: int, db: Session) -> RevisionSala:
         .first()
     )
     if not r:
-        raise HTTPException(status_code=404, detail="Revision no encontrada")
+        raise HTTPException(status_code=404, detail="Revisión no encontrada")
     return r
 
 
@@ -222,7 +222,7 @@ def crear_revision(
     )
     if not prog:
         raise HTTPException(
-            status_code=404, detail="Programacion no encontrada"
+            status_code=404, detail="Programación no encontrada"
         )
 
     # Idempotente: si ya existe retorna la existente
@@ -281,7 +281,7 @@ def actualizar_item(
     if revision.estado == 'completada':
         raise HTTPException(
             status_code=400,
-            detail="La revision ya esta completada y no puede modificarse",
+            detail="La revisión ya está completada y no puede modificarse",
         )
 
     item = db.query(RevisionSalaItem).filter(
@@ -289,7 +289,7 @@ def actualizar_item(
         RevisionSalaItem.revision_id == rev_id,
     ).first()
     if not item:
-        raise HTTPException(status_code=404, detail="Item no encontrado")
+        raise HTTPException(status_code=404, detail="Ítem no encontrado")
 
     for campo, valor in datos.model_dump(exclude_unset=True).items():
         setattr(item, campo, valor)

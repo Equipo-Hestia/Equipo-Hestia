@@ -52,10 +52,10 @@ def cambiar_password(
 ):
     """Permite al usuario autenticado cambiar su propia contrasena."""
     if not verificar_password(datos.password_actual, usuario.password_hash):
-        raise HTTPException(status_code=400, detail="Contrasena actual incorrecta")
+        raise HTTPException(status_code=400, detail="Contraseña actual incorrecta")
     usuario.password_hash = hashear_password(datos.password_nueva)
     db.commit()
-    return {"mensaje": "Contrasena actualizada correctamente"}
+    return {"mensaje": "Contraseña actualizada correctamente"}
 
 
 @router.put("/me/avatar", response_model=UsuarioResponse)
@@ -77,12 +77,12 @@ def actualizar_avatar(
     if not datos.avatar_b64.startswith("data:image/"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Formato invalido. La imagen debe ser un data URL (data:image/...).",
+            detail="Formato inválido. La imagen debe ser un data URL (data:image/...).",
         )
     if len(datos.avatar_b64) > _AVATAR_MAX_LEN:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="La imagen es demasiado grande. Maximo 2 MB.",
+            detail="La imagen es demasiado grande. Máximo 2 MB.",
         )
     usuario.avatar_b64 = datos.avatar_b64
     db.commit()
@@ -99,7 +99,7 @@ def crear_usuario(
 ):
     existente = db.query(Usuario).filter(Usuario.email == datos.email).first()
     if existente:
-        raise HTTPException(status_code=400, detail="El email ya esta registrado")
+        raise HTTPException(status_code=400, detail="El email ya está registrado")
     nuevo = Usuario(
         nombre=datos.nombre,
         email=datos.email,
@@ -150,7 +150,7 @@ def actualizar_usuario(
     if datos.email != encontrado.email:
         colision = db.query(Usuario).filter(Usuario.email == datos.email).first()
         if colision:
-            raise HTTPException(status_code=400, detail="El email ya esta registrado")
+            raise HTTPException(status_code=400, detail="El email ya está registrado")
 
     cambio_activo: str | None = None
     if datos.activo is not None and datos.activo != encontrado.activo:
@@ -218,7 +218,7 @@ def eliminar_usuario(
     if not totp.verify(codigo_totp, valid_window=TOTP_VALID_WINDOW):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Codigo 2FA incorrecto. El usuario no fue desactivado."
+            detail="Código 2FA incorrecto. El usuario no fue desactivado."
         )
     encontrado = db.query(Usuario).filter(Usuario.id == usuario_id).first()
     if not encontrado:
@@ -230,7 +230,7 @@ def eliminar_usuario(
     if not encontrado.activo:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=f"{encontrado.nombre} ya esta inactivo",
+            detail=f"{encontrado.nombre} ya está inactivo",
         )
     encontrado.activo = False
     db.commit()

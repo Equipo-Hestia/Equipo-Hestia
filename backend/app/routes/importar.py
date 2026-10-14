@@ -127,7 +127,7 @@ def _verificar_totp(usuario: Usuario, codigo: str) -> None:
     if not totp.verify(codigo, valid_window=TOTP_VALID_WINDOW):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Codigo 2FA incorrecto. Verifica el codigo e intenta nuevamente."
+            detail="Código 2FA incorrecto. Verifica el código e intenta nuevamente."
         )
 
 
@@ -221,7 +221,7 @@ def _procesar_filas(
     for idx, fila in enumerate(filas, start=2):
         nombre = _sanitizar_texto(fila.get("nombre", "").strip())
         if not nombre:
-            errores.append(ErrorFila(fila=idx, razon="Campo 'nombre' vacio o ausente."))
+            errores.append(ErrorFila(fila=idx, razon="Campo 'nombre' vacío o ausente."))
             continue
 
         try:
@@ -229,7 +229,7 @@ def _procesar_filas(
         except (ValueError, TypeError):
             errores.append(ErrorFila(
                 fila=idx,
-                razon=f"'stock_actual' no es un numero valido: "
+                razon=f"'stock_actual' no es un número válido: "
                       f"'{fila.get('stock_actual')}'"
             ))
             continue
@@ -239,7 +239,7 @@ def _procesar_filas(
         except (ValueError, TypeError):
             errores.append(ErrorFila(
                 fila=idx,
-                razon=f"'stock_minimo' no es un numero valido: "
+                razon=f"'stock_minimo' no es un número válido: "
                       f"'{fila.get('stock_minimo')}'"
             ))
             continue
@@ -257,7 +257,7 @@ def _procesar_filas(
         if tipo_raw not in ("insumo", "implemento"):
             errores.append(ErrorFila(
                 fila=idx,
-                razon=f"'tipo' invalido: '{tipo_raw}'. Use 'insumo' o 'implemento'."
+                razon=f"'tipo' inválido: '{tipo_raw}'. Use 'insumo' o 'implemento'."
             ))
             continue
         tipo = TipoInsumo(tipo_raw)
@@ -277,7 +277,7 @@ def _procesar_filas(
             except (ValueError, TypeError):
                 errores.append(ErrorFila(
                     fila=idx,
-                    razon=f"'costo_unitario' invalido: '{costo_raw}'."
+                    razon=f"'costo_unitario' inválido: '{costo_raw}'."
                 ))
                 continue
 
@@ -435,7 +435,7 @@ def importar_insumos(
     filas = _normalizar_encabezados(filas_raw)
 
     if not filas:
-        raise HTTPException(status_code=400, detail="El archivo esta vacio.")
+        raise HTTPException(status_code=400, detail="El archivo está vacío.")
 
     columnas_archivo = set(filas[0].keys())
     faltantes = COLUMNAS_REQUERIDAS - columnas_archivo
@@ -458,7 +458,7 @@ def importar_insumos(
             db.rollback()
             raise HTTPException(
                 status_code=409,
-                detail="Conflicto: existen SKUs o codigos de barras duplicados "
+                detail="Conflicto: existen SKUs o códigos de barras duplicados "
                        "en el archivo o ya registrados en el sistema.",
             )
         registrar(
@@ -512,7 +512,7 @@ def importar_horario_academico(
                 fila=idx,
                 razon=(
                     f"Asignatura '{fila.codigo_asignatura}' no encontrada. "
-                    "Crearla primero en el modulo de Asignaturas."
+                    "Crearla primero en el módulo de Asignaturas."
                 )
             ))
             continue

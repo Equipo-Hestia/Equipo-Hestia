@@ -26,7 +26,7 @@ def _require_coord_o_admin(usuario=Depends(get_usuario_actual)):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Solo el administrador o el operador coordinador "
-                   "pueden acceder a esta funcion.",
+                   "pueden acceder a esta función.",
         )
     return usuario
 
@@ -131,7 +131,7 @@ def actualizar(
         if dup:
             raise HTTPException(
                 status_code=409,
-                detail="Ese email ya esta registrado en otro docente.",
+                detail="Ese email ya está registrado en otro docente.",
             )
     for campo, valor in datos.model_dump(exclude_unset=True).items():
         if isinstance(valor, str):
