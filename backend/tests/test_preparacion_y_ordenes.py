@@ -186,6 +186,11 @@ def _en_paralelo(app, acciones: dict) -> dict:
     return codigos
 
 
+@pytest.mark.corregido(
+    "Dos cierres simultáneos de una orden de entrada registraban dos compras "
+    "aunque el stock subía una vez. Corregido en PR #10 (bloqueo de la orden "
+    "y botón desactivado mientras procesa)."
+)
 @pytest.mark.caso(
     "P13",
     "Dos personas cierran la misma orden de entrada al mismo tiempo (por ejemplo, "
@@ -224,6 +229,11 @@ def test_cierre_simultaneo_de_orden_registra_una_sola_compra(
     assert not incorrectas, incorrectas
 
 
+@pytest.mark.corregido(
+    "Un retiro registrado mientras se cerraba una orden de entrada se perdía "
+    "(el stock quedaba 5 unidades más alto). Corregido en PR #10 "
+    "(bloqueo y relectura del insumo)."
+)
 @pytest.mark.caso(
     "P14",
     "Mientras una persona cierra una orden de entrada (llegan 10 unidades), otra "
@@ -259,6 +269,11 @@ def test_cierre_de_orden_y_retiro_simultaneos_no_pierden_stock(
     assert not incorrectas, incorrectas
 
 
+@pytest.mark.corregido(
+    "Cerrar y cancelar la misma orden de entrada a la vez podía aceptar ambas "
+    "acciones (la pantalla decía cancelada y la orden quedaba cerrada). "
+    "Corregido en PR #10 (bloqueo de la orden)."
+)
 @pytest.mark.caso(
     "P15",
     "Una persona cierra una orden de entrada y otra la cancela en el mismo "

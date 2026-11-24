@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import {
   Package, Plus, Pencil, PowerOff, RefreshCw,
@@ -327,9 +327,13 @@ function ModalGenerarLote(
   const [cantidad, setCantidad]   = useState(faltantes)
   const [generando, setGenerando] = useState(false)
   const [error, setError]         = useState('')
+  // Guard sincrono contra doble clic: el estado no se actualiza entre dos clics
+  // y el backend no puede distinguir un reenvio (crearia el lote dos veces).
+  const generandoRef = useRef(false)
 
   async function handleGenerar() {
-    if (cantidad < 1) return
+    if (cantidad < 1 || generandoRef.current) return
+    generandoRef.current = true
     setGenerando(true)
     setError('')
     try {
@@ -343,6 +347,7 @@ function ModalGenerarLote(
         ?.response?.data?.detail
       setError(detail ?? 'Error al generar unidades')
     } finally {
+      generandoRef.current = false
       setGenerando(false)
     }
   }

@@ -175,17 +175,25 @@ def confirmar_preparacion(
     if datos.notas:
         motivo_base += f" \u2014 {datos.notas}"
 
-    for faltante in datos.faltantes:
-        # Bloquear fila para evitar race condition con otros retiros
-        insumo = (
+    # Bloquear los insumos (FOR UPDATE) en orden de id y RELEERLOS:
+    # _cargar_paquete ya cargo estos insumos sin bloqueo (joinedload), y sin
+    # populate_existing la sesion conservaria ese stock viejo; dos
+    # confirmaciones simultaneas registraban dos retiros pero descontaban uno.
+    ids = sorted({f.insumo_id for f in datos.faltantes})
+    bloqueados = {
+        i.id: i
+        for i in (
             db.query(Insumo)
-            .filter(
-                Insumo.id == faltante.insumo_id,
-                Insumo.activo.is_(True),
-            )
+            .filter(Insumo.id.in_(ids), Insumo.activo.is_(True))
+            .order_by(Insumo.id)
             .with_for_update()
-            .first()
+            .populate_existing()
+            .all()
         )
+    } if ids else {}
+
+    for faltante in datos.faltantes:
+        insumo = bloqueados.get(faltante.insumo_id)
         if not insumo:
             continue
 

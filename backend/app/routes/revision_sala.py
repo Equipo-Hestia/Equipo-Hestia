@@ -44,6 +44,22 @@ def _cargar_revision(rev_id: int, db: Session) -> RevisionSala:
     return r
 
 
+def _cargar_revision_bloqueada(rev_id: int, db: Session) -> RevisionSala:
+    """Bloquea la revision (SELECT ... FOR UPDATE) hasta el commit y la carga.
+
+    Asi el estado se valida dentro de la transaccion: dos "Completar"
+    simultaneos ya no registran dos cierres en la auditoria ni pisan la hora.
+    """
+    if not (
+        db.query(RevisionSala.id)
+        .filter(RevisionSala.id == rev_id)
+        .with_for_update()
+        .first()
+    ):
+        raise HTTPException(status_code=404, detail="Revisión no encontrada")
+    return _cargar_revision(rev_id, db)
+
+
 def _to_response(r: RevisionSala) -> RevisionSalaResponse:
     return RevisionSalaResponse(
         id=r.id,
@@ -225,6 +241,13 @@ def crear_revision(
             status_code=404, detail="Programación no encontrada"
         )
 
+    # Bloquear la programacion hasta el commit: dos "Iniciar revision"
+    # simultaneos creaban dos revisiones, porque ambos veian que no existia.
+    # Con el bloqueo, el segundo espera y luego encuentra la del primero.
+    db.query(ProgramacionTaller.id).filter(
+        ProgramacionTaller.id == datos.programacion_id
+    ).with_for_update().first()
+
     # Idempotente: si ya existe retorna la existente
     existente = (
         db.query(RevisionSala)
@@ -277,7 +300,7 @@ def actualizar_item(
     usuario: Usuario = Depends(require_operador),
 ):
     """Actualiza un item del checklist (cantidad encontrada + conforme)."""
-    revision = _cargar_revision(rev_id, db)
+    revision = _cargar_revision_bloqueada(rev_id, db)
     if revision.estado == 'completada':
         raise HTTPException(
             status_code=400,
@@ -309,7 +332,7 @@ def completar_revision(
     usuario: Usuario = Depends(require_operador),
 ):
     """Marca la revision como completada y registra la hora de cierre."""
-    revision = _cargar_revision(rev_id, db)
+    revision = _cargar_revision_bloqueada(rev_id, db)
     if revision.estado == 'completada':
         return _to_response(revision)
     revision.estado = 'completada'

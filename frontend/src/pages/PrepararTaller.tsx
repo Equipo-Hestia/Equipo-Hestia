@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   ClipboardList, ChevronDown, CheckCircle2,
   AlertTriangle, PackageOpen, RefreshCw,
@@ -52,6 +52,7 @@ export function PrepararTaller() {
   const [checklist, setChecklist] = useState<ChecklistResponse | null>(null)
   const [estados, setEstados] = useState<EstadoChecklist>({})
   const [loading, setLoading] = useState(false)
+  const confirmandoRef = useRef(false)
   const [loadingSelects, setLoadingSelects] = useState(true)
 
   const [faseConfirmacion, setFaseConfirmacion] = useState<FaseConfirmacion>('idle')
@@ -119,7 +120,10 @@ export function PrepararTaller() {
   }
 
   async function confirmarSalaLista() {
-    if (!checklist || !todosRevisados) return
+    // Guard sincrono contra doble clic: el backend no distingue un reenvio de
+    // la misma confirmacion y descontaria los retiros dos veces.
+    if (!checklist || !todosRevisados || confirmandoRef.current) return
+    confirmandoRef.current = true
     setFaseConfirmacion('cargando')
     try {
       const faltantes = checklist.items
@@ -133,6 +137,8 @@ export function PrepararTaller() {
       setFaseConfirmacion('exito')
     } catch {
       setFaseConfirmacion('error')
+    } finally {
+      confirmandoRef.current = false
     }
   }
 
