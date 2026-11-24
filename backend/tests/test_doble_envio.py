@@ -498,3 +498,56 @@ def test_crear_mantenimiento_simultaneo_mismo_phantoma(
         f"({_distribucion([f'respuestas {r[0]}, {r[1]} orden(es)' for r in resultados])})",
     )
     assert not incorrectos, incorrectos
+
+
+# ---------------------------------------------------------------------------
+# Ordenes de entrada: confirmar
+# ---------------------------------------------------------------------------
+
+@pytest.mark.corregido(
+    "Dos \"Confirmar\" simultáneos de una orden de entrada en borrador se aceptaban "
+    "ambos y la auditoría registraba dos confirmaciones. Corregido: se bloquea la "
+    "orden (igual que al cerrar, cancelar y recibir) y el botón se desactiva mientras "
+    "procesa."
+)
+@pytest.mark.caso(
+    "P26",
+    "Doble clic en \"Confirmar\" de una orden de entrada en borrador (dos envíos al "
+    "mismo tiempo), repetido 20 veces",
+    "Solo una confirmación se acepta (la otra recibe 400 \"La orden ya fue "
+    "confirmada\") y queda un solo registro de confirmación en la auditoría",
+)
+def test_confirmar_orden_entrada_simultanea_se_acepta_una_vez(
+        app, client, db, headers_de, crear_insumo, record_property):
+    from app.models.audit_log import AuditLog
+
+    coord = headers_de("operador_coordinador")
+    resultados, incorrectos = [], []
+    for _ in range(RONDAS_LARGAS):
+        orden = client.post("/ordenes-entrada/", headers=coord, json={
+            "tipo": "semanal",
+            "items": [{"tipo_item": "insumo", "insumo_id": crear_insumo(stock=5),
+                       "cantidad_pedida": 10}],
+        }).json()
+        orden_id = orden["id"]
+        codigos = en_paralelo(app, {
+            n: (lambda c: c.post(f"/ordenes-entrada/{orden_id}/confirmar",
+                                 headers=coord).status_code)
+            for n in (1, 2)
+        })
+        db.expire_all()
+        confirmaciones = db.query(AuditLog).filter(
+            AuditLog.accion == "CONFIRMAR_ORDEN_ENTRADA", AuditLog.entidad_id == orden_id,
+        ).count()
+        estado = client.get(f"/ordenes-entrada/{orden_id}", headers=coord).json()["estado"]
+        resultado = (tuple(sorted(codigos.values())), confirmaciones, estado)
+        resultados.append(resultado)
+        if resultado != ((200, 400), 1, "confirmada"):
+            incorrectos.append(resultado)
+
+    record_property(
+        "obtenido",
+        f"{RONDAS_LARGAS - len(incorrectos)} de {RONDAS_LARGAS} intentos correctos "
+        f"({_distribucion([f'respuestas {r[0]}, {r[1]} confirmación(es) auditada(s)' for r in resultados])})",
+    )
+    assert not incorrectos, incorrectos
