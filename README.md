@@ -266,21 +266,11 @@ hestia/
   docker compose exec db createdb -U postgres hestia_restore
   docker compose exec -T db psql -U postgres -d hestia_restore < dump.sql
   ```
-- **Escaneo de dependencias en CI:** el workflow instala `backend/requirements.txt` y ejecuta `pip-audit -r backend/requirements.txt` sobre las dependencias reales del backend. Por ahora ese paso es **informativo** (`continue-on-error`) y volverá a ser bloqueante cuando se actualicen las dependencias (ver la viñeta siguiente). El frontend tiene dos pasos: `npm audit --omit=dev --audit-level=high` (bloqueante, solo dependencias de runtime) y una auditoría completa informativa (`continue-on-error`) que incluye las herramientas de build.
-- **Vulnerabilidades conocidas en dependencias del backend (noviembre 2026):** `pip-audit` sobre las 48 dependencias de `backend/requirements.txt` reporta **81 vulnerabilidades: 6 críticas, 51 altas, 21 moderadas y 3 bajas, en 11 paquetes**. Están pendientes de actualizar:
-  - `pillow` 10.4.0: 53 (4 críticas, 35 altas, 14 moderadas); corregidas en la 13.0.0, salto mayor.
-  - `python-jose` 3.5.0: 1 crítica, **sin versión corregida**; su dependencia `ecdsa` 0.19.2 tiene 1 alta, también sin corrección.
-  - `anyio` 4.13.0: 1 crítica y 1 moderada (4.14.2).
-  - `pyasn1` 0.6.3: 7 altas (0.6.5).
-  - `cryptography` 46.0.7: 3 altas y 1 moderada (50.0.0).
-  - `starlette` 1.0.0: 2 altas, 2 moderadas y 1 baja (1.3.1, depende de la versión de `fastapi`).
-  - `dnspython` 2.8.0: 2 altas (2.9.2).
-  - `python-multipart` 0.0.27: 1 alta y 2 bajas (0.0.31).
-  - `fpdf2` 2.8.2: 2 moderadas (2.8.8).
-  - `idna` 3.11: 1 moderada (3.15).
-- **Vulnerabilidades conocidas en dependencias del frontend (octubre 2026):**
-  - Las altas restantes están en la cadena de **tailwindcss 3**: `braces`, `micromatch`, `fast-glob`, `chokidar`, más las moderadas de `postcss-selector-parser` y `postcss-nested`. Son **solo herramientas de build**: generan el CSS al compilar y **no llegan al navegador**. Son riesgos de denegación de servicio con patrones de archivos o selectores CSS extremos, que en este proyecto controla el propio repositorio.
-  - `braces` **no tiene versión corregida publicada** (el aviso cubre hasta la 3.0.3, la última), y `tailwindcss` ya está en 3.4.19, la última de la línea 3. Corregirlas exige migrar a **Tailwind 4** (salto mayor), lo que se descartó por implicar cambios visuales y de configuración en todo el frontend. Por eso la auditoría completa del CI es informativa.
+- **Escaneo de dependencias en CI:** el workflow instala `backend/requirements.txt` y ejecuta `pip-audit -r backend/requirements.txt` sobre las dependencias reales del backend. El paso es **bloqueante**: falla si encuentra cualquier vulnerabilidad conocida. El frontend tiene dos pasos: `npm audit --omit=dev --audit-level=high` (bloqueante, solo dependencias de runtime) y una auditoría completa informativa (`continue-on-error`) que incluye las herramientas de build.
+- **Vulnerabilidades conocidas en dependencias del frontend (noviembre 2026):** la auditoría completa informativa del CI reporta 1 alta y 3 moderadas; el paso bloqueante (solo runtime) no reporta altas.
+  - **`vite` 6.4.3 (alta):** avisos de `launch-editor` (GHSA-587h-7wmj-h5pm alta; GHSA-698v-4r3x-3vcv y GHSA-r825-w8mm-5pxw moderadas) y de Vite (GHSA-rq7h-c2jc-7f22 moderada, GHSA-9jrq-w75r-8gcw baja). Está en `devDependencies`, pero **no es solo una herramienta de build en este despliegue**: el contenedor `frontend` sirve la app con el servidor de desarrollo de Vite (`npm run dev`) detrás de nginx, alcanzable desde la LAN. Hay corrección en la misma línea (**6.4.6**), pendiente de aplicar.
+  - **`postcss-selector-parser` 6.1.4 (moderada, GHSA-rj75-hqrm-r3gf):** entra por `tailwindcss` 3 (también por `postcss-nested`). Es solo de build: genera el CSS al compilar y no llega al navegador. Tiene corrección (6.1.5 o superior) sin salto mayor.
+  - `braces`, `micromatch`, `fast-glob` y `chokidar` (cadena de `tailwindcss` 3) ya no aparecen en la auditoría.
   - Quedan además **2 moderadas de `react-router` 6** (GHSA-wrjc-x8rr-h8h6 y GHSA-337j-9hxr-rhxg), corregidas solo en la versión 7 (salto mayor). No aplican a Hestia: la primera es una redirección abierta al navegar a destinos controlados por el usuario con `<Link>`/`useNavigate`, y la app no navega a rutas tomadas de la URL ni del estado; la segunda afecta la hidratación con SSR, y Hestia usa `BrowserRouter` sin SSR.
 - **Revisión de sala:** solo opera sobre el día actual (por diseño). Para la demo, el seed crea talleres para el día en que se ejecuta.
 - **Vista de Salas:** el mapa del piso -1 no muestra la Sala 012 (la tapa el rectángulo de la Sala 011), la zona Odontología nunca muestra clases (no reconoce el número de esas salas) y, si una sala tiene varias clases el mismo día, solo se ve la primera. Los datos existen y se ven en Reportes, Ver Horario y Movimientos.

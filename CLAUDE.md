@@ -22,7 +22,7 @@ de Ruta IE. El sistema corre en red LAN interna; no tiene IP publica ni dominio.
   lucide-react ^0.396 · @zxing/browser ^0.1.4
 - Tipografia: Nunito (alojada en el proyecto, licencia OFL)
 - Infra: Docker Compose (5 servicios: `db`, `api`, `frontend`, `nginx`, `backup`)
-- Auth: JWT (python-jose) · bcrypt · TOTP 2FA **obligatorio** (pyotp + QR) · recuperacion
+- Auth: JWT (PyJWT) · bcrypt · TOTP 2FA **obligatorio** (pyotp + QR) · recuperacion
   de contrasena por email (TokenRecuperacion)
 - CI: GitHub Actions con flake8 en push/PR a `main` y `develop`
 
