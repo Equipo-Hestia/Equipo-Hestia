@@ -47,6 +47,22 @@ def _load_orden(orden_id: int, db: Session) -> OrdenMantenimiento:
     return orden
 
 
+def _load_orden_bloqueada(orden_id: int, db: Session) -> OrdenMantenimiento:
+    """Bloquea la orden (SELECT ... FOR UPDATE) hasta el commit y la carga.
+
+    El estado se valida dentro de la transaccion: dos cierres simultaneos ya
+    no se aceptan ambos ni duplican la auditoria.
+    """
+    if not (
+        db.query(OrdenMantenimiento.id)
+        .filter(OrdenMantenimiento.id == orden_id)
+        .with_for_update()
+        .first()
+    ):
+        raise HTTPException(status_code=404, detail="Orden no encontrada")
+    return _load_orden(orden_id, db)
+
+
 def _item_response(item: OrdenMantenimientoItem) -> OrdenItemResponse:
     af = item.activo_fijo
     return OrdenItemResponse(
@@ -144,12 +160,27 @@ def crear_orden(
         if not prov:
             raise HTTPException(status_code=404, detail="Proveedor no encontrado")
 
+    # Bloquear los Phantomas (FOR UPDATE, en orden de id) antes de validar su
+    # estado: dos ordenes simultaneas para el mismo Phantoma se aceptaban las
+    # dos, porque ambas lo veian disponible. Con el bloqueo la segunda espera,
+    # lo ve en_mantenimiento y recibe 409.
+    bloqueados = {
+        af.id: af
+        for af in (
+            db.query(ActivoFijo)
+            .filter(
+                ActivoFijo.id.in_(sorted(set(datos.activo_ids))),
+                ActivoFijo.activo.is_(True),
+            )
+            .order_by(ActivoFijo.id)
+            .with_for_update()
+            .populate_existing()
+            .all()
+        )
+    }
     activos = []
     for af_id in datos.activo_ids:
-        af = db.query(ActivoFijo).filter(
-            ActivoFijo.id == af_id,
-            ActivoFijo.activo.is_(True),
-        ).first()
+        af = bloqueados.get(af_id)
         if not af:
             raise HTTPException(
                 status_code=404,
@@ -232,6 +263,15 @@ def actualizar_item(
     - Si resultado=dar_de_baja: descripcion_problema recomendada.
     La orden debe estar en_curso.
     """
+    # Bloquear la orden del item: un resultado registrado mientras otra
+    # persona cierra la orden no debe validarse contra un estado viejo.
+    orden_id = db.query(OrdenMantenimientoItem.orden_id).filter(
+        OrdenMantenimientoItem.id == item_id
+    ).scalar()
+    if orden_id is not None:
+        db.query(OrdenMantenimiento.id).filter(
+            OrdenMantenimiento.id == orden_id
+        ).with_for_update().first()
     item = (
         db.query(OrdenMantenimientoItem)
         .options(
@@ -289,7 +329,7 @@ def cerrar_orden(
     - Los ítems 'sale_a_taller' permanecen en_mantenimiento.
     - Los ítems 'dar_de_baja' ya fueron marcados dado_de_baja en PATCH.
     """
-    orden = _load_orden(orden_id, db)
+    orden = _load_orden_bloqueada(orden_id, db)
     if orden.estado != EstadoOrden.en_curso:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -336,7 +376,7 @@ def cancelar_orden(
     usuario: Usuario = Depends(require_operador),
 ):
     """Cancela una orden en_curso y devuelve los activos a disponible."""
-    orden = _load_orden(orden_id, db)
+    orden = _load_orden_bloqueada(orden_id, db)
     if orden.estado != EstadoOrden.en_curso:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,

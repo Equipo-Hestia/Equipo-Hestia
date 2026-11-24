@@ -105,16 +105,24 @@ def marcar_retorno(
             detail="Estado inválido. Use 'retornado' o 'no_retornado'.",
         )
 
+    # Bloquear el retorno hasta el commit: dos "retornado" simultaneos pasaban
+    # la validacion de estado y se aceptaban los dos. Con el bloqueo, el
+    # segundo espera y recibe 409.
+    if not (
+        db.query(RetornoImplemento.id)
+        .filter(RetornoImplemento.id == retorno_id)
+        .with_for_update()
+        .first()
+    ):
+        raise HTTPException(
+            status_code=404, detail="Registro de retorno no encontrado."
+        )
     retorno = (
         db.query(RetornoImplemento)
         .options(*_opts())
         .filter(RetornoImplemento.id == retorno_id)
         .first()
     )
-    if not retorno:
-        raise HTTPException(
-            status_code=404, detail="Registro de retorno no encontrado."
-        )
 
     if retorno.estado != EstadoRetorno.pendiente:
         raise HTTPException(
@@ -128,6 +136,7 @@ def marcar_retorno(
             db.query(Insumo)
             .filter(Insumo.id == retorno.insumo_id)
             .with_for_update()
+            .populate_existing()  # _opts() ya cargo el insumo sin bloqueo
             .first()
         )
         if insumo:

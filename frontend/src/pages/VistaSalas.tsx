@@ -574,6 +574,7 @@ interface PanelProps {
   info:           SalaInfo | null
   revision:       RevisionSalaResponse | null
   cargandoRev:    boolean
+  completandoRev: boolean
   onIniciarRev:   () => void
   onItemChange:   (itemId: number, conforme: boolean, cantidad?: number) => void
   onCompletarRev: () => void
@@ -582,7 +583,7 @@ interface PanelProps {
 }
 
 function PanelSala(
-  { info, revision, cargandoRev, onIniciarRev,
+  { info, revision, cargandoRev, completandoRev, onIniciarRev,
     onItemChange, onCompletarRev, puedeOperar, esHoy }: PanelProps,
 ) {
   const [segs, setSegs] = useState(0)
@@ -797,9 +798,12 @@ function PanelSala(
               </div>
               {pct === 100 && puedeOperar && (
                 <button onClick={onCompletarRev}
+                  disabled={completandoRev}
+                  aria-busy={completandoRev}
                   className="w-full flex items-center justify-center gap-2
                              py-2.5 rounded-xl text-sm font-semibold text-white
-                             transition-colors mt-2"
+                             transition-colors mt-2
+                             disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{ background: '#1D9E75' }}
                   onMouseEnter={e =>
                     (e.currentTarget.style.background = '#0F6E56')}
@@ -886,6 +890,10 @@ export function VistaSalas() {
   const [revision,       setRevision]       =
     useState<RevisionSalaResponse | null>(null)
   const [cargandoRev,    setCargandoRev]    = useState(false)
+  const [completandoRev, setCompletandoRev] = useState(false)
+  // Guards sincronos contra doble clic (el estado no se actualiza entre dos clics).
+  const iniciandoRevRef   = useRef(false)
+  const completandoRevRef = useRef(false)
   const [zonaDrop,       setZonaDrop]       = useState(false)
   const dropRef = useRef<HTMLDivElement>(null)
 
@@ -1008,7 +1016,8 @@ export function VistaSalas() {
   }, [infoSeleccionada?.rev?.id])
 
   async function handleIniciarRevision() {
-    if (!infoSeleccionada?.prog) return
+    if (!infoSeleccionada?.prog || iniciandoRevRef.current) return
+    iniciandoRevRef.current = true
     setCargandoRev(true)
     try {
       const res = await api.post<RevisionSalaResponse>('/revisiones/', {
@@ -1016,7 +1025,7 @@ export function VistaSalas() {
       })
       setRevision(res.data); await cargarDatos()
     } catch { /* silencioso */ }
-    finally { setCargandoRev(false) }
+    finally { iniciandoRevRef.current = false; setCargandoRev(false) }
   }
 
   async function handleItemChange(
@@ -1032,13 +1041,16 @@ export function VistaSalas() {
   }
 
   async function handleCompletarRevision() {
-    if (!revision) return
+    if (!revision || completandoRevRef.current) return
+    completandoRevRef.current = true
+    setCompletandoRev(true)
     try {
       const res = await api.post<RevisionSalaResponse>(
         `/revisiones/${revision.id}/completar`, {}
       )
       setRevision(res.data); await cargarDatos()
     } catch { /* silencioso */ }
+    finally { completandoRevRef.current = false; setCompletandoRev(false) }
   }
 
   function handleVolverHoy() {
@@ -1233,6 +1245,7 @@ export function VistaSalas() {
             info={infoSeleccionada}
             revision={revision}
             cargandoRev={cargandoRev}
+            completandoRev={completandoRev}
             onIniciarRev={handleIniciarRevision}
             onItemChange={handleItemChange}
             onCompletarRev={handleCompletarRevision}

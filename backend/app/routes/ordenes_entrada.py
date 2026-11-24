@@ -305,7 +305,9 @@ def confirmar(
     db: Session = Depends(get_db),
     usuario=Depends(_require_coord_o_admin),
 ):
-    o = _cargar(orden_id, db)
+    # Bloqueo de la orden (igual que cerrar/cancelar/recibir): dos "Confirmar"
+    # simultaneos se aceptaban ambos y duplicaban la auditoria.
+    o = _cargar_bloqueada(orden_id, db)
     if o.estado != EstadoOrden.borrador:
         raise HTTPException(status_code=400, detail="La orden ya fue confirmada.")
     if not o.items:

@@ -104,6 +104,8 @@ export function OrdenesEntrada() {
   const [saving,       setSaving]      = useState(false)
   const [cerrandoId,   setCerrandoId]  = useState<number | null>(null)
   const cerrandoRef = useRef(false)  // guard sincrono: el estado no se actualiza entre dos clics
+  const [confirmandoId, setConfirmandoId] = useState<number | null>(null)
+  const confirmandoRef = useRef(false)  // mismo guard para "Confirmar"
   const [formError,    setFormError]   = useState<string | null>(null)
 
   // Modal orden
@@ -291,12 +293,19 @@ export function OrdenesEntrada() {
   }
 
   async function confirmar(id: number) {
+    // Evita un segundo envio (doble clic) mientras la confirmacion esta en curso.
+    if (confirmandoRef.current) return
+    confirmandoRef.current = true
+    setConfirmandoId(id)
     try {
       await api.post(`/ordenes-entrada/${id}/confirmar`)
       showToast('Orden confirmada'); load()
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
       showToast(msg ?? 'Error al confirmar.', 'err')
+    } finally {
+      confirmandoRef.current = false
+      setConfirmandoId(null)
     }
   }
 
@@ -540,7 +549,9 @@ export function OrdenesEntrada() {
                         )}
                         {esCoord && o.estado === 'borrador' && (
                           <button onClick={() => confirmar(o.id)} title="Confirmar"
-                            className="p-1.5 rounded-lg text-h-tertiary transition-colors duration-150"
+                            disabled={confirmandoId !== null}
+                            aria-busy={confirmandoId === o.id}
+                            className="p-1.5 rounded-lg text-h-tertiary transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
                             onMouseEnter={e => { e.currentTarget.style.background = 'var(--h-sem-info-bg)'; e.currentTarget.style.color = 'var(--h-sem-info-text)' }}
                             onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--h-text-tertiary)' }}>
                             <Lock size={14} />

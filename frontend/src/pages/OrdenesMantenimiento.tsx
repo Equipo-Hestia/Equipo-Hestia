@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import {
   Wrench, Plus, RefreshCw,
   CalendarClock, Building2, Trash2,
@@ -76,6 +76,7 @@ function ModalNuevaOrden(
   const [notas,        setNotas]        = useState('')
   const [selectedIds,  setSelectedIds]  = useState<Set<number>>(new Set())
   const [guardando,    setGuardando]    = useState(false)
+  const guardandoRef = useRef(false)  // guard sincrono contra doble clic
   const [error,        setError]        = useState('')
 
   const proveedorOpts = proveedores.map(p => ({ value: String(p.id), label: p.nombre }))
@@ -98,6 +99,8 @@ function ModalNuevaOrden(
       setError('Selecciona al menos un activo fijo'); return
     }
     if (!fechaVisita) { setError('La fecha de visita es obligatoria'); return }
+    if (guardandoRef.current) return
+    guardandoRef.current = true
     setGuardando(true); setError('')
     try {
       const body: OrdenMantenimientoCreate = {
@@ -113,7 +116,7 @@ function ModalNuevaOrden(
         err as { response?: { data?: { detail?: string } } }
       )?.response?.data?.detail
       setError(detail ?? 'Error al guardar')
-    } finally { setGuardando(false) }
+    } finally { guardandoRef.current = false; setGuardando(false) }
   }
 
   const labelCls = (

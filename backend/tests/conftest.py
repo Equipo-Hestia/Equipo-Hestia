@@ -82,6 +82,12 @@ def _admin_exec(sentencia: str) -> None:
 def pytest_configure(config):
     import psycopg2
 
+    # Marcas propias del reporte (ademas de "caso", registrada en pytest.ini).
+    config.addinivalue_line(
+        "markers", "corregido(resumen): defecto detectado que ya fue corregido (historial)")
+    config.addinivalue_line(
+        "markers", "grupo_defecto(grupo): grupo de un fallo esperado: habilitada o no_habilitada")
+
     admin_url = _url_admin()
     nombre = "hestia_test_" + uuid.uuid4().hex[:10]
     db_url = _con_base(admin_url, nombre)
@@ -276,8 +282,56 @@ def stock_de(db):
     return _stock
 
 
+def en_paralelo(app, acciones: dict) -> dict:
+    """Ejecuta {nombre: funcion(cliente) -> resultado} al mismo tiempo.
+
+    Cada accion corre en su hilo con su propio TestClient y una barrera las
+    suelta juntas. Un error del servidor se devuelve como respuesta 500 (no
+    mata el hilo), para que la prueba pueda reportarlo.
+    """
+    import threading
+
+    from fastapi.testclient import TestClient
+
+    barrera = threading.Barrier(len(acciones))
+    resultados = {}
+    candado = threading.Lock()
+
+    def correr(nombre, accion):
+        cliente = TestClient(app, raise_server_exceptions=False)
+        barrera.wait()
+        resultado = accion(cliente)
+        with candado:
+            resultados[nombre] = resultado
+
+    hilos = [threading.Thread(target=correr, args=par) for par in acciones.items()]
+    for t in hilos:
+        t.start()
+    for t in hilos:
+        t.join(timeout=60)
+    assert len(resultados) == len(acciones), f"acciones sin respuesta: {resultados}"
+    return resultados
+
+
 # ---------------------------------------------------------------------------
 # Reporte docs/PRUEBAS.md
+# ---------------------------------------------------------------------------
+
+# Defectos conocidos que no tienen prueba automatica (se listan en el reporte).
+DEFECTOS_SIN_PRUEBA = [
+    "**Importar insumos dos veces** — volver a importar el mismo archivo crea "
+    "insumos duplicados cuando las filas no traen SKU (el importador siempre "
+    "crea, no actualiza). Es un flujo de varios pasos con código TOTP, no un "
+    "doble clic. Corregirlo requiere definir cómo reconocer un insumo existente "
+    "(por SKU, código de barras o nombre).",
+]
+
+GRUPOS_DEFECTO = {
+    "habilitada": "En pantallas habilitadas (la interfaz ya evita el doble clic; "
+                  "el riesgo queda si la petición se reenvía por otra vía)",
+    "no_habilitada": "En módulos no habilitados en la interfaz "
+                     "(préstamos, entregas directas y solicitudes)",
+}
 # ---------------------------------------------------------------------------
 
 @pytest.hookimpl(hookwrapper=True)
@@ -307,7 +361,11 @@ def pytest_runtest_makereport(item, call):
             estado = "Fallido"
             linea = str(rep.longrepr).strip().splitlines()[-1] if rep.longrepr else ""
             obtenido = (obtenido + " — " if obtenido else "") + linea
+        corregido = item.get_closest_marker("corregido")
+        grupo = item.get_closest_marker("grupo_defecto")
         _RESULTADOS.append({
+            "corregido": corregido.args[0] if corregido else "",
+            "grupo": grupo.args[0] if grupo else "habilitada",
             "id": caso_id,
             "descripcion": descripcion,
             "esperado": esperado,
@@ -369,20 +427,42 @@ def pytest_sessionfinish(session, exitstatus):
             f"| {_celda(r['obtenido'])} | {r['estado']} | {r['fecha']:%d-%m-%Y %H:%M:%S} |"
         )
     conocidos = [r for r in filas if r["motivo_xfail"]]
-    if conocidos:
+    lineas += [
+        "",
+        "## Defectos conocidos (fallos esperados)",
+        "",
+        "Estos casos prueban una regla que hoy el sistema **no cumple** y cuya "
+        "corrección requiere un cambio distinto de los ya aplicados. Están "
+        "marcados como *fallo esperado* (`xfail`): no bloquean la integración "
+        "continua, pero si el defecto se corrige la prueba empieza a pasar y "
+        "pytest avisa para quitar la marca.",
+    ]
+    for grupo, titulo in GRUPOS_DEFECTO.items():
+        del_grupo = [r for r in conocidos if r["grupo"] == grupo]
+        lineas += ["", f"### {titulo}", ""]
+        if del_grupo:
+            lineas += [f"- **{r['id']}** — {r['motivo_xfail']}" for r in del_grupo]
+        else:
+            lineas.append("- Ninguno.")
+    lineas += ["", "### Sin prueba automática", ""]
+    lineas += [f"- {d}" for d in DEFECTOS_SIN_PRUEBA]
+
+    corregidos = [r for r in filas if r["corregido"]]
+    if corregidos:
         lineas += [
             "",
-            "## Defectos conocidos (fallos esperados)",
+            "## Historial de defectos corregidos",
             "",
-            "Estos casos prueban una regla que hoy el sistema **no cumple**. Se dejaron "
-            "marcados como *fallo esperado* (`xfail`) para no corregir la aplicación "
-            "en el mismo cambio que agrega las pruebas: no bloquean la integración "
-            "continua, pero si el defecto se corrige la prueba empieza a pasar y "
-            "pytest avisa para quitar la marca.",
+            "Defectos que estas pruebas detectaron y que ya se corrigieron. Cada "
+            "prueba fallaba con el código anterior y hoy pasa; queda en la suite "
+            "para que el defecto no vuelva.",
             "",
+            "| ID | Defecto corregido | Estado hoy |",
+            "|---|---|---|",
         ]
-        for r in conocidos:
-            lineas.append(f"- **{r['id']}** — {r['motivo_xfail']}")
+        lineas += [
+            f"| {r['id']} | {_celda(r['corregido'])} | {r['estado']} |" for r in corregidos
+        ]
     lineas += [
         "",
         "## Cómo ejecutar las pruebas",
