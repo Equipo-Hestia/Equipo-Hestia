@@ -216,7 +216,7 @@ stock y revisa la sala al terminar la clase.
 | # | Pantalla | Acción | Resultado esperado |
 |---|---|---|---|
 | 1 | **Dashboard** | Revisar las tarjetas y widgets | Métricas de stock, gráfico semanal de entradas/salidas, actividad reciente, top insumos retirados, talleres de hoy. Sin el widget "Riesgo de reposición": usa datos de valorización, a los que el operador no tiene acceso |
-| 2 | **Alertas** | Abrir la pestaña de alertas activas | 14 insumos bajo mínimo, 3 de ellos agotados (p. ej. "Contenedor cortopunzante 3L", "Suero fisiológico NaCl 0.9% 1L", "Mascarillas N95 FFP2") |
+| 2 | **Alertas** | Abrir la pestaña de alertas activas | 14 insumos bajo mínimo; 3 de ellos agotados ("Nylon 4-0 piel", "Contenedor cortopunzante 3L APS" y "Papel filtro cualitativo") y el resto con stock bajo (p. ej. "Suero fisiológico NaCl 0.9% 1L" con 2, "Contenedor cortopunzante 3L" con 2, "Mascarillas N95 FFP2" con 3) |
 | 3 | **Insumos e Implementos** | Buscar "guantes"; filtrar "Bajo stock" | La tabla se filtra; estados Agotado / Bajo stock con badge de color |
 | 4 | Insumos → implemento "Esfigmomanómetro aneroide" (buscar "esfigmo") | Abrir sus unidades físicas | Lista de unidades con subcódigo, ubicación (Bodega o salas 010–015) y estado; incluye una unidad dada de baja |
 | 5 | **Movimientos** | "Registrar" → tipo *entrada*, subtipo *compra*, insumo "Suero fisiológico NaCl 0.9% 1L" (buscar "suero"), cantidad 20 → Guardar | Movimiento en la tabla con usuario y fecha; el stock del insumo sube de 2 a 22 |
@@ -241,17 +241,17 @@ los docentes, y revisa los costos.
 | # | Pantalla | Acción | Resultado esperado |
 |---|---|---|---|
 | 1 | Sidebar | Abrir la sección "Administracion" | Ve Órdenes de Entrada, Proveedores, Docentes y Clases, Asignaturas, Ver Horario e Importaciones. **No** ve Usuarios ni Audit Log |
-| 2 | **Órdenes de Entrada** | Revisar la lista | Las compras del año (~60 a mediados de diciembre) en todos los estados. Las del guion, creadas por Patricia Soto: `confirmada` (repuestos Laerdal) y `borrador` (reposición urgente de sueros); además hay una `en_recepcion` con recepción parcial |
+| 2 | **Órdenes de Entrada** | Revisar la lista | Todas las compras del año en todos los estados; el contador sobre la tabla muestra el total, incluidas las 2 canceladas (56 con el seed ejecutado a fines de noviembre, ~60 a mediados de diciembre). Las del guion, creadas por Patricia Soto: `confirmada` (repuestos Laerdal) y `borrador` (reposición urgente de sueros); además hay una `en_recepcion` con recepción parcial |
 | 3 | Orden `borrador` (sueros de emergencia) | Expandir → "Confirmar" | La orden pasa a `confirmada` |
 | 4 | Misma orden | En cada ítem, "Registrar recepción" → cantidad recibida (p. ej. 20 sueros de 1L) | Ítems `recibido`; la orden pasa a `en_recepcion` |
-| 5 | Misma orden | "Cerrar y actualizar stock" | Orden `cerrada`; en Insumos, "Suero fisiológico NaCl 0.9% 1L" sube en la cantidad recibida (de 2 a 22 si no se hizo el paso 5 del operador) |
+| 5 | Misma orden | "Cerrar y actualizar stock" → aceptar la confirmación del navegador | Orden `cerrada`; en Insumos, "Suero fisiológico NaCl 0.9% 1L" sube en la cantidad recibida (de 2 a 22 si no se hizo el paso 5 del operador) |
 | 6 | Orden cerrada | Botón PDF / Excel | Descarga la orden de compra |
 | 6b | (opcional) Orden Laerdal (implementos) | Recibir y cerrar igual que la anterior | El stock de "Bolsa autoinflable AMBU adulto" sube; en sus unidades físicas aparecen "unidades sin subcódigo" con la opción "Generar unidades en lote" (paso previsto para etiquetarlas) |
 | 7 | (opcional) **Órdenes de Entrada** | "Nueva orden" → proveedor, actividad, tipo; agregar ítems al carrito → crear | Nueva orden en `borrador` con total estimado |
 | 8 | **Proveedores** | Revisar "Laerdal Medical Chile SpA" | Ficha con contacto y datos del proveedor |
 | 9 | **Docentes y Clases** | Abrir un docente → agregar un comentario (positivo / negativo / neutro) | Comentario registrado; esta función es exclusiva del coordinador |
-| 10 | **Reportes** | Revisar la valorización; en "Consumo por carrera" buscar 2026-2 y luego 2026-1 | Inventario valorizado, costo de paquetes, riesgo de reposición; consumo y costo por carrera de cada semestre (las 5 carreras, incluido Preparador Físico) |
-| 11 | Reportes | "Reporte PDF" y "Reporte Excel" | Descarga de ambos archivos |
+| 10 | **Reportes** | Pestaña "Información general" (valorización); en la pestaña "Costo por carrera" buscar 2026-2 y luego 2026-1 | Inventario valorizado, costo de paquetes, riesgo de reposición; consumo y costo por carrera de cada semestre (las 5 carreras, incluido Preparador Físico) |
+| 11 | Reportes | Pestaña "Exportar" → "Descargar PDF" y "Descargar Excel" | Descarga de ambos archivos del semestre actual |
 | 12 | **Importaciones** | Abrir el hub | Solo ve "Importar programación" (importar insumos y horario son exclusivos del admin) |
 
 **No mostrar con esta cuenta:** crear o editar **asignaturas** o **clases**. La
@@ -300,7 +300,7 @@ Para mostrar más a fondo, con cualquier cuenta que tenga acceso a la pantalla:
 |---|---|---|---|
 | 1 | **Vista de Salas** | Semestre 2026-1 → un día de abril (p. ej. mié 15 abr) | Las salas con clase ese día aparecen "revisadas"; al seleccionar una se ven taller, docente y horario |
 | 2 | **Vista de Salas** | Semestre 2026-2 → un día de noviembre o diciembre | Antes del día: "próxima clase"; ya pasado: "revisada" |
-| 3 | **Reportes** (coordinador o visor) | "Consumo por carrera": 2026-1 y luego 2026-2 | Costos, talleres y estudiantes por carrera distintos en cada semestre |
+| 3 | **Reportes** (coordinador o visor) | Pestaña "Costo por carrera": 2026-1 y luego 2026-2 | Costos, talleres y estudiantes por carrera distintos en cada semestre |
 | 4 | **Alertas** | Pestaña "Alertas resueltas" con 7, 14 y 30 días | Ítems repuestos en las últimas semanas |
 | 5 | **Mantenimiento** | Filtrar "Cerrada" y abrir la de julio | Resultados por equipo: ok, sale a taller y dar de baja (el Fantoma RCP pediátrico de 2016) |
 | 6 | **Activos Fijos** | Revisar estados | Equipos disponibles, en uso (Sala 011), en mantenimiento y dados de baja |
@@ -365,9 +365,10 @@ defecto), así que solo abre en el mismo equipo del servidor.
 
 ## 5. Checklist de verificación manual
 
-La demo se preparó sin poder ejecutar `docker compose up` real (la migración y
-el seed se probaron contra PostgreSQL 16 directamente). Ejecutar este
-checklist **en local, desde un clon limpio**, antes de la defensa.
+Este checklist se ejecutó completo desde un clon limpio de `main` el 24 de
+noviembre de 2026 (stack real con `docker compose up --build`). Repetirlo **en
+local, desde un clon limpio**, antes de la defensa. Dos pasos piden aceptar una
+confirmación del navegador ("Cerrar y actualizar stock" y "Desactivar 2FA").
 
 ### 5.1 Clon limpio y arranque
 
@@ -377,8 +378,9 @@ checklist **en local, desde un clon limpio**, antes de la defensa.
 - [ ] `docker compose up --build` termina de construir los 5 servicios: `db`, `api`, `frontend`, `nginx`, `backup`
 - [ ] `docker compose ps`: todos los servicios `running`; `api` **no** se reinicia en loop
 - [ ] `docker compose logs api` muestra, en orden: `Aplicando migraciones...` →
-      `Running upgrade ... -> 0004` → `Admin creado: admin@hestia.cl` → Uvicorn escuchando en `:8000`
-- [ ] `docker compose exec api alembic current` → `0004 (head)`
+      `Running upgrade ... -> 0004` → `Running upgrade 0004 -> 0005` → `Admin creado: admin@hestia.cl`
+      → Uvicorn escuchando en `:8000`
+- [ ] `docker compose exec api alembic current` → `0005 (head)`
 - [ ] `http://localhost:3000` muestra el login
 - [ ] `https://localhost` muestra el login tras aceptar el certificado
 
@@ -411,8 +413,9 @@ checklist **en local, desde un clon limpio**, antes de la defensa.
 
 - [ ] Vista de Salas: Sala 010 "pendiente de revisión" → iniciar revisión → marcar revisada
 - [ ] Preparar taller "Taller de venopunción" (paquete 2026-2) en Sala 011 → confirmar → aparecen movimientos de salida
+- [ ] Coordinador: Órdenes de Entrada lista todas las órdenes del seed (el contador coincide con el total del resumen del seed)
 - [ ] Coordinador: confirmar, recibir y cerrar la orden de sueros → sube el stock de "Suero fisiológico NaCl 0.9% 1L"
-- [ ] Reportes: descarga el PDF y el Excel
+- [ ] Reportes, pestaña "Exportar": "Descargar PDF" y "Descargar Excel" descargan ambos archivos
 - [ ] Admin: resetear el 2FA de `cfuentes` → su login muestra el QR
 - [ ] Revisar otra vez desde un segundo dispositivo de la LAN en `https://<IP-del-equipo>`
       (opcional: `./generate-cert.sh` para incluir la IP en el certificado)

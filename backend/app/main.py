@@ -3,7 +3,9 @@ from fastapi import FastAPI, Request, Response
 from fastapi.openapi.utils import get_openapi
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
+from sqlalchemy.exc import InterfaceError, OperationalError
 from app.database import Base, engine
+from app.utils.disponibilidad_bd import manejar_bd_no_disponible
 from app.models import rol                # noqa  <- antes de usuario (FK roles)
 from app.models import sala, categoria, usuario, movimiento, insumo  # noqa
 from app.models import audit_log          # noqa
@@ -89,6 +91,11 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             response.headers[header] = value
         return response
 
+
+# PostgreSQL arrancando o caido: 503 con mensaje claro en vez de 500.
+# Los demas errores de base de datos siguen siendo 500 (ver disponibilidad_bd).
+app.add_exception_handler(OperationalError, manejar_bd_no_disponible)
+app.add_exception_handler(InterfaceError, manejar_bd_no_disponible)
 
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(

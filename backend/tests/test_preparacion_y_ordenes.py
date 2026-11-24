@@ -314,3 +314,48 @@ def test_cierre_y_cancelacion_simultaneos_son_coherentes(
         f"coherentes ({detalle})",
     )
     assert not incorrectas, incorrectas
+
+
+# ---------------------------------------------------------------------------
+# Lista de órdenes de entrada
+# ---------------------------------------------------------------------------
+
+@pytest.mark.corregido(
+    "La lista de órdenes de entrada mostraba solo las 50 más recientes: la API "
+    "devolvía 50 por defecto y la pantalla no pagina, así que con el seed (56 "
+    "órdenes) las 6 más antiguas no aparecían y el contador decía \"50 órdenes\". "
+    "Corregido: sin límite explícito, la API devuelve todas las órdenes."
+)
+@pytest.mark.caso(
+    "P29",
+    "Con más de 50 órdenes de entrada registradas, abrir la lista de Órdenes de "
+    "Entrada (la pantalla pide la lista sin límite)",
+    "La lista trae todas las órdenes registradas, no solo las 50 más recientes",
+)
+def test_lista_de_ordenes_incluye_mas_de_50(
+    client, db, headers_de, crear_insumo, record_property
+):
+    from app.models.orden_entrada import OrdenEntrada
+
+    coord = headers_de("operador_coordinador")
+    insumo_id = crear_insumo(stock=0, nombre=unico("Insumo de orden"))
+    for _ in range(55):
+        r = client.post("/ordenes-entrada/", headers=coord, json={
+            "tipo": "semanal",
+            "items": [{"tipo_item": "insumo", "insumo_id": insumo_id,
+                       "cantidad_pedida": 1}],
+        })
+        assert r.status_code == 201, r.text
+
+    db.expire_all()
+    en_base = {o.id for o in db.query(OrdenEntrada.id)}
+    r = client.get("/ordenes-entrada/", headers=coord)
+    assert r.status_code == 200, r.text
+    listadas = {o["id"] for o in r.json()}
+
+    record_property(
+        "obtenido",
+        f"{len(en_base)} órdenes en la base; la lista trae {len(listadas)}",
+    )
+    assert len(en_base) > 50
+    assert listadas == en_base

@@ -14,11 +14,11 @@ Hestia es una aplicación web para el control de stock de insumos e implementos 
 |---|---|
 | Backend | Python 3.11 · FastAPI · SQLAlchemy · Pydantic v2 |
 | Base de datos | PostgreSQL 16 |
-| Frontend | React 19 · Vite · TypeScript · Tailwind CSS · Zustand |
+| Frontend | React 18.3.1 · Vite · TypeScript · Tailwind CSS · Zustand |
 | Tipografía | Nunito (alojada en el proyecto, licencia OFL) |
 | Autenticación | JWT · bcrypt · TOTP 2FA (Google Authenticator) |
 | Contenedores | Docker · Docker Compose |
-| CI | GitHub Actions (flake8, pip-audit, npm audit) |
+| CI | GitHub Actions (flake8, pip-audit, pytest contra PostgreSQL 16, npm audit) |
 
 ---
 
@@ -222,7 +222,9 @@ hestia/
 │   ├── crear_admin.py     → bootstrap del usuario admin al arrancar
 │   ├── seed_demo.py       → cargador de datos de demo
 │   ├── start.sh            → entrypoint: alembic upgrade head → crear_admin → uvicorn
+│   ├── tests/             → pruebas automáticas (pytest) contra PostgreSQL 16
 │   ├── requirements.txt
+│   ├── requirements-dev.txt → dependencias de pruebas (pytest, httpx)
 │   └── .env.example
 ├── frontend/
 │   ├── src/
@@ -244,12 +246,13 @@ hestia/
 ├── docs/
 │   ├── DEMO.md            → guion de demo, credenciales y 2FA de demo, checklist
 │   ├── FLUJOS_USUARIO.md  → matriz módulos × roles y flujos principales
+│   ├── PRUEBAS.md         → reporte de pruebas automáticas (generado por pytest)
 │   └── demo-2fa/          → QR de los secretos TOTP de demo
 ├── docker-compose.yml
 ├── DESIGN.md              → sistema de diseño del frontend
 ├── CLAUDE.md              → contexto técnico para asistentes IA
 └── .github/
-    ├── workflows/         → CI (validación flake8)
+    ├── workflows/         → CI: flake8, pip-audit, pytest y npm audit
     ├── CONTRIBUTING.md
     └── PULL_REQUEST_TEMPLATE.md
 ```
@@ -259,14 +262,14 @@ hestia/
 ## Limitaciones conocidas
 
 - **Coordinador en Asignaturas y Clases:** la interfaz le muestra los botones de crear y editar, pero el backend exige rol admin y responde 403. Esas acciones se hacen con la cuenta admin. En Insumos, Movimientos, Categorías y Salas ocurre lo inverso: la interfaz oculta al coordinador los botones de escritura que el backend sí le permitiría. Detalle en [`docs/FLUJOS_USUARIO.md`](docs/FLUJOS_USUARIO.md).
-- **Respaldos:** el contenedor `backup` ejecuta `pg_dump` todos los días a las **02:00 hora de Chile** (`TZ=America/Santiago`), lo comprime y lo cifra con AES-256-CBC. Guarda 7 diarios en `/backups/diarios` y 4 semanales (los lunes) en `/backups/semanales`, dentro del volumen `backup_data`. Como `crond` no hereda el entorno del contenedor, `entrypoint.sh` guarda `POSTGRES_*`, `DB_HOST`, `BACKUP_ENCRYPTION_KEY` y `TZ` en `/etc/backup.env`, y `backup.sh` carga ese archivo. El log de cada ejecución queda en `/backups/backup.log` (`docker compose exec backup cat /backups/backup.log`). Respaldo manual: `docker compose exec backup backup.sh`. La clave sale de `BACKUP_ENCRYPTION_KEY` en `backend/.env` (el compose ya no define un valor por defecto). Si falta o sigue siendo un valor de ejemplo, el contenedor lo advierte en `docker compose logs backup` (sin mostrar la clave) y, si falta, el respaldo se aborta. Guarda la clave aparte: sin ella no se puede descifrar ningún respaldo. Para restaurar en una base temporal:
+- **Respaldos:** el contenedor `backup` ejecuta `pg_dump` todos los días a las **02:00 hora de Chile** (`TZ=America/Santiago`), lo comprime y lo cifra con AES-256-CBC. Guarda 7 diarios en `/backups/diarios` y 4 semanales (los lunes) en `/backups/semanales`, dentro del volumen `backup_data`. Como `crond` no hereda el entorno del contenedor, `entrypoint.sh` guarda `POSTGRES_*`, `DB_HOST`, `BACKUP_ENCRYPTION_KEY` y `TZ` en `/etc/backup.env`, y `backup.sh` carga ese archivo. El log de cada ejecución programada (cron) queda en `/backups/backup.log` (`docker compose exec backup cat /backups/backup.log`). Respaldo manual: `docker compose exec backup backup.sh`; su salida aparece en la terminal y **no** se agrega a `backup.log`. La clave sale de `BACKUP_ENCRYPTION_KEY` en `backend/.env` (el compose ya no define un valor por defecto). Si falta o sigue siendo un valor de ejemplo, el contenedor lo advierte en `docker compose logs backup` (sin mostrar la clave) y, si falta, el respaldo se aborta. Guarda la clave aparte: sin ella no se puede descifrar ningún respaldo. Para restaurar en una base temporal:
   ```bash
   docker compose exec -T backup sh -c 'openssl enc -d -aes-256-cbc -pbkdf2 -iter 100000 \
     -pass env:BACKUP_ENCRYPTION_KEY -in /backups/diarios/<archivo>.enc | gunzip' > dump.sql
   docker compose exec db createdb -U postgres hestia_restore
   docker compose exec -T db psql -U postgres -d hestia_restore < dump.sql
   ```
-- **Escaneo de dependencias en CI:** el workflow instala `backend/requirements.txt` y ejecuta `pip-audit -r backend/requirements.txt` sobre las dependencias reales del backend. El paso es **bloqueante**: falla si encuentra cualquier vulnerabilidad conocida. El frontend tiene dos pasos: `npm audit --omit=dev --audit-level=high` (bloqueante, solo dependencias de runtime) y una auditoría completa informativa (`continue-on-error`) que incluye las herramientas de build.
+- **Escaneo de dependencias en CI:** el workflow instala `backend/requirements.txt` y `backend/requirements-dev.txt` y ejecuta `pip-audit` sobre ambos. El paso es **bloqueante**: falla si encuentra cualquier vulnerabilidad conocida. El frontend tiene dos pasos: `npm audit --omit=dev --audit-level=high` (bloqueante, solo dependencias de runtime) y una auditoría completa informativa (`continue-on-error`) que incluye las herramientas de build.
 - **Vulnerabilidades conocidas en dependencias del frontend (noviembre 2026):** la auditoría completa informativa del CI reporta 1 alta y 3 moderadas; el paso bloqueante (solo runtime) no reporta altas.
   - **`vite` 6.4.3 (alta):** avisos de `launch-editor` (GHSA-587h-7wmj-h5pm alta; GHSA-698v-4r3x-3vcv y GHSA-r825-w8mm-5pxw moderadas) y de Vite (GHSA-rq7h-c2jc-7f22 moderada, GHSA-9jrq-w75r-8gcw baja). Está en `devDependencies`, pero **no es solo una herramienta de build en este despliegue**: el contenedor `frontend` sirve la app con el servidor de desarrollo de Vite (`npm run dev`) detrás de nginx, alcanzable desde la LAN. Hay corrección en la misma línea (**6.4.6**), pendiente de aplicar.
   - **`postcss-selector-parser` 6.1.4 (moderada, GHSA-rj75-hqrm-r3gf):** entra por `tailwindcss` 3 (también por `postcss-nested`). Es solo de build: genera el CSS al compilar y no llega al navegador. Tiene corrección (6.1.5 o superior) sin salto mayor.
@@ -283,7 +286,7 @@ hestia/
 ## Flujo de trabajo del equipo
 
 - Rama principal: `main`. El desarrollo de funcionalidades está cerrado; solo se integran correcciones de bugs y documentación mediante Pull Request.
-- El CI (GitHub Actions) ejecuta flake8 sobre `backend/app/`, pip-audit y npm audit (bloqueante sobre dependencias de runtime, informativo sobre todas) en cada push o PR a `main`/`develop`.
+- El CI (GitHub Actions) se ejecuta en cada push o PR a `main`/`develop`: flake8 sobre `backend/app/` y `backend/tests/`, pip-audit (dependencias de runtime y de pruebas), las pruebas automáticas con pytest contra un servicio PostgreSQL 16 (bloqueantes; reporte en [`docs/PRUEBAS.md`](docs/PRUEBAS.md)) y npm audit (bloqueante sobre dependencias de runtime, informativo sobre todas).
 
 Ver [`.github/CONTRIBUTING.md`](.github/CONTRIBUTING.md) para las convenciones de ramas y commits.
 

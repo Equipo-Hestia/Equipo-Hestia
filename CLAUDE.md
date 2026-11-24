@@ -18,13 +18,18 @@ de Ruta IE. El sistema corre en red LAN interna; no tiene IP publica ni dominio.
 
 **Stack completo:**
 - Backend: Python 3.11 · FastAPI · PostgreSQL 16 · SQLAlchemy 2.0 · Pydantic v2
-- Frontend: React 19 · Vite · TypeScript · Tailwind CSS · Zustand · Axios ·
+- Frontend: React 18.3.1 · Vite · TypeScript · Tailwind CSS · Zustand · Axios ·
   lucide-react ^0.396 · @zxing/browser ^0.1.4
 - Tipografia: Nunito (alojada en el proyecto, licencia OFL)
 - Infra: Docker Compose (5 servicios: `db`, `api`, `frontend`, `nginx`, `backup`)
 - Auth: JWT (PyJWT) · bcrypt · TOTP 2FA **obligatorio** (pyotp + QR) · recuperacion
   de contrasena por email (TokenRecuperacion)
-- CI: GitHub Actions con flake8 en push/PR a `main` y `develop`
+- CI: GitHub Actions (`.github/workflows/validacion.yml`) en push/PR a `main` y `develop`:
+  flake8 sobre `backend/app/` y `backend/tests/`; pip-audit de `requirements.txt` y
+  `requirements-dev.txt`; pytest contra un servicio PostgreSQL 16 (bloqueante);
+  `npm audit --omit=dev --audit-level=high` (bloqueante) y una auditoria npm completa
+  informativa (`continue-on-error`)
+- Pruebas: pytest en `backend/tests/` (ver seccion 3.7); reporte en `docs/PRUEBAS.md`
 
 ---
 
@@ -62,6 +67,10 @@ docker compose exec api alembic upgrade head  # aplicar migraciones pendientes a
 
 **`Insumo`** — insumos desechables e implementos retornables.
 `tipo` (insumo|implemento), `sala_id` es campo legado (no usar en nueva logica).
+`stock_actual` es NOT NULL y tiene la restriccion CHECK
+`ck_insumos_stock_actual_no_negativo` (`stock_actual >= 0`, migracion `0005`):
+segunda proteccion ademas de los bloqueos de fila. `InsumoCreate`/`InsumoUpdate`
+validan `stock_actual` y `stock_minimo` con `ge=0` (422 si son negativos).
 
 **`UnidadImplemento`** — unidad fisica de un implemento con subcódigo unico.
 `sala_id=NULL` = en Bodega; `sala_id=X` = asignada a sala clinica X.
@@ -205,6 +214,20 @@ un flujo de software, no catalogos editables por el usuario).
 - Rutas estaticas ANTES de dinamicas: `/buscar`, `/generar-lote`, `/exportar` antes de `/{id}`.
 - Importar `taller` y `paquete_insumo` antes de la primera query ORM (ver mapper bug).
 
+### 3.7 Pruebas automaticas y disponibilidad de la BD
+
+- Suite pytest en `backend/tests/` (casos P01–P31 marcados con `@pytest.mark.caso`).
+  Cada ejecucion crea una base temporal `hestia_test_*` en PostgreSQL, aplica
+  `alembic upgrade head` + `create_all` y la borra al terminar; `hestia_db` no se toca.
+- Los defectos conocidos se marcan `xfail` (no bloquean el CI) y los corregidos
+  llevan `@pytest.mark.corregido(...)` para quedar en el historial.
+- `docs/PRUEBAS.md` se genera desde una ejecucion real con
+  `HESTIA_REPORTE_PRUEBAS` (comando en el propio archivo). No editarlo a mano.
+- Si PostgreSQL no acepta conexiones (arrancando, caido, conexion cortada), la API
+  responde **503** "La base de datos se está iniciando, intenta en unos segundos."
+  con `Retry-After: 5` (`app/utils/disponibilidad_bd.py`). Los demas errores de BD
+  siguen siendo 500.
+
 ---
 
 ## 4. Frontend
@@ -248,6 +271,8 @@ frontend/src/hooks/
 
 **HSelect** — obligatorio para cualquier dropdown visible al usuario.
 Nunca `<select>` nativo en filtros o formularios. Ver DESIGN.md seccion 5.1.
+Excepcion conocida: `PrepararTaller.tsx` usa `<select>` nativo (asignatura, taller,
+semestre y sala); no replicarlo en paginas nuevas.
 
 **useLastUpdated** — obligatorio en toda pagina con boton de actualizar.
 Estandar: label `text-xs text-h-tertiary mt-1` bajo el subtitulo del header;
@@ -332,6 +357,9 @@ Prefijos registrados: `/auth`, `/insumos`, `/importar`, `/resumen`, `/salas`,
 | Reportes      | Valorizacion PDF/XLSX, consumo carreras            | OK             |
 | Migraciones   | Alembic unico sistema activo (julio 2026)          | OK julio 2026  |
 | Migraciones   | Fase 2 expand: tabla roles + usuarios.rol_id       | OK julio 2026  |
+| Inventario    | CHECK stock_actual >= 0 y NOT NULL (migracion 0005) | OK nov 2026   |
+| Pruebas       | Suite pytest (P01–P31) contra PostgreSQL 16 en CI  | OK nov 2026    |
+| API           | 503 con mensaje claro si PostgreSQL no esta disponible | OK nov 2026 |
 
 ### Pendiente
 

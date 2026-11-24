@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session, joinedload
 
@@ -157,8 +157,10 @@ def listar_actividades(
 def listar(
     estado: Optional[str] = None,
     proveedor_id: Optional[int] = None,
-    skip: int = 0,
-    limit: int = 50,
+    skip: int = Query(default=0, ge=0),
+    # Sin limit se devuelven todas: la pantalla no pagina y muestra la lista
+    # completa (unas 60 ordenes por anio). limit/skip quedan para quien pagine.
+    limit: Optional[int] = Query(default=None, ge=1),
     db: Session = Depends(get_db),
     _=Depends(get_usuario_actual),
 ):
