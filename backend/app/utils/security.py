@@ -1,4 +1,4 @@
-from jose import JWTError, jwt
+import jwt
 from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
 import hashlib
@@ -71,5 +71,5 @@ def verificar_token(token: str) -> dict | None:
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         return payload
-    except JWTError:
+    except jwt.PyJWTError:
         return None
