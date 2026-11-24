@@ -16,9 +16,12 @@ if not DATABASE_URL:
 # La sesion de PostgreSQL usa la hora de Santiago: asi cast(timestamptz, Date)
 # y los filtros por dia agrupan por el dia chileno y no por el dia UTC.
 # Los timestamptz guardados no cambian; solo su representacion al leerlos.
+# pool_pre_ping: valida cada conexion del pool antes de usarla; si PostgreSQL
+# se reinicio, descarta la conexion rota y abre otra en vez de responder 500.
 engine = create_engine(
     DATABASE_URL,
     connect_args={"options": "-c timezone=America/Santiago"},
+    pool_pre_ping=True,
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

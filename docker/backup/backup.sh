@@ -32,6 +32,8 @@ if [ -z "${BACKUP_ENCRYPTION_KEY:-}" ]; then
     echo "[$(date)] ERROR: BACKUP_ENCRYPTION_KEY no esta definida. Abortando." >&2
     exit 1
 fi
+# openssl lee la clave del entorno (-pass env:), no de sus argumentos (ps).
+export BACKUP_ENCRYPTION_KEY
 
 # ── Generar dump → comprimir → cifrar ──────────────────────────────────────
 FILENAME="${DB_NAME}_${TIMESTAMP}.sql.gz.enc"
@@ -42,7 +44,7 @@ export PGPASSWORD="${POSTGRES_PASSWORD:-}"
 pg_dump -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" "${DB_NAME}" \
     | gzip \
     | openssl enc -aes-256-cbc -pbkdf2 -iter 100000 \
-        -pass pass:"${BACKUP_ENCRYPTION_KEY}" \
+        -pass env:BACKUP_ENCRYPTION_KEY \
         -out "${DAILY_PATH}"
 
 echo "[$(date)] Backup diario creado: ${DAILY_PATH}"

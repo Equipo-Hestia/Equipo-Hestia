@@ -110,7 +110,8 @@ services:
   # TZ=America/Santiago hace que el cron "0 2 * * *" se interprete
   # en hora local chilena, evitando que el respaldo coincida con
   # horario de clases vespertinas (que terminan cerca de las 22h).
-  # Cifra con AES-256-CBC (BACKUP_ENCRYPTION_KEY del .env).
+  # Cifra con AES-256-CBC usando BACKUP_ENCRYPTION_KEY de backend/.env
+  # (sin valor por defecto: si falta, el entrypoint lo advierte en el log).
   # Retención: 7 diarios + 4 semanales (copia extra cada lunes).
   # Los backups se almacenan en el volumen 'backup_data' (/backups).
   # El entrypoint guarda estas variables en /etc/backup.env para que el
@@ -120,12 +121,15 @@ services:
     build:
       context: ./docker/backup
       dockerfile: Dockerfile
+    # BACKUP_ENCRYPTION_KEY sale de aqui (el mismo archivo que usa la API).
+    # entrypoint.sh solo copia a /etc/backup.env las variables del respaldo.
+    env_file:
+      - ./backend/.env
     environment:
       - POSTGRES_DB=hestia_db
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=hestia_pass
       - DB_HOST=db
-      - BACKUP_ENCRYPTION_KEY=${BACKUP_ENCRYPTION_KEY:-cambia-esta-clave-en-produccion}
       - TZ=America/Santiago
     volumes:
       - backup_data:/backups
