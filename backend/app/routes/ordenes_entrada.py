@@ -118,6 +118,26 @@ def _cargar(orden_id: int, db: Session) -> OrdenEntrada:
     return o
 
 
+def _cargar_bloqueada(orden_id: int, db: Session) -> OrdenEntrada:
+    """Carga la orden bloqueando su fila (SELECT ... FOR UPDATE) hasta el commit.
+
+    Se usa en los endpoints que cambian el estado de una orden que podria
+    estar cerrandose al mismo tiempo (cerrar, cancelar, registrar recepcion).
+    Una segunda peticion concurrente espera a que la primera termine y luego
+    ve el estado ya actualizado, en vez de validar contra un estado viejo
+    (p. ej. un doble clic en "Cerrar" registraba dos compras).
+    """
+    bloqueada = (
+        db.query(OrdenEntrada.id)
+        .filter(OrdenEntrada.id == orden_id)
+        .with_for_update()
+        .first()
+    )
+    if not bloqueada:
+        raise HTTPException(status_code=404, detail="Orden no encontrada.")
+    return _cargar(orden_id, db)
+
+
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
@@ -313,7 +333,7 @@ def registrar_recepcion_item(
     usuario=Depends(require_operador),
 ):
     """Operador registra cantidad fisicamente recibida por item."""
-    o = _cargar(orden_id, db)
+    o = _cargar_bloqueada(orden_id, db)
     if o.estado not in (EstadoOrden.confirmada, EstadoOrden.en_recepcion):
         raise HTTPException(
             status_code=400,
@@ -351,13 +371,38 @@ def cerrar(
     db: Session = Depends(get_db),
     usuario=Depends(_require_coord_o_admin),
 ):
-    """Cierra la orden: impacta stock, crea insumos/activos nuevos, genera movimientos."""
-    o = _cargar(orden_id, db)
+    """Cierra la orden: impacta stock, crea insumos/activos nuevos, genera movimientos.
+
+    Concurrencia: la orden se bloquea (FOR UPDATE) para que dos cierres
+    simultaneos no registren dos compras, y cada insumo existente se bloquea y
+    se relee antes de sumarle stock, para no pisar un movimiento registrado al
+    mismo tiempo. Los insumos se bloquean en orden de id para reducir el riesgo
+    de interbloqueo con otras operaciones que bloquean varios insumos.
+    """
+    o = _cargar_bloqueada(orden_id, db)
     if o.estado not in (EstadoOrden.confirmada, EstadoOrden.en_recepcion):
         raise HTTPException(
             status_code=400,
             detail="Solo se puede cerrar una orden confirmada o en recepción.",
         )
+
+    ids_a_bloquear = sorted({
+        item.insumo_id for item in o.items
+        if item.tipo_item == TipoItemOrden.insumo
+        and item.insumo_id is not None
+        and item.cantidad_recibida and item.cantidad_recibida > 0
+    })
+    insumos_bloqueados = {
+        i.id: i
+        for i in (
+            db.query(Insumo)
+            .filter(Insumo.id.in_(ids_a_bloquear))
+            .order_by(Insumo.id)
+            .with_for_update()
+            .populate_existing()
+            .all()
+        )
+    } if ids_a_bloquear else {}
 
     items_procesados = 0
 
@@ -368,7 +413,7 @@ def cerrar(
             continue
 
         if item.tipo_item == TipoItemOrden.insumo:
-            insumo = item.insumo
+            insumo = insumos_bloqueados.get(item.insumo_id, item.insumo)
             # Crear insumo nuevo si no existe
             if insumo is None and item.nombre_nuevo:
                 tipo_nuevo = TipoInsumo(
@@ -460,7 +505,7 @@ def cancelar(
     db: Session = Depends(get_db),
     usuario=Depends(_require_coord_o_admin),
 ):
-    o = _cargar(orden_id, db)
+    o = _cargar_bloqueada(orden_id, db)
     if o.estado == EstadoOrden.cerrada:
         raise HTTPException(status_code=400, detail="No se puede cancelar una orden cerrada.")
     o.estado = EstadoOrden.cancelada

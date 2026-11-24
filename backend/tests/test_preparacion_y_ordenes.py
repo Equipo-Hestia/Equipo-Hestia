@@ -145,6 +145,47 @@ def test_cerrar_orden_suma_recibido_y_cancela_items_en_cero(
     )
 
 
+# ---------------------------------------------------------------------------
+# Concurrencia sobre ordenes de entrada (P13-P15)
+# ---------------------------------------------------------------------------
+
+RONDAS_CONCURRENCIA = 20
+
+
+def _orden_recibida(client, coord, insumo_id: int, cantidad: int = 10) -> str:
+    """Crea, confirma y registra la recepcion completa de una orden de un insumo."""
+    orden = client.post("/ordenes-entrada/", headers=coord, json={
+        "tipo": "semanal",
+        "items": [{"tipo_item": "insumo", "insumo_id": insumo_id, "cantidad_pedida": cantidad}],
+    }).json()
+    base = f"/ordenes-entrada/{orden['id']}"
+    assert client.post(f"{base}/confirmar", headers=coord).status_code == 200
+    assert client.patch(f"{base}/items/{orden['items'][0]['id']}/recepcion",
+                        json={"cantidad_recibida": cantidad}, headers=coord).status_code == 200
+    return base
+
+
+def _en_paralelo(app, acciones: dict) -> dict:
+    """Ejecuta las acciones {nombre: funcion(cliente) -> status} al mismo tiempo."""
+    barrera = threading.Barrier(len(acciones))
+    codigos = {}
+    candado = threading.Lock()
+
+    def correr(nombre, accion):
+        cliente = TestClient(app)
+        barrera.wait()
+        codigo = accion(cliente)
+        with candado:
+            codigos[nombre] = codigo
+
+    hilos = [threading.Thread(target=correr, args=item) for item in acciones.items()]
+    for t in hilos:
+        t.start()
+    for t in hilos:
+        t.join(timeout=60)
+    return codigos
+
+
 @pytest.mark.caso(
     "P13",
     "Dos personas cierran la misma orden de entrada al mismo tiempo (por ejemplo, "
@@ -152,64 +193,109 @@ def test_cerrar_orden_suma_recibido_y_cancela_items_en_cero(
     "Solo un cierre se acepta; el otro se rechaza. Queda un único movimiento de "
     "compra de 10 unidades y el stock sube exactamente 10",
 )
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "DEFECTO: al cerrar una orden de entrada (POST /ordenes-entrada/{id}/cerrar) "
-        "el sistema no bloquea la orden mientras la procesa (falta SELECT ... FOR "
-        "UPDATE). Si llegan dos cierres al mismo tiempo, ambos se aceptan y cada uno "
-        "registra un movimiento de compra: el historial muestra el doble de lo "
-        "recibido, aunque el stock sube una sola vez."
-    ),
-)
 def test_cierre_simultaneo_de_orden_registra_una_sola_compra(
         app, client, db, headers_de, crear_insumo, stock_de, record_property):
     from app.models.movimiento import Movimiento
 
     coord = headers_de("operador_coordinador")
-    rondas = 20
-    duplicadas = []
-    for _ in range(rondas):
+    incorrectas = []
+    for _ in range(RONDAS_CONCURRENCIA):
         insumo_id = crear_insumo(stock=4, nombre=unico("Mascarillas (cierre doble)"))
-        orden = client.post("/ordenes-entrada/", headers=coord, json={
-            "tipo": "semanal",
-            "items": [{"tipo_item": "insumo", "insumo_id": insumo_id, "cantidad_pedida": 10}],
-        }).json()
-        base = f"/ordenes-entrada/{orden['id']}"
-        assert client.post(f"{base}/confirmar", headers=coord).status_code == 200
-        assert client.patch(f"{base}/items/{orden['items'][0]['id']}/recepcion",
-                            json={"cantidad_recibida": 10}, headers=coord).status_code == 200
+        base = _orden_recibida(client, coord, insumo_id)
 
-        barrera = threading.Barrier(2)
-        codigos = []
-        candado = threading.Lock()
-
-        def cerrar():
-            cliente = TestClient(app)
-            barrera.wait()
-            r = cliente.post(f"{base}/cerrar", headers=coord)
-            with candado:
-                codigos.append(r.status_code)
-
-        hilos = [threading.Thread(target=cerrar) for _ in range(2)]
-        for t in hilos:
-            t.start()
-        for t in hilos:
-            t.join(timeout=60)
+        codigos = _en_paralelo(app, {
+            f"cierre {n}": (lambda c: c.post(f"{base}/cerrar", headers=coord).status_code)
+            for n in (1, 2)
+        })
 
         db.expire_all()
         compras = db.query(Movimiento).filter(Movimiento.insumo_id == insumo_id).all()
-        if len(compras) != 1 or sorted(codigos) != [200, 400] or stock_de(insumo_id) != 14:
-            duplicadas.append((sorted(codigos), len(compras),
-                               sum(m.cantidad for m in compras), stock_de(insumo_id)))
+        resultado = (sorted(codigos.values()), len(compras), stock_de(insumo_id))
+        if resultado != ([200, 400], 1, 14):
+            incorrectas.append(resultado)
 
-    ejemplo = duplicadas[0] if duplicadas else None
     record_property(
         "obtenido",
-        f"En {len(duplicadas)} de {rondas} intentos se aceptaron los dos cierres "
-        + (f"(respuestas {ejemplo[0][0]} y {ejemplo[0][1]}) y quedaron {ejemplo[1]} "
-           f"movimientos de compra por {ejemplo[2]} unidades, aunque el stock solo "
-           f"subió de 4 a {ejemplo[3]}" if ejemplo else "")
-        + ". El historial de compras no cuadra con el stock",
+        f"{RONDAS_CONCURRENCIA - len(incorrectas)} de {RONDAS_CONCURRENCIA} intentos "
+        "correctos: un cierre aceptado (200) y el otro rechazado (400), 1 movimiento de "
+        "compra de 10 y stock 4 → 14"
+        + (f". Incorrectos: {incorrectas[:3]}" if incorrectas else ""),
     )
-    assert not duplicadas, duplicadas
+    assert not incorrectas, incorrectas
+
+
+@pytest.mark.caso(
+    "P14",
+    "Mientras una persona cierra una orden de entrada (llegan 10 unidades), otra "
+    "retira 5 unidades del mismo insumo en el mismo instante, repetido 20 veces",
+    "Ambas operaciones se aceptan y ninguna se pierde: el stock pasa de 20 a 25 "
+    "(20 + 10 − 5) en todos los intentos",
+)
+def test_cierre_de_orden_y_retiro_simultaneos_no_pierden_stock(
+        app, client, headers_de, crear_insumo, stock_de, record_property):
+    coord = headers_de("operador_coordinador")
+    operador = headers_de("operador")
+    incorrectas = []
+    for _ in range(RONDAS_CONCURRENCIA):
+        insumo_id = crear_insumo(stock=20, nombre=unico("Suero (cierre y retiro)"))
+        base = _orden_recibida(client, coord, insumo_id)
+
+        codigos = _en_paralelo(app, {
+            "cierre": lambda c: c.post(f"{base}/cerrar", headers=coord).status_code,
+            "retiro": lambda c: c.post("/movimientos/", headers=operador, json={
+                "tipo": "salida", "subtipo": "consumo_taller", "cantidad": 5,
+                "insumo_id": insumo_id}).status_code,
+        })
+        resultado = (codigos["cierre"], codigos["retiro"], stock_de(insumo_id))
+        if resultado != (200, 200, 25):
+            incorrectas.append(resultado)
+
+    record_property(
+        "obtenido",
+        f"{RONDAS_CONCURRENCIA - len(incorrectas)} de {RONDAS_CONCURRENCIA} intentos "
+        "correctos: cierre 200, retiro 200 y stock final 25"
+        + (f". Incorrectos (cierre, retiro, stock): {incorrectas[:3]}" if incorrectas else ""),
+    )
+    assert not incorrectas, incorrectas
+
+
+@pytest.mark.caso(
+    "P15",
+    "Una persona cierra una orden de entrada y otra la cancela en el mismo "
+    "instante, repetido 20 veces",
+    "Solo una de las dos acciones se acepta y el resultado es coherente: si quedó "
+    "cerrada, el stock sumó lo recibido; si quedó cancelada, el stock no cambió",
+)
+def test_cierre_y_cancelacion_simultaneos_son_coherentes(
+        app, client, headers_de, crear_insumo, stock_de, record_property):
+    coord = headers_de("operador_coordinador")
+    validos = {
+        (200, 400, "cerrada", 30),
+        (400, 200, "cancelada", 20),
+    }
+    vistos = {}
+    incorrectas = []
+    for _ in range(RONDAS_CONCURRENCIA):
+        insumo_id = crear_insumo(stock=20, nombre=unico("Gasas (cerrar o cancelar)"))
+        base = _orden_recibida(client, coord, insumo_id)
+
+        codigos = _en_paralelo(app, {
+            accion: (lambda c, a=accion: c.post(f"{base}/{a}", headers=coord).status_code)
+            for accion in ("cerrar", "cancelar")
+        })
+        estado = client.get(base, headers=coord).json()["estado"]
+        resultado = (codigos["cerrar"], codigos["cancelar"], estado, stock_de(insumo_id))
+        vistos[resultado] = vistos.get(resultado, 0) + 1
+        if resultado not in validos:
+            incorrectas.append(resultado)
+
+    detalle = "; ".join(
+        f"{n}× cerrar {r[0]} / cancelar {r[1]} → {r[2]}, stock {r[3]}"
+        for r, n in sorted(vistos.items(), key=lambda kv: -kv[1])
+    )
+    record_property(
+        "obtenido",
+        f"{RONDAS_CONCURRENCIA - len(incorrectas)} de {RONDAS_CONCURRENCIA} intentos "
+        f"coherentes ({detalle})",
+    )
+    assert not incorrectas, incorrectas

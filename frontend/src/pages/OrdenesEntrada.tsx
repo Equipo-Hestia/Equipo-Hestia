@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, Fragment } from 'react'
+import { useEffect, useState, useCallback, useRef, Fragment } from 'react'
 import {
   ShoppingCart, Plus, ChevronDown, ChevronRight,
   CheckCircle, RefreshCw, Lock, Unlock,
@@ -102,6 +102,8 @@ export function OrdenesEntrada() {
   const [toast,        setToast]       = useState<{ msg: string; tipo: 'ok' | 'err' } | null>(null)
   const [filtroEstado, setFiltroEstado] = useState('')
   const [saving,       setSaving]      = useState(false)
+  const [cerrandoId,   setCerrandoId]  = useState<number | null>(null)
+  const cerrandoRef = useRef(false)  // guard sincrono: el estado no se actualiza entre dos clics
   const [formError,    setFormError]   = useState<string | null>(null)
 
   // Modal orden
@@ -299,12 +301,21 @@ export function OrdenesEntrada() {
   }
 
   async function cerrar(id: number) {
+    // Evita un segundo envio (doble clic) mientras el cierre esta en curso.
+    // El backend tambien bloquea la orden; esto solo evita el clic repetido.
+    if (cerrandoRef.current) return
+    if (!confirm('¿Cerrar esta orden y sumar lo recibido al stock? Esta acción no se puede deshacer.')) return
+    cerrandoRef.current = true
+    setCerrandoId(id)
     try {
       await api.post(`/ordenes-entrada/${id}/cerrar`)
       showToast('Orden cerrada. Stock actualizado.'); load()
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
       showToast(msg ?? 'Error al cerrar.', 'err')
+    } finally {
+      cerrandoRef.current = false
+      setCerrandoId(null)
     }
   }
 
@@ -537,7 +548,9 @@ export function OrdenesEntrada() {
                         )}
                         {esCoord && (o.estado === 'confirmada' || o.estado === 'en_recepcion') && (
                           <button onClick={() => cerrar(o.id)} title="Cerrar y actualizar stock"
-                            className="p-1.5 rounded-lg text-h-tertiary transition-colors duration-150"
+                            disabled={cerrandoId !== null}
+                            aria-busy={cerrandoId === o.id}
+                            className="p-1.5 rounded-lg text-h-tertiary transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
                             onMouseEnter={e => { e.currentTarget.style.background = 'var(--h-sem-success-bg)'; e.currentTarget.style.color = 'var(--h-sem-success-text)' }}
                             onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--h-text-tertiary)' }}>
                             <PackageCheck size={14} />
