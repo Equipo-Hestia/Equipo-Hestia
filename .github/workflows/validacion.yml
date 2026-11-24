@@ -10,6 +10,23 @@ jobs:
   validar:
     runs-on: ubuntu-latest
 
+    # PostgreSQL 16 real para las pruebas automaticas (backend/tests).
+    # Las pruebas crean una base temporal hestia_test_* y la borran al terminar.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
     steps:
       - name: Clonar repositorio
         uses: actions/checkout@v4
@@ -22,16 +39,26 @@ jobs:
       - name: Instalar dependencias Python
         run: |
           python -m pip install --upgrade pip
-          pip install -r backend/requirements.txt
+          pip install -r backend/requirements.txt -r backend/requirements-dev.txt
           pip install pip-audit
 
       - name: Verificar sintaxis con flake8
         run: |
           cd backend
-          flake8 app/ --max-line-length=100 --exclude=__pycache__ --count --statistics
+          flake8 app/ tests/ --max-line-length=100 --exclude=__pycache__ --count --statistics
 
       - name: Escanear vulnerabilidades en dependencias Python
-        run: pip-audit -r backend/requirements.txt --progress-spinner=off
+        run: |
+          pip-audit -r backend/requirements.txt --progress-spinner=off
+          pip-audit -r backend/requirements-dev.txt --progress-spinner=off
+
+      # Bloqueante: reglas de stock, permisos, login/2FA y reportes contra PostgreSQL 16.
+      - name: Pruebas automáticas (pytest)
+        env:
+          TEST_DATABASE_ADMIN_URL: postgresql://postgres:postgres@localhost:5432/postgres
+        run: |
+          cd backend
+          pytest
 
       - name: Configurar Node.js
         uses: actions/setup-node@v4

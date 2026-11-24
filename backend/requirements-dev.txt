@@ -1,0 +1,5 @@
+# Dependencias solo para desarrollo y pruebas (no van en la imagen de produccion).
+# Instalar junto con requirements.txt:
+#   pip install -r requirements.txt -r requirements-dev.txt
+pytest==9.2.0
+httpx==0.28.1  # cliente HTTP de TestClient. No httpx2: exige idna>=3.18 (produccion fija 3.15)
