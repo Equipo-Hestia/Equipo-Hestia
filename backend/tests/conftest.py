@@ -21,7 +21,7 @@ TEST_DATABASE_ADMIN_URL  URL con permiso para CREATE/DROP DATABASE
                          ``postgres`` del mismo servidor.
 HESTIA_REPORTE_PRUEBAS   Si se define, ruta donde escribir el reporte Markdown
                          (docs/PRUEBAS.md) con el resultado de esta ejecucion.
-HESTIA_COMMIT            Commit sobre el que se ejecutan las pruebas (para el
+HESTIA_COMMIT            Commit (y rama) sobre el que se ejecutan las pruebas (para el
                          reporte).
 """
 import os
@@ -347,7 +347,7 @@ def pytest_sessionfinish(session, exitstatus):
         "",
         "| Dato | Valor |",
         "|---|---|",
-        f"| Versión de `main` (commit) | `{commit}` |",
+        f"| Versión del código (commit) | {commit} |",
         f"| Fecha de ejecución | {inicio:%d-%m-%Y %H:%M} (hora de Chile) |",
         f"| Total de casos | {len(filas)} |",
         f"| Aprobados | {aprobados} |",
