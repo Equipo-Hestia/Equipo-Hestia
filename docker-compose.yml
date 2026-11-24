@@ -37,6 +37,7 @@ services:
     # Ningun dispositivo de la LAN puede conectarse directamente a PostgreSQL.
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -109,20 +110,26 @@ services:
   # TZ=America/Santiago hace que el cron "0 2 * * *" se interprete
   # en hora local chilena, evitando que el respaldo coincida con
   # horario de clases vespertinas (que terminan cerca de las 22h).
-  # Cifra con AES-256-CBC (BACKUP_ENCRYPTION_KEY del .env).
+  # Cifra con AES-256-CBC usando BACKUP_ENCRYPTION_KEY de backend/.env
+  # (sin valor por defecto: si falta, el entrypoint lo advierte en el log).
   # Retención: 7 diarios + 4 semanales (copia extra cada lunes).
   # Los backups se almacenan en el volumen 'backup_data' (/backups).
-  # Ver logs: docker compose logs -f backup
+  # El entrypoint guarda estas variables en /etc/backup.env para que el
+  # trabajo de cron (que no hereda el entorno) las cargue.
+  # Log de cada ejecucion: docker compose exec backup cat /backups/backup.log
   backup:
     build:
       context: ./docker/backup
       dockerfile: Dockerfile
+    # BACKUP_ENCRYPTION_KEY sale de aqui (el mismo archivo que usa la API).
+    # entrypoint.sh solo copia a /etc/backup.env las variables del respaldo.
+    env_file:
+      - ./backend/.env
     environment:
       - POSTGRES_DB=hestia_db
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=hestia_pass
       - DB_HOST=db
-      - BACKUP_ENCRYPTION_KEY=${BACKUP_ENCRYPTION_KEY:-cambia-esta-clave-en-produccion}
       - TZ=America/Santiago
     volumes:
       - backup_data:/backups

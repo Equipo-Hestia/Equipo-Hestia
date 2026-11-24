@@ -259,8 +259,25 @@ hestia/
 ## Limitaciones conocidas
 
 - **Coordinador en Asignaturas y Clases:** la interfaz le muestra los botones de crear y editar, pero el backend exige rol admin y responde 403. Esas acciones se hacen con la cuenta admin. En Insumos, Movimientos, Categorías y Salas ocurre lo inverso: la interfaz oculta al coordinador los botones de escritura que el backend sí le permitiría. Detalle en [`docs/FLUJOS_USUARIO.md`](docs/FLUJOS_USUARIO.md).
-- **Backup automático (no verificado):** el cron del contenedor `backup` (BusyBox `crond`) probablemente no hereda las variables de entorno del contenedor. Si es así, `backup.sh` se aborta cada noche por no encontrar `BACKUP_ENCRYPTION_KEY`. No afecta la demo. Para un respaldo manual: `docker compose exec backup backup.sh`.
-- **Escaneo de dependencias en CI:** el workflow ejecuta `pip-audit -r requirements.txt` sobre el `requirements.txt` de la raíz, que está vacío. Por eso no audita las dependencias reales de `backend/requirements.txt`. El frontend tiene dos pasos: `npm audit --omit=dev --audit-level=high` (bloqueante, solo dependencias de runtime) y una auditoría completa informativa (`continue-on-error`) que incluye las herramientas de build.
+- **Respaldos:** el contenedor `backup` ejecuta `pg_dump` todos los días a las **02:00 hora de Chile** (`TZ=America/Santiago`), lo comprime y lo cifra con AES-256-CBC. Guarda 7 diarios en `/backups/diarios` y 4 semanales (los lunes) en `/backups/semanales`, dentro del volumen `backup_data`. Como `crond` no hereda el entorno del contenedor, `entrypoint.sh` guarda `POSTGRES_*`, `DB_HOST`, `BACKUP_ENCRYPTION_KEY` y `TZ` en `/etc/backup.env`, y `backup.sh` carga ese archivo. El log de cada ejecución queda en `/backups/backup.log` (`docker compose exec backup cat /backups/backup.log`). Respaldo manual: `docker compose exec backup backup.sh`. La clave sale de `BACKUP_ENCRYPTION_KEY` en `backend/.env` (el compose ya no define un valor por defecto). Si falta o sigue siendo un valor de ejemplo, el contenedor lo advierte en `docker compose logs backup` (sin mostrar la clave) y, si falta, el respaldo se aborta. Guarda la clave aparte: sin ella no se puede descifrar ningún respaldo. Para restaurar en una base temporal:
+  ```bash
+  docker compose exec -T backup sh -c 'openssl enc -d -aes-256-cbc -pbkdf2 -iter 100000 \
+    -pass env:BACKUP_ENCRYPTION_KEY -in /backups/diarios/<archivo>.enc | gunzip' > dump.sql
+  docker compose exec db createdb -U postgres hestia_restore
+  docker compose exec -T db psql -U postgres -d hestia_restore < dump.sql
+  ```
+- **Escaneo de dependencias en CI:** el workflow instala `backend/requirements.txt` y ejecuta `pip-audit -r backend/requirements.txt` sobre las dependencias reales del backend. Por ahora ese paso es **informativo** (`continue-on-error`) y volverá a ser bloqueante cuando se actualicen las dependencias (ver la viñeta siguiente). El frontend tiene dos pasos: `npm audit --omit=dev --audit-level=high` (bloqueante, solo dependencias de runtime) y una auditoría completa informativa (`continue-on-error`) que incluye las herramientas de build.
+- **Vulnerabilidades conocidas en dependencias del backend (noviembre 2026):** `pip-audit` sobre las 48 dependencias de `backend/requirements.txt` reporta **81 vulnerabilidades: 6 críticas, 51 altas, 21 moderadas y 3 bajas, en 11 paquetes**. Están pendientes de actualizar:
+  - `pillow` 10.4.0: 53 (4 críticas, 35 altas, 14 moderadas); corregidas en la 13.0.0, salto mayor.
+  - `python-jose` 3.5.0: 1 crítica, **sin versión corregida**; su dependencia `ecdsa` 0.19.2 tiene 1 alta, también sin corrección.
+  - `anyio` 4.13.0: 1 crítica y 1 moderada (4.14.2).
+  - `pyasn1` 0.6.3: 7 altas (0.6.5).
+  - `cryptography` 46.0.7: 3 altas y 1 moderada (50.0.0).
+  - `starlette` 1.0.0: 2 altas, 2 moderadas y 1 baja (1.3.1, depende de la versión de `fastapi`).
+  - `dnspython` 2.8.0: 2 altas (2.9.2).
+  - `python-multipart` 0.0.27: 1 alta y 2 bajas (0.0.31).
+  - `fpdf2` 2.8.2: 2 moderadas (2.8.8).
+  - `idna` 3.11: 1 moderada (3.15).
 - **Vulnerabilidades conocidas en dependencias del frontend (octubre 2026):**
   - Las altas restantes están en la cadena de **tailwindcss 3**: `braces`, `micromatch`, `fast-glob`, `chokidar`, más las moderadas de `postcss-selector-parser` y `postcss-nested`. Son **solo herramientas de build**: generan el CSS al compilar y **no llegan al navegador**. Son riesgos de denegación de servicio con patrones de archivos o selectores CSS extremos, que en este proyecto controla el propio repositorio.
   - `braces` **no tiene versión corregida publicada** (el aviso cubre hasta la 3.0.3, la última), y `tailwindcss` ya está en 3.4.19, la última de la línea 3. Corregirlas exige migrar a **Tailwind 4** (salto mayor), lo que se descartó por implicar cambios visuales y de configuración en todo el frontend. Por eso la auditoría completa del CI es informativa.
