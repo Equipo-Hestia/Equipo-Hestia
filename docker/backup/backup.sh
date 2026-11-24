@@ -9,6 +9,13 @@
 # =============================================================================
 set -euo pipefail
 
+# Cron no hereda el entorno del contenedor: cargar las variables que
+# entrypoint.sh guardo al arrancar (POSTGRES_*, DB_HOST, clave, TZ).
+if [ -f /etc/backup.env ]; then
+    # shellcheck disable=SC1091
+    . /etc/backup.env
+fi
+
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 BACKUP_DIR="/backups"
 DB_HOST="${DB_HOST:-db}"

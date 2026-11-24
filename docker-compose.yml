@@ -37,6 +37,7 @@ services:
     # Ningun dispositivo de la LAN puede conectarse directamente a PostgreSQL.
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -112,7 +113,9 @@ services:
   # Cifra con AES-256-CBC (BACKUP_ENCRYPTION_KEY del .env).
   # Retención: 7 diarios + 4 semanales (copia extra cada lunes).
   # Los backups se almacenan en el volumen 'backup_data' (/backups).
-  # Ver logs: docker compose logs -f backup
+  # El entrypoint guarda estas variables en /etc/backup.env para que el
+  # trabajo de cron (que no hereda el entorno) las cargue.
+  # Log de cada ejecucion: docker compose exec backup cat /backups/backup.log
   backup:
     build:
       context: ./docker/backup
