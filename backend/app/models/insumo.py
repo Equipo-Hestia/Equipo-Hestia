@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, Date
 from sqlalchemy import Enum as SAEnum, Numeric
 from sqlalchemy.orm import relationship
-from sqlalchemy import Index
+from sqlalchemy import CheckConstraint, Index
 from app.database import Base
 import enum
 
@@ -18,6 +18,11 @@ class Insumo(Base):
     __table_args__ = (
         Index('uix_insumos_sku', 'sku', unique=True),
         Index('uix_insumos_codigo_barras', 'codigo_barras', unique=True),
+        # Segunda proteccion ademas de los bloqueos de fila y de la API
+        # (migracion 0005): el stock nunca puede quedar negativo.
+        CheckConstraint(
+            'stock_actual >= 0', name='ck_insumos_stock_actual_no_negativo'
+        ),
     )
 
     id = Column(Integer, primary_key=True, index=True)
@@ -49,7 +54,7 @@ class Insumo(Base):
     # y banco de sangre. Nullable: los implementos retornables no vencen.
     fecha_vencimiento = Column(Date, nullable=True)
 
-    stock_actual = Column(Integer, default=0)
+    stock_actual = Column(Integer, default=0, nullable=False)
     stock_minimo = Column(Integer, default=0)
 
     # Soft-delete: un insumo inactivo desaparece de listados, alertas y

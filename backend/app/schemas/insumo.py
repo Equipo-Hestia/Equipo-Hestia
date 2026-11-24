@@ -1,13 +1,13 @@
 from datetime import date
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 from app.models.insumo import TipoInsumo
 
 
 class InsumoCreate(BaseModel):
     nombre: str
     descripcion: str | None = None
-    stock_actual: int = 0
-    stock_minimo: int = 0
+    stock_actual: int = Field(default=0, ge=0)
+    stock_minimo: int = Field(default=0, ge=0)
     sala_id: int | None = None
     categoria_id: int | None = None
     tipo: TipoInsumo = TipoInsumo.insumo
@@ -27,8 +27,8 @@ class InsumoUpdate(BaseModel):
     """
     nombre: str | None = None
     descripcion: str | None = None
-    stock_actual: int | None = None
-    stock_minimo: int | None = None
+    stock_actual: int | None = Field(default=None, ge=0)
+    stock_minimo: int | None = Field(default=None, ge=0)
     sala_id: int | None = None
     categoria_id: int | None = None
     activo: bool | None = None
@@ -38,6 +38,15 @@ class InsumoUpdate(BaseModel):
     costo_unitario: float | None = None
     unidad_medida: str | None = None
     fecha_vencimiento: date | None = None
+
+    @field_validator("stock_actual")
+    @classmethod
+    def _stock_actual_no_vacio(cls, valor):
+        # Omitirlo deja el stock como esta; enviarlo explicitamente como null
+        # lo dejaria vacio, y la columna es NOT NULL (migracion 0005).
+        if valor is None:
+            raise ValueError("El stock actual no puede quedar vacío.")
+        return valor
 
 
 class InsumoResponse(BaseModel):
